@@ -1,0 +1,273 @@
+@import "tailwindcss";
+
+/* ── hoodfi.eth — terminal-ledger theme ─────────────────────────────────────
+   Deep market-screen ink with a green undertone (not pure black), hairlines
+   instead of shadows, tabular mono for every number, hood green reserved for
+   live data and primary actions only. */
+
+:root {
+  --ink: #0a0f0c;
+  --panel: #0d1310;
+  --panel-2: #101812;
+  --line: rgba(148, 210, 165, 0.13);
+  --line-strong: rgba(148, 210, 165, 0.28);
+  --paper: #e9f2ea;
+  --dim: rgba(233, 242, 234, 0.58);
+  --faint: rgba(233, 242, 234, 0.36);
+  --green: #00c805;
+  --green-soft: rgba(0, 200, 5, 0.14);
+  --amber: #e0b34c;
+  --red: #ff5a52;
+
+  --font-display: var(--font-archivo);
+  --font-body: var(--font-inter);
+  --font-data: var(--font-mono);
+}
+
+* {
+  min-width: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-x: clip; /* kills sideways scroll on phones */
+}
+
+::selection {
+  background: var(--green);
+  color: var(--ink);
+}
+
+/* ── type roles ── */
+.display {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+}
+
+.data {
+  font-family: var(--font-data), monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.eyebrow {
+  font-family: var(--font-data), monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* ── surfaces ── */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.hairline-t {
+  border-top: 1px solid var(--line);
+}
+
+.ledger-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ledger-row:last-child {
+  border-bottom: none;
+}
+
+/* ── controls ── */
+/* Kill native button chrome — macOS paints white ButtonFace over transparent
+   backgrounds when appearance isn't reset, so <button> and <a> diverge. */
+button {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-data), monospace;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--green);
+  color: #04270a;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #2fe25a;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--paper);
+  border: 1px solid var(--line-strong);
+}
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--paper);
+}
+
+.input {
+  width: 100%;
+  background: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  color: var(--paper);
+  font-family: var(--font-data), monospace;
+  font-size: 16px; /* ≥16px kills iOS focus-zoom */
+  padding: 11px 14px;
+  transition: border-color 0.15s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--green);
+}
+.input::placeholder {
+  color: var(--faint);
+}
+
+/* ── status colors ── */
+.ok {
+  color: var(--green);
+}
+.warn {
+  color: var(--amber);
+}
+.bad {
+  color: var(--red);
+}
+
+/* ── live dot ── */
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--green);
+  animation: pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ── the millennium ruler ── */
+.ruler-track {
+  position: relative;
+  height: 64px;
+  border-top: 1px solid var(--line-strong);
+}
+.ruler-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 14px;
+  background: var(--line-strong);
+}
+.ruler-tick.minor {
+  height: 7px;
+  background: var(--line);
+}
+.ruler-tick-label {
+  position: absolute;
+  top: 20px;
+  transform: translateX(-50%);
+  font-family: var(--font-data), monospace;
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .ruler-tick-label.mobile-hide {
+    display: none;
+  }
+}
+.ruler-progress {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(0, 200, 5, 0.35), var(--green));
+  transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ruler-marker {
+  position: absolute;
+  top: -6px;
+  transform: translateX(-50%);
+  transition: left 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ruler-marker-line {
+  width: 2px;
+  height: 26px;
+  background: var(--green);
+  margin: 0 auto;
+  box-shadow: 0 0 12px rgba(0, 200, 5, 0.65);
+}
+
+/* ── reveal on scroll (no framer-motion; IntersectionObserver adds .in) ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .live-dot {
+    animation: none;
+  }
+  .ruler-progress,
+  .ruler-marker {
+    transition: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}

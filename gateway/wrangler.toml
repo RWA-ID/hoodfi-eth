@@ -1,0 +1,8 @@
+name = "hoodfi-gateway"
+main = "./src/index.ts"
+compatibility_date = "2024-03-19"
+
+
+[vars]
+ROBINHOOD_RPC_URL = "https://rpc.mainnet.chain.robinhood.com"
+L2_REGISTRY_ADDRESS = "0xf2bABA012244bdD7445129597350054E1B3aEe5C"

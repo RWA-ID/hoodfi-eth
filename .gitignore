@@ -1,0 +1,20 @@
+# secrets — never committed
+.env
+.env.local
+.env.*.local
+
+# build output
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+gateway/out/
+node_modules/
+*.tsbuildinfo
+*.log
+
+# snapshot exports (regenerate from chain)
+reservations-snapshot.json
+.env.signer.json
