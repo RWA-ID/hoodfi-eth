@@ -352,7 +352,7 @@ export default function ClaimPage() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <section className="pt-16 sm:pt-20">
           <Reveal>
             <div className="eyebrow flex items-center gap-2">

@@ -6,7 +6,7 @@ import { ConnectButton } from "./ConnectButton";
 export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--ink)_88%,transparent)] backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="data text-[15px] font-semibold tracking-tight">
           HoodFi<span className="ok">.eth</span>
         </Link>

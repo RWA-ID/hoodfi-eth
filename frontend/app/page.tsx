@@ -37,16 +37,16 @@ export default function Home() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Hero — the thesis */}
         <section className="hero-glow pt-16 sm:pt-24">
           <Reveal>
             <div className="eyebrow">ens names · robinhood chain · chain id 4663</div>
-            <h1 className="display mt-4 max-w-3xl text-4xl sm:text-6xl">
+            <h1 className="display mt-4 max-w-4xl text-4xl sm:text-6xl lg:text-7xl">
               Fund the millennium.{" "}
               <span className="ok">Own your name forever.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-base text-[var(--dim)] sm:text-lg">
+            <p className="mt-5 max-w-xl text-base text-[var(--dim)] sm:text-lg lg:max-w-2xl">
               HoodFi.eth is being funded to a 1,000-year expiry on Ethereum. Donate a
               year, reserve a name like{" "}
               <span className="data text-[var(--paper)]">blake.hoodfi.eth</span> — and
@@ -84,7 +84,7 @@ export default function Home() {
         <section id="how" className="mt-24 sm:mt-32">
           <Reveal>
             <div className="eyebrow">the mechanism</div>
-            <h2 className="display mt-3 text-3xl sm:text-4xl">
+            <h2 className="display mt-3 text-3xl sm:text-4xl lg:text-5xl">
               Years in, names out.
             </h2>
           </Reveal>
@@ -105,7 +105,7 @@ export default function Home() {
         <section id="pricing" className="mt-24 sm:mt-32">
           <Reveal>
             <div className="eyebrow">public sale · after launch</div>
-            <h2 className="display mt-3 text-3xl sm:text-4xl">
+            <h2 className="display mt-3 text-3xl sm:text-4xl lg:text-5xl">
               One price, one time, yours for life.
             </h2>
             <p className="mt-3 max-w-xl text-sm text-[var(--dim)]">

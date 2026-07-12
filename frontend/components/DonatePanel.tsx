@@ -15,6 +15,28 @@ import { DONATIONS_ADDRESS, donationsAbi } from "@/lib/contracts";
 import { checkLabel } from "@/lib/labels";
 import { formatEth } from "@/lib/format";
 
+const SITE_URL = "https://hoodfi.eth.limo";
+
+function shareOnXHref(d: { years: number; labels: string[] }) {
+  const yearsText = `${d.years} year${d.years === 1 ? "" : "s"}`;
+  const names = d.labels
+    .slice(0, 3)
+    .map((l) => `${l}.hoodfi.eth`)
+    .join(" + ");
+  const text = d.labels.length
+    ? `Just reserved ${names} and donated ${yearsText} toward hoodfi.eth's 1,000-year ENS expiry.\n\nEvery donated year = a free name on Robinhood Chain. Reserve yours before the snapshot:\n${SITE_URL}`
+    : `Just donated ${yearsText} toward hoodfi.eth's 1,000-year ENS expiry.\n\nEvery donated year = a free name on Robinhood Chain. Reserve yours before the snapshot:\n${SITE_URL}`;
+  return `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+}
+
+function XLogo() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117l11.966 15.644Z" />
+    </svg>
+  );
+}
+
 const STATUS_LABEL: Record<number, { text: string; cls: string }> = {
   0: { text: "available", cls: "ok" },
   1: { text: "already reserved", cls: "bad" },
@@ -84,6 +106,9 @@ function LabelRow({
 export function DonatePanel() {
   const [years, setYears] = useState(5);
   const [labels, setLabels] = useState<string[]>([""]);
+  // Snapshot of what was actually submitted, so the share text can't drift if
+  // the form is edited while the transaction confirms.
+  const [submitted, setSubmitted] = useState<{ years: number; labels: string[] } | null>(null);
 
   const { address, isConnected, chainId } = useAccount();
   const { open } = useAppKit();
@@ -144,6 +169,7 @@ export function DonatePanel() {
     // 5% buffer absorbs oracle drift between quote and inclusion; the contract
     // refunds every wei above the live renewal price in the same transaction.
     const value = (quote * 105n) / 100n;
+    const snapshot = { years, labels: cleanLabels };
     await writeContractAsync({
       address: DONATIONS_ADDRESS,
       abi: donationsAbi,
@@ -152,6 +178,7 @@ export function DonatePanel() {
       value,
       chainId: mainnet.id,
     });
+    setSubmitted(snapshot);
   }
 
   if (finalized) {
@@ -284,16 +311,29 @@ export function DonatePanel() {
       </button>
 
       {receipt.isSuccess && txHash && (
-        <div className="data mt-3 text-xs ok">
-          ✓ hoodfi.eth extended.{" "}
+        <div className="mt-4 rounded-md border border-[var(--line)] bg-[var(--green-soft)] p-4">
+          <div className="data text-xs ok">
+            ✓ hoodfi.eth extended.{" "}
+            <a
+              className="underline"
+              href={`https://etherscan.io/tx/${txHash}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View transaction
+            </a>
+          </div>
           <a
-            className="underline"
-            href={`https://etherscan.io/tx/${txHash}`}
+            className="btn btn-ghost mt-3 w-full"
+            href={shareOnXHref(submitted ?? { years, labels: cleanLabels })}
             target="_blank"
             rel="noreferrer"
           >
-            View transaction
+            <XLogo /> Share on X
           </a>
+          <p className="mt-2 text-center text-xs text-[var(--faint)]">
+            Every share brings the 1,000-year goal closer.
+          </p>
         </div>
       )}
       {writeError && (

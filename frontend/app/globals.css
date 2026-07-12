@@ -69,12 +69,27 @@ body {
 }
 
 /* ── hero glow ── */
+/* Full-bleed: the section lives inside the centered container, so a plain
+   background clips at the container edge on wide screens. The ::before spans
+   the whole viewport (100vw re-centered) and reaches up behind the header. */
 .hero-glow {
+  position: relative;
+}
+.hero-glow::before {
+  content: "";
+  position: absolute;
+  top: -4rem; /* behind the 64px sticky header */
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
   background: radial-gradient(
-    700px 320px at 12% 0%,
-    rgba(0, 200, 5, 0.08),
+    1100px 480px at 8% -5%,
+    rgba(0, 200, 5, 0.09),
     transparent 70%
   );
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* ── surfaces ── */
