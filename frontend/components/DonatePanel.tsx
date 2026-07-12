@@ -261,8 +261,8 @@ export function DonatePanel() {
           </div>
         )}
         <p className="mt-3 text-xs leading-relaxed text-[var(--faint)]">
-          Unused slots don&apos;t expire — you can reserve later, any time before the
-          snapshot. 4+ characters only; 1–3 character names go on public sale at launch.
+          Unused slots don&apos;t expire — reserve any time before the snapshot. 4+
+          characters only; 1–3 character names go on public sale at launch.
         </p>
       </div>
 
@@ -304,8 +304,8 @@ export function DonatePanel() {
 
       <p className="data mt-4 text-[11px] leading-relaxed text-[var(--faint)]">
         One transaction on Ethereum. Your ETH goes straight to the official ENS
-        controller inside it — this site&apos;s contract can&apos;t hold funds, and any
-        excess is refunded to you in the same transaction.
+        controller — this site&apos;s contract can&apos;t hold funds, and any excess
+        is refunded in the same transaction.
       </p>
     </div>
   );

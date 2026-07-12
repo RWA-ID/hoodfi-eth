@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "FAQ — hoodfi.eth",
+  title: "FAQ — HoodFi.eth",
   description:
     "How donations, reservations, free claims and public registration work on hoodfi.eth.",
 };

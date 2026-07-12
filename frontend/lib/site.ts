@@ -1,5 +1,5 @@
 export const SITE = {
-  name: "hoodfi.eth",
+  name: "HoodFi.eth",
   description:
     "Names on Robinhood Chain, secured until the year 3026. Donate years to hoodfi.eth's expiry, reserve your name, claim it free at launch.",
   url: "https://hoodfi.eth.limo",

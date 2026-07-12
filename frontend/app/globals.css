@@ -68,6 +68,15 @@ body {
   color: var(--dim);
 }
 
+/* ── hero glow ── */
+.hero-glow {
+  background: radial-gradient(
+    700px 320px at 12% 0%,
+    rgba(0, 200, 5, 0.08),
+    transparent 70%
+  );
+}
+
 /* ── surfaces ── */
 .panel {
   background: var(--panel);

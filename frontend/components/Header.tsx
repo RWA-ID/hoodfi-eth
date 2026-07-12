@@ -8,7 +8,7 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--ink)_88%,transparent)] backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="data text-[15px] font-semibold tracking-tight">
-          hoodfi<span className="ok">.eth</span>
+          HoodFi<span className="ok">.eth</span>
         </Link>
         <nav className="flex items-center gap-5 sm:gap-7">
           <Link href="/#how" className="hidden text-sm text-[var(--dim)] hover:text-[var(--paper)] sm:block">

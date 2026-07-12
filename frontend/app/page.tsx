@@ -10,7 +10,7 @@ import { TIER_USD } from "@/lib/labels";
 const STEPS = [
   {
     title: "Donate years",
-    body: "Pick how many years to add to hoodfi.eth's expiry. Your ETH goes straight to the official ENS controller in one transaction — about $5 per year, refunds included.",
+    body: "Pick how many years to add to hoodfi.eth's expiry. ETH goes straight to the official ENS controller in one transaction — about $5 per year, refunds included.",
   },
   {
     title: "Reserve your names",
@@ -22,7 +22,7 @@ const STEPS = [
   },
   {
     title: "Claim free on Robinhood Chain",
-    body: "Donors mint their reserved names for nothing but L2 gas (a fraction of a cent). Right after, public registration opens for everyone else.",
+    body: "Donors mint their reserved names for nothing but L2 gas. Right after, public registration opens for everyone else.",
   },
 ];
 
@@ -39,15 +39,15 @@ export default function Home() {
       <Header />
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* Hero — the thesis */}
-        <section className="pt-16 sm:pt-24">
+        <section className="hero-glow pt-16 sm:pt-24">
           <Reveal>
             <div className="eyebrow">ens names · robinhood chain · chain id 4663</div>
             <h1 className="display mt-4 max-w-3xl text-4xl sm:text-6xl">
-              Own your name until the year{" "}
-              <span className="ok">3026</span>.
+              Fund the millennium.{" "}
+              <span className="ok">Own your name forever.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base text-[var(--dim)] sm:text-lg">
-              hoodfi.eth is being funded to a 1,000-year expiry on Ethereum. Donate a
+              HoodFi.eth is being funded to a 1,000-year expiry on Ethereum. Donate a
               year, reserve a name like{" "}
               <span className="data text-[var(--paper)]">blake.hoodfi.eth</span> — and
               claim it free on Robinhood Chain the day we hit the goal.
@@ -111,7 +111,7 @@ export default function Home() {
             <p className="mt-3 max-w-xl text-sm text-[var(--dim)]">
               Names never expire and never charge renewal. Short names are premium
               inventory sold only at public launch — they can&apos;t be reserved with
-              donations. Pay in ETH or USDG (the dollar stablecoin on Robinhood Chain).
+              donations. Pay in ETH or USDG.
             </p>
           </Reveal>
           <div className="mt-8 grid gap-px overflow-hidden rounded-md border border-[var(--line)] bg-[var(--line)] sm:grid-cols-4">
@@ -143,8 +143,7 @@ export default function Home() {
               <h3 className="display text-lg">Resolves everywhere.</h3>
               <p className="mt-2 text-sm leading-relaxed text-[var(--dim)]">
                 Full ENS compatibility through the Universal Resolver — your name works
-                in MetaMask, Rainbow, Etherscan and every ENS-aware app, on L1 and on
-                Robinhood Chain.
+                in MetaMask, Rainbow, Etherscan and every ENS-aware app.
               </p>
             </Reveal>
             <Reveal delay={120} className="panel p-6">
@@ -152,7 +151,7 @@ export default function Home() {
               <p className="mt-2 text-sm leading-relaxed text-[var(--dim)]">
                 Donations renew hoodfi.eth atomically — the contract can&apos;t hold a
                 single wei. Progress, reservations and the snapshot are all readable
-                straight from the chain.
+                from the chain.
               </p>
             </Reveal>
           </div>
