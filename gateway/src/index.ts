@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 
 import { type Env } from './env'
 import { getCcipRead, getHealth } from './handlers/getCcipRead'
+import { getTokenMetadata } from './handlers/getTokenMetadata'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -24,5 +25,11 @@ app.post('/v1', async (c) => {
   }
   return getCcipRead(body.sender, body.data, c.env)
 })
+
+// ERC-721 metadata — the registry's baseURI points here, so marketplaces fetch
+// `/nft/{tokenId}`. Some indexers append `.json`; accept both spellings.
+app.get('/nft/:tokenId', async (c) =>
+  getTokenMetadata(c.req.param('tokenId').replace(/\.json$/, ''), c.env)
+)
 
 export default app
