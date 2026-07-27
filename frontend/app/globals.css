@@ -18,10 +18,19 @@
   --green-soft: rgba(0, 200, 5, 0.14);
   --amber: #e0b34c;
   --red: #ff5a52;
+}
 
+/* Type roles must be declared on <body>, not :root — next/font puts
+   --font-archivo/--font-inter/--font-mono on the body element, and a var()
+   inside a custom property resolves against the element it's declared on.
+   At :root those lookups come back empty (or, for --font-mono, hit Tailwind's
+   default theme value) and every role silently falls back to a system face. */
+body {
   --font-display: var(--font-archivo);
   --font-body: var(--font-inter);
   --font-data: var(--font-mono);
+  --font-statement-display: var(--font-statement);
+  --font-accent: var(--font-serif);
 }
 
 * {
@@ -66,6 +75,76 @@ body {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--dim);
+}
+
+/* ── hero headline ──
+   Two fonts in one sentence: a tight Space Grotesk statement filled with a
+   silver-chrome gradient, and an IBM Plex Serif italic accent in hood green.
+   The serif shares a superfamily with the site's mono, so it reads in-brand. */
+.statement {
+  font-family: var(--font-statement-display), sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  background: linear-gradient(
+    150deg,
+    #ffffff 0%,
+    #e9f2ea 32%,
+    #9aa3a0 62%,
+    #d7dedb 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+/* Opt back out of the gradient clip — the accent is solid green. */
+.statement .accent {
+  font-family: var(--font-accent), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.12em;
+  letter-spacing: 0.005em;
+  line-height: 0.95;
+  color: var(--green);
+  -webkit-text-fill-color: var(--green);
+}
+
+/* ── hero 3D stage ── */
+.stage {
+  position: relative;
+  width: 100%;
+  height: min(78vh, 720px);
+  min-height: 440px;
+}
+/* Blurred green pool behind the card — the canvas is transparent, so this
+   reads as the card's own bloom. */
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 8% 4%;
+  background: radial-gradient(
+    closest-side,
+    rgba(0, 200, 5, 0.16),
+    transparent 72%
+  );
+  filter: blur(10px);
+  pointer-events: none;
+}
+.stage canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* Matches Tailwind's lg breakpoint, where the hero grid collapses to one
+   column — below it the card sits under the copy and wants to be shorter. */
+@media (max-width: 1023px) {
+  .stage {
+    height: 60vh;
+    min-height: 380px;
+  }
 }
 
 /* ── hero glow ── */

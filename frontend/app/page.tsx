@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Reveal } from "@/components/Reveal";
+import { HeroIdCard } from "@/components/HeroIdCard";
 import { MillenniumRuler } from "@/components/MillenniumRuler";
 import { DonatePanel } from "@/components/DonatePanel";
 import { DonationsFeed } from "@/components/DonationsFeed";
@@ -38,15 +39,15 @@ export default function Home() {
     <>
       <Header />
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Hero — the thesis */}
-        <section className="hero-glow pt-16 sm:pt-24">
+        {/* Hero — the thesis, opposite a claimed identity */}
+        <section className="hero-glow grid items-center gap-6 pt-12 sm:pt-16 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[1.05fr_0.95fr] lg:pt-0">
           <Reveal>
             <div className="eyebrow">ens names · robinhood chain · chain id 4663</div>
-            <h1 className="display mt-4 max-w-4xl text-4xl sm:text-6xl lg:text-7xl">
+            <h1 className="statement mt-4 max-w-[13ch] text-[clamp(40px,5.6vw,78px)]">
               Fund the millennium.{" "}
-              <span className="ok">Own your name forever.</span>
+              <span className="accent">Own your name forever.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-base text-[var(--dim)] sm:text-lg lg:max-w-2xl">
+            <p className="mt-5 max-w-[34ch] text-[clamp(16px,1.3vw,19px)] text-[var(--dim)]">
               HoodFi.eth is being funded to a 1,000-year expiry on Ethereum. Donate a
               year, reserve a name like{" "}
               <span className="data text-[var(--paper)]">blake.hoodfi.eth</span> — and
@@ -60,7 +61,12 @@ export default function Home() {
                 Read the FAQ
               </Link>
             </div>
+            <div className="eyebrow mt-8 flex items-center gap-2.5">
+              <span className="live-dot" />
+              live from the .eth registrar
+            </div>
           </Reveal>
+          <HeroIdCard />
         </section>
 
         {/* Signature: the millennium ruler */}
