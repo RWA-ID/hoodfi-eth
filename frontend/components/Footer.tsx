@@ -32,7 +32,7 @@ function WalletStrip() {
           src="/robinhood/robinhood-wallet-icon.png"
           alt=""
           aria-hidden="true"
-          className="h-12 w-12 shrink-0 rounded-xl"
+          className="h-16 w-16 shrink-0 rounded-2xl"
         />
         <div>
           <p className="eyebrow">Holds your name</p>
@@ -44,27 +44,33 @@ function WalletStrip() {
           />
           <p className="mt-2 max-w-sm text-xs leading-relaxed text-[var(--dim)]">
             A self-custody wallet with Robinhood Chain built in — the network your
-            HoodFi name lives on. Your keys, your name.
+            HoodFi name lives on. Download it today and you&rsquo;ll be ready to claim
+            and manage your name the day we launch.
           </p>
         </div>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-3">
-        <a href={WALLET_IOS} target="_blank" rel="noreferrer">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
-          <img
-            src="/robinhood/appstore-badge.png"
-            alt="Download Robinhood Wallet on the App Store"
-            className="block h-10 w-auto opacity-90 transition-opacity hover:opacity-100"
-          />
-        </a>
-        <a href={WALLET_ANDROID} target="_blank" rel="noreferrer">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
-          <img
-            src="/robinhood/googleplay-badge.png"
-            alt="Get Robinhood Wallet on Google Play"
-            className="block h-10 w-auto opacity-90 transition-opacity hover:opacity-100"
-          />
-        </a>
+      <div className="flex shrink-0 flex-col gap-2.5 sm:items-end">
+        <p className="data text-[11px] tracking-wide text-[var(--green)]">
+          Get the wallet today →
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <a href={WALLET_IOS} target="_blank" rel="noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
+            <img
+              src="/robinhood/appstore-badge.png"
+              alt="Download Robinhood Wallet on the App Store"
+              className="block h-10 w-auto opacity-90 transition-opacity hover:opacity-100"
+            />
+          </a>
+          <a href={WALLET_ANDROID} target="_blank" rel="noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
+            <img
+              src="/robinhood/googleplay-badge.png"
+              alt="Get Robinhood Wallet on Google Play"
+              className="block h-10 w-auto opacity-90 transition-opacity hover:opacity-100"
+            />
+          </a>
+        </div>
       </div>
     </div>
   );
