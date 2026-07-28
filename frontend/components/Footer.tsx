@@ -16,10 +16,65 @@ function XIcon() {
   );
 }
 
+const WALLET_IOS = "https://apps.apple.com/us/app/robinhood-wallet/id1634080733";
+const WALLET_ANDROID =
+  "https://play.google.com/store/apps/details?id=com.robinhood.gateway";
+
+/* Robinhood Wallet is the self-custody wallet that speaks Robinhood Chain, so
+   it's where a HoodFi name actually lands. Store artwork is Apple's and
+   Google's official badge art — linked, never restyled. */
+function WalletStrip() {
+  return (
+    <div className="panel mb-10 flex flex-col gap-6 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:p-6">
+      <div className="flex items-center gap-4">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
+        <img
+          src="/robinhood/robinhood-wallet-icon.png"
+          alt=""
+          aria-hidden="true"
+          className="h-12 w-12 shrink-0 rounded-xl"
+        />
+        <div>
+          <p className="eyebrow">Holds your name</p>
+          {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
+          <img
+            src="/robinhood/robinhood-wallet-wordmark.png"
+            alt="Robinhood Wallet"
+            className="mt-1.5 block h-[22px] w-auto"
+          />
+          <p className="mt-2 max-w-sm text-xs leading-relaxed text-[var(--dim)]">
+            A self-custody wallet with Robinhood Chain built in — the network your
+            HoodFi name lives on. Your keys, your name.
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        <a href={WALLET_IOS} target="_blank" rel="noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
+          <img
+            src="/robinhood/appstore-badge.png"
+            alt="Download Robinhood Wallet on the App Store"
+            className="block h-10 w-auto opacity-90 transition-opacity hover:opacity-100"
+          />
+        </a>
+        <a href={WALLET_ANDROID} target="_blank" rel="noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
+          <img
+            src="/robinhood/googleplay-badge.png"
+            alt="Get Robinhood Wallet on Google Play"
+            className="block h-10 w-auto opacity-90 transition-opacity hover:opacity-100"
+          />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export function Footer() {
   return (
     <footer className="hairline-t mt-24">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <WalletStrip />
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div>
             {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
