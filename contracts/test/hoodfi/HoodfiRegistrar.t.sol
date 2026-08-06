@@ -18,15 +18,20 @@ contract HoodfiRegistrarTest is Test {
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
 
+    uint256 internal signerKey = 0xA11CE515;
+    address internal signer;
+
     // Launch prices: $15 / $10 / $5 / $3 at a placeholder ETH rate
     uint256[4] internal PRICES_WEI =
         [uint256(0.0082 ether), 0.0055 ether, 0.0027 ether, 0.0016 ether];
 
     function setUp() public {
+        signer = vm.addr(signerKey);
+
         vm.startPrank(admin);
         L2RegistryFactory factory = new L2RegistryFactory(address(new L2Registry()));
         registry = L2Registry(factory.deployRegistry("hoodfi.eth"));
-        registrar = new HoodfiRegistrar(address(registry), treasury, PRICES_WEI, admin);
+        registrar = new HoodfiRegistrar(address(registry), treasury, signer, PRICES_WEI, admin);
         registry.addRegistrar(address(registrar));
         usdc = new MockUsdc();
         registrar.setUsdc(address(usdc));
@@ -41,217 +46,374 @@ contract HoodfiRegistrarTest is Test {
         return registry.makeNode(registry.baseNode(), label);
     }
 
-    function _load(string memory label, address owner_) internal {
+    function _voucher(address donor, uint256 total, uint256 expiry)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = registrar.voucherDigest(donor, total, expiry);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _openShorts() internal {
+        vm.prank(admin);
+        registrar.openShorts();
+    }
+
+    function _blocklist(string memory label) internal {
         bytes32[] memory hashes = new bytes32[](1);
         hashes[0] = keccak256(bytes(label));
-        address[] memory owners = new address[](1);
-        owners[0] = owner_;
         vm.prank(admin);
-        registrar.loadReservations(hashes, owners);
-    }
-
-    function _setPhase(HoodfiRegistrar.Phase p) internal {
-        vm.prank(admin);
-        registrar.setPhase(p);
+        registrar.setBlocklist(hashes, true);
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 CLAIMS
+                          PUBLIC MINT (4+ CHARS)
     //////////////////////////////////////////////////////////////*/
 
-    function test_ClaimReservedName() public {
-        _load("blake", alice);
-        _setPhase(HoodfiRegistrar.Phase.Claim);
-
+    function test_PublicMintIsLiveImmediately() public {
         vm.prank(alice);
-        registrar.claim("blake");
-
-        bytes32 node = _node("blake");
-        assertEq(registry.ownerOf(uint256(node)), alice);
-        // Default forward records set for ETH + this chain's ENSIP-11 coinType
-        assertEq(registry.addr(node, 60), abi.encodePacked(alice));
-        assertEq(registry.addr(node, registrar.coinType()), abi.encodePacked(alice));
-        // Reservation consumed
-        assertEq(registrar.reservations(keccak256("blake")), address(0));
+        registrar.register{value: PRICES_WEI[3]}("satoshi");
+        assertEq(registry.ownerOf(uint256(_node("satoshi"))), alice);
     }
 
-    function test_ClaimNotYoursReverts() public {
-        _load("blake", alice);
-        _setPhase(HoodfiRegistrar.Phase.Claim);
-        vm.prank(bob);
-        vm.expectRevert(
-            abi.encodeWithSelector(HoodfiRegistrar.NotReservedForYou.selector, "blake")
-        );
-        registrar.claim("blake");
-    }
-
-    function test_ClaimWhilePausedReverts() public {
-        _load("blake", alice);
+    function test_PublicMintRefundsExcess() public {
+        uint256 before = alice.balance;
         vm.prank(alice);
-        vm.expectRevert(HoodfiRegistrar.WrongPhase.selector);
-        registrar.claim("blake");
+        registrar.register{value: 1 ether}("satoshi");
+        assertEq(alice.balance, before - PRICES_WEI[3]);
     }
 
-    function test_ClaimStillWorksDuringPublicPhase() public {
-        _load("blake", alice);
-        _setPhase(HoodfiRegistrar.Phase.Claim);
-        _setPhase(HoodfiRegistrar.Phase.Public);
-        vm.prank(alice);
-        registrar.claim("blake");
-        assertEq(registry.ownerOf(uint256(_node("blake"))), alice);
-    }
-
-    function test_LoadReservationsOnlyWhilePaused() public {
-        _setPhase(HoodfiRegistrar.Phase.Claim);
-        bytes32[] memory hashes = new bytes32[](1);
-        address[] memory owners = new address[](1);
-        vm.prank(admin);
-        vm.expectRevert(HoodfiRegistrar.WrongPhase.selector);
-        registrar.loadReservations(hashes, owners);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                              PUBLIC MINT
-    //////////////////////////////////////////////////////////////*/
-
-    function test_RegisterTieredEthPricing() public {
-        _setPhase(HoodfiRegistrar.Phase.Public);
-
-        string[4] memory names = ["x", "xy", "xyz", "wxyz"];
-        for (uint256 i = 0; i < 4; i++) {
-            uint256 balBefore = alice.balance;
-            vm.prank(alice);
-            registrar.register{value: PRICES_WEI[i] + 0.01 ether}(names[i]);
-            assertEq(balBefore - alice.balance, PRICES_WEI[i], "tier price kept, excess refunded");
-            assertEq(registry.ownerOf(uint256(_node(names[i]))), alice);
-        }
-        registrar.withdraw();
-        assertEq(
-            treasury.balance,
-            PRICES_WEI[0] + PRICES_WEI[1] + PRICES_WEI[2] + PRICES_WEI[3]
-        );
-    }
-
-    function test_RegisterUnderpaymentReverts() public {
-        _setPhase(HoodfiRegistrar.Phase.Public);
-        vm.prank(alice);
+    function test_PublicMintRevertsOnUnderpayment() public {
         vm.expectRevert(
             abi.encodeWithSelector(
                 HoodfiRegistrar.InsufficientPayment.selector, PRICES_WEI[3], PRICES_WEI[3] - 1
             )
         );
-        registrar.register{value: PRICES_WEI[3] - 1}("wxyz");
-    }
-
-    function test_RegisterDuringClaimPhaseReverts() public {
-        _setPhase(HoodfiRegistrar.Phase.Claim);
         vm.prank(alice);
-        vm.expectRevert(HoodfiRegistrar.WrongPhase.selector);
-        registrar.register{value: 1 ether}("wxyz");
+        registrar.register{value: PRICES_WEI[3] - 1}("satoshi");
     }
 
-    function test_RegisterReservedNameReverts() public {
-        _load("blake", bob);
-        _setPhase(HoodfiRegistrar.Phase.Public);
-        vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.LabelReserved.selector, "blake"));
-        registrar.register{value: 1 ether}("blake");
-    }
-
-    function test_RegisterInvalidLabelReverts() public {
-        _setPhase(HoodfiRegistrar.Phase.Public);
-        vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.InvalidLabel.selector, "Blake!"));
-        registrar.register{value: 1 ether}("Blake!");
-    }
-
-    function test_RegisterDuplicateReverts() public {
-        _setPhase(HoodfiRegistrar.Phase.Public);
-        vm.prank(alice);
-        registrar.register{value: 1 ether}("wxyz");
-        vm.prank(bob);
-        vm.expectRevert(); // registry rejects duplicate mint
-        registrar.register{value: 1 ether}("wxyz");
-    }
-
-    function test_RegisterWithUsdc() public {
-        _setPhase(HoodfiRegistrar.Phase.Public);
+    function test_PublicMintWithUsdc() public {
         vm.startPrank(alice);
-        usdc.approve(address(registrar), type(uint256).max);
-        registrar.registerWithUsdc("x"); // $15 tier
-        registrar.registerWithUsdc("wxyz"); // $3 tier
+        usdc.approve(address(registrar), 3e6);
+        registrar.registerWithUsdc("satoshi");
         vm.stopPrank();
-        assertEq(usdc.balanceOf(treasury), 18e6, "USDC goes straight to treasury");
-        assertEq(registry.ownerOf(uint256(_node("x"))), alice);
+        assertEq(registry.ownerOf(uint256(_node("satoshi"))), alice);
+        assertEq(usdc.balanceOf(treasury), 3e6);
     }
 
-    function test_RegisterWithUsdcUnconfiguredReverts() public {
-        vm.prank(admin);
-        registrar.setUsdc(address(0));
-        _setPhase(HoodfiRegistrar.Phase.Public);
+    function test_DuplicateMintReverts() public {
         vm.prank(alice);
-        vm.expectRevert(HoodfiRegistrar.UsdcNotConfigured.selector);
-        registrar.registerWithUsdc("wxyz");
+        registrar.register{value: PRICES_WEI[3]}("satoshi");
+        vm.expectRevert();
+        vm.prank(bob);
+        registrar.register{value: PRICES_WEI[3]}("satoshi");
+    }
+
+    function test_InvalidLabelReverts() public {
+        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.InvalidLabel.selector, "Satoshi"));
+        vm.prank(alice);
+        registrar.register{value: PRICES_WEI[3]}("Satoshi");
+    }
+
+    function test_PausedBlocksPublicMint() public {
+        vm.prank(admin);
+        registrar.setPaused(true);
+        vm.expectRevert(HoodfiRegistrar.MintingPaused.selector);
+        vm.prank(alice);
+        registrar.register{value: PRICES_WEI[3]}("satoshi");
+    }
+
+    function test_BlocklistedLabelReverts() public {
+        _blocklist("wwww");
+        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.LabelBlocked.selector, "wwww"));
+        vm.prank(alice);
+        registrar.register{value: PRICES_WEI[3]}("wwww");
     }
 
     /*//////////////////////////////////////////////////////////////
-                          RELEASE + VIEWS + ADMIN
+                        SHORT NAMES ARE LOCKED
     //////////////////////////////////////////////////////////////*/
 
-    function test_ReleaseUnclaimedAfterWindow() public {
-        _load("blake", bob);
-        _setPhase(HoodfiRegistrar.Phase.Claim);
-        _setPhase(HoodfiRegistrar.Phase.Public);
-
-        bytes32[] memory hashes = new bytes32[](1);
-        hashes[0] = keccak256("blake");
-
-        vm.prank(admin);
-        vm.expectRevert(HoodfiRegistrar.ReleaseTooEarly.selector);
-        registrar.releaseUnclaimed(hashes);
-
-        vm.warp(block.timestamp + 30 days + 1);
-        vm.prank(admin);
-        registrar.releaseUnclaimed(hashes);
-
+    function test_ShortNamesLockedBeforeGoal() public {
+        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.ShortNameLocked.selector, "gm"));
         vm.prank(alice);
-        registrar.register{value: 1 ether}("blake");
-        assertEq(registry.ownerOf(uint256(_node("blake"))), alice);
+        registrar.register{value: PRICES_WEI[1]}("gm");
     }
 
-    function test_Status() public {
-        _load("blake", bob);
-        _setPhase(HoodfiRegistrar.Phase.Public);
-        assertEq(registrar.status("wxyz"), 0); // available
-        assertEq(registrar.status("blake"), 2); // reserved
-        assertEq(registrar.status("UPPER"), 3); // invalid
-        vm.prank(alice);
-        registrar.register{value: 1 ether}("wxyz");
-        assertEq(registrar.status("wxyz"), 1); // taken
+    function test_ShortNamesLockedForUsdcToo() public {
+        vm.startPrank(alice);
+        usdc.approve(address(registrar), 100e6);
+        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.ShortNameLocked.selector, "gm"));
+        registrar.registerWithUsdc("gm");
+        vm.stopPrank();
     }
 
-    function test_PriceOf() public view {
-        (uint256 w1, uint256 u1) = registrar.priceOf("x");
+    function test_ShortNamesOpenAfterGoal() public {
+        _openShorts();
+        vm.prank(alice);
+        registrar.register{value: PRICES_WEI[1]}("gm");
+        assertEq(registry.ownerOf(uint256(_node("gm"))), alice);
+    }
+
+    function test_ShortTierPricingApplies() public {
+        _openShorts();
+        vm.startPrank(alice);
+        registrar.register{value: PRICES_WEI[0]}("x");
+        registrar.register{value: PRICES_WEI[1]}("gm");
+        registrar.register{value: PRICES_WEI[2]}("eth");
+        vm.stopPrank();
+        assertEq(registry.ownerOf(uint256(_node("x"))), alice);
+        assertEq(registry.ownerOf(uint256(_node("eth"))), alice);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            VOUCHER MINTING
+    //////////////////////////////////////////////////////////////*/
+
+    function test_DonorMintsShortWithVoucher() public {
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("gm", 1, expiry, sig);
+        assertEq(registry.ownerOf(uint256(_node("gm"))), alice);
+        assertEq(registrar.creditsSpent(alice), 1);
+    }
+
+    function test_VoucherMintIsFree() public {
+        uint256 before = alice.balance;
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("gm", 1, expiry, sig);
+        assertEq(alice.balance, before);
+    }
+
+    function test_CreditsExhaustAfterSpending() public {
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 2, expiry);
+
+        vm.startPrank(alice);
+        registrar.mintShortWithVoucher("gm", 2, expiry, sig);
+        registrar.mintShortWithVoucher("wa", 2, expiry, sig);
+        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.NoCreditsLeft.selector, 2, 2));
+        registrar.mintShortWithVoucher("ok", 2, expiry, sig);
+        vm.stopPrank();
+    }
+
+    /// @dev The whole point of attesting a cumulative total: replaying an old voucher
+    ///      cannot mint beyond the total it attested.
+    function test_ReplayingStaleVoucherCannotOverMint() public {
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory oldSig = _voucher(alice, 1, expiry);
+        bytes memory newSig = _voucher(alice, 3, expiry);
+
+        vm.startPrank(alice);
+        registrar.mintShortWithVoucher("gm", 3, expiry, newSig);
+        registrar.mintShortWithVoucher("wa", 3, expiry, newSig);
+        // Two spent; the stale voucher attesting only 1 is now useless.
+        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.NoCreditsLeft.selector, 1, 2));
+        registrar.mintShortWithVoucher("ok", 1, expiry, oldSig);
+        vm.stopPrank();
+    }
+
+    function test_VoucherIsBoundToDonor() public {
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        vm.expectRevert(HoodfiRegistrar.BadVoucher.selector);
+        vm.prank(bob);
+        registrar.mintShortWithVoucher("gm", 1, expiry, sig);
+    }
+
+    function test_VoucherFromWrongSignerReverts() public {
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes32 digest = registrar.voucherDigest(alice, 1, expiry);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBADBAD, digest);
+        vm.expectRevert(HoodfiRegistrar.BadVoucher.selector);
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("gm", 1, expiry, abi.encodePacked(r, s, v));
+    }
+
+    function test_ExpiredVoucherReverts() public {
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        vm.warp(expiry + 1);
+        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.VoucherExpired.selector, expiry));
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("gm", 1, expiry, sig);
+    }
+
+    function test_TamperedCreditAmountReverts() public {
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        vm.expectRevert(HoodfiRegistrar.BadVoucher.selector);
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("gm", 99, expiry, sig);
+    }
+
+    function test_VoucherCannotMintLongName() public {
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.NotAShortName.selector, "satoshi"));
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("satoshi", 1, expiry, sig);
+    }
+
+    function test_VoucherRespectsBlocklist() public {
+        _blocklist("www");
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        vm.expectRevert(abi.encodeWithSelector(HoodfiRegistrar.LabelBlocked.selector, "www"));
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("www", 1, expiry, sig);
+    }
+
+    function test_CreditsStillWorkAfterShortsOpen() public {
+        _openShorts();
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        uint256 before = alice.balance;
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("gm", 1, expiry, sig);
+        assertEq(alice.balance, before, "credit mint stays free post-goal");
+    }
+
+    function test_PausedBlocksVoucherMint() public {
+        vm.prank(admin);
+        registrar.setPaused(true);
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        vm.expectRevert(HoodfiRegistrar.MintingPaused.selector);
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("gm", 1, expiry, sig);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_StatusReflectsLockAndAvailability() public {
+        assertEq(registrar.status("satoshi"), 0, "4+ available");
+        assertEq(registrar.status("gm"), 2, "short locked pre-goal");
+        assertEq(registrar.status("Satoshi"), 3, "invalid");
+
+        _blocklist("wwww");
+        assertEq(registrar.status("wwww"), 4, "blocked");
+
+        vm.prank(alice);
+        registrar.register{value: PRICES_WEI[3]}("satoshi");
+        assertEq(registrar.status("satoshi"), 1, "taken");
+
+        _openShorts();
+        assertEq(registrar.status("gm"), 0, "short available post-goal");
+    }
+
+    function test_PriceOfByTier() public view {
+        (uint256 w1,) = registrar.priceOf("x");
+        (uint256 w2,) = registrar.priceOf("gm");
+        (uint256 w3,) = registrar.priceOf("eth");
+        (uint256 w4, uint256 u4) = registrar.priceOf("satoshi");
         assertEq(w1, PRICES_WEI[0]);
-        assertEq(u1, 15e6);
-        (uint256 w4, uint256 u4) = registrar.priceOf("wxyz");
+        assertEq(w2, PRICES_WEI[1]);
+        assertEq(w3, PRICES_WEI[2]);
         assertEq(w4, PRICES_WEI[3]);
         assertEq(u4, 3e6);
     }
 
-    function test_SetPricesOnlyOwner() public {
-        uint256[4] memory p = [uint256(1), 2, 3, 4];
+    function test_CreditsAvailableView() public {
+        assertEq(registrar.creditsAvailable(alice, 3), 3);
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 3, expiry);
         vm.prank(alice);
-        vm.expectRevert();
-        registrar.setPrices(p, p);
-
-        vm.prank(admin);
-        registrar.setPrices(p, p);
-        assertEq(registrar.priceWei(0), 1);
-        assertEq(registrar.priceUsdc(3), 4);
+        registrar.mintShortWithVoucher("gm", 3, expiry, sig);
+        assertEq(registrar.creditsAvailable(alice, 3), 2);
+        assertEq(registrar.creditsAvailable(alice, 0), 0, "no underflow");
     }
 
-    function test_CoinTypeIsEnsip11() public view {
-        assertEq(registrar.coinType(), 0x80000000 | block.chainid);
+    /*//////////////////////////////////////////////////////////////
+                            RECORDS & ADMIN
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The manage page depends on this: the name owner, not just a registrar,
+    ///      must be able to write their own records.
+    function test_NameOwnerCanSetOwnRecords() public {
+        vm.prank(alice);
+        registrar.register{value: PRICES_WEI[3]}("satoshi");
+
+        bytes32 node = _node("satoshi");
+        vm.startPrank(alice);
+        registry.setText(node, "avatar", "ipfs://abc");
+        registry.setText(node, "com.twitter", "hoodfieth");
+        vm.stopPrank();
+
+        assertEq(registry.text(node, "avatar"), "ipfs://abc");
+        assertEq(registry.text(node, "com.twitter"), "hoodfieth");
+    }
+
+    function test_NonOwnerCannotSetRecords() public {
+        vm.prank(alice);
+        registrar.register{value: PRICES_WEI[3]}("satoshi");
+        bytes32 node = _node("satoshi");
+        vm.expectRevert();
+        vm.prank(bob);
+        registry.setText(node, "avatar", "ipfs://evil");
+    }
+
+    function test_MintSetsForwardAddrs() public {
+        vm.prank(alice);
+        registrar.register{value: PRICES_WEI[3]}("satoshi");
+        bytes32 node = _node("satoshi");
+        assertEq(registry.addr(node, 60), abi.encodePacked(alice));
+        assertEq(registry.addr(node, registrar.coinType()), abi.encodePacked(alice));
+    }
+
+    function test_WithdrawSweepsToTreasury() public {
+        vm.prank(alice);
+        registrar.register{value: PRICES_WEI[3]}("satoshi");
+        uint256 before = treasury.balance;
+        registrar.withdraw();
+        assertEq(treasury.balance, before + PRICES_WEI[3]);
+        assertEq(address(registrar).balance, 0);
+    }
+
+    function test_OnlyOwnerAdmin() public {
+        vm.startPrank(alice);
+        vm.expectRevert();
+        registrar.openShorts();
+        vm.expectRevert();
+        registrar.setPaused(true);
+        vm.expectRevert();
+        registrar.setCreditSigner(alice);
+        vm.stopPrank();
+    }
+
+    /// @dev Cross-language pin. The gateway builds this preimage in TypeScript; if the
+    ///      field order, widths or encoding ever drift apart, donors get an opaque
+    ///      BadVoucher() revert instead of their name. Vector generated with viem and
+    ///      independently confirmed with `cast abi-encode | cast keccak`.
+    function test_VoucherDigestPreimageMatchesGateway() public pure {
+        bytes32 expected = 0xe97b2af95eb3630b2f984db5df82bc9a4ceb0a79fcce5e2c18fc711a5eb3637d;
+        bytes32 actual = keccak256(
+            abi.encode(
+                address(0x75d61F7d87C5A0F4a52Fe526642c80d0Ef994f51),
+                uint256(4663),
+                address(0x5f11a48230f7CdaB91A2361576239091E4b1165b),
+                uint256(3),
+                uint256(1_800_000_000)
+            )
+        );
+        assertEq(actual, expected, "voucher preimage drifted from the gateway");
+    }
+
+    function test_SetCreditSignerRotatesAttestation() public {
+        uint256 expiry = block.timestamp + 1 hours;
+        bytes memory sig = _voucher(alice, 1, expiry);
+        vm.prank(admin);
+        registrar.setCreditSigner(makeAddr("newSigner"));
+        vm.expectRevert(HoodfiRegistrar.BadVoucher.selector);
+        vm.prank(alice);
+        registrar.mintShortWithVoucher("gm", 1, expiry, sig);
     }
 }

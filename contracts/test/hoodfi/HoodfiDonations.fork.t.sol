@@ -41,17 +41,16 @@ contract HoodfiDonationsForkTest is Test {
         assertGt(cost, 0);
 
         uint256 balBefore = alice.balance;
-        string[] memory labels = new string[](1);
-        labels[0] = "blake";
 
         // 5% buffer like the frontend sends; contract must refund the excess
         vm.prank(alice);
-        donations.donate{value: (cost * 105) / 100}(3, labels);
+        donations.donate{value: (cost * 105) / 100}(3);
 
         assertEq(donations.nameExpires(), expiryBefore + 3 * YEAR, "expiry moved by 3y");
         assertEq(balBefore - alice.balance, cost - preExistingDust, "only the oracle price kept");
         assertEq(address(donations).balance, 0, "zero-balance invariant");
-        assertEq(donations.reservedBy(keccak256("blake")), alice);
+        assertEq(donations.shortCredits(alice), 3, "3 years donated = 3 short credits");
+        assertEq(donations.totalYearsDonated(), 3);
     }
 
     function test_Fork_QuoteIsPlausible() public view {

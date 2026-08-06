@@ -7,9 +7,13 @@ import {L2Registry} from "src/L2Registry.sol";
 import {L2RegistryFactory} from "src/L2RegistryFactory.sol";
 import {HoodfiRegistrar} from "src/hoodfi/HoodfiRegistrar.sol";
 
-/// @notice Robinhood Chain deploy: registry implementation + factory + hoodfi.eth
-///         registry + phase-aware registrar (starts Paused).
-/// Env: PRIVATE_KEY, TREASURY, optional USDC (settable later), optional prices.
+/// @notice Robinhood Chain FRESH deploy: registry implementation + factory + hoodfi.eth
+///         registry + registrar. Public minting of 4+ char names is live immediately;
+///         1-3 char names stay locked to credit holders until openShorts().
+///
+///         To swap the registrar on the already-live registry instead of starting over,
+///         use UpgradeRegistrar.s.sol — that is the script you want on mainnet.
+/// Env: PRIVATE_KEY, TREASURY, CREDIT_SIGNER, optional USDC (settable later), optional prices.
 /// Run: forge script scripts/hoodfi/DeployL2.s.sol --rpc-url robinhood --broadcast
 contract DeployL2 is Script {
     function run() external {
@@ -17,6 +21,7 @@ contract DeployL2 is Script {
         address deployer = vm.addr(pk);
         address treasury = vm.envOr("TREASURY", deployer);
         address usdc = vm.envOr("USDC", address(0));
+        address creditSigner = vm.envOr("CREDIT_SIGNER", deployer);
 
         // Launch defaults: $15 / $10 / $5 / $3 at the ETH rate set here.
         // Owner-settable later via setPrices as ETH/USD drifts.
@@ -32,7 +37,7 @@ contract DeployL2 is Script {
         L2Registry registry =
             L2Registry(factory.deployRegistry("hoodfi.eth", "HOODFI", "", deployer));
         HoodfiRegistrar registrar =
-            new HoodfiRegistrar(address(registry), treasury, priceWei, deployer);
+            new HoodfiRegistrar(address(registry), treasury, creditSigner, priceWei, deployer);
         registry.addRegistrar(address(registrar));
         if (usdc != address(0)) {
             registrar.setUsdc(usdc);
