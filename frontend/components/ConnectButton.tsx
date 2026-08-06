@@ -11,13 +11,20 @@ export function ConnectButton() {
 
   if (isConnected && address) {
     return (
-      <button className="btn btn-ghost" onClick={() => disconnect()} title="Disconnect">
-        <span className="data">{formatAddress(address)}</span>
+      <button
+        className="nav-pill data inline-flex items-center font-semibold text-[var(--paper)]"
+        onClick={() => disconnect()}
+        title="Disconnect"
+      >
+        {formatAddress(address)}
       </button>
     );
   }
   return (
-    <button className="btn btn-ghost" onClick={() => open()}>
+    <button
+      className="nav-pill data inline-flex items-center font-semibold text-[var(--paper)]"
+      onClick={() => open()}
+    >
       Connect
     </button>
   );

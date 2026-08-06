@@ -4,6 +4,8 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Reveal } from "@/components/Reveal";
 import { MintPanel } from "@/components/MintPanel";
+import { MintIdentityHero } from "@/components/MintIdentityHero";
+import { MintQueryProvider } from "@/components/MintQuery";
 import { PageView } from "@/components/PageView";
 import { TIER_USD } from "@/lib/labels";
 import { ogMetadata } from "@/lib/metadata";
@@ -29,20 +31,10 @@ export default function MintPage() {
       <PageView />
       <Header />
       <main className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
-        <section className="hero-glow pt-12 sm:pt-16">
+       <MintQueryProvider>
+        <section className="hero-glow pt-10 sm:pt-14">
           <Reveal>
-            <div className="eyebrow">robinhood chain · chain id 4663</div>
-            {/* `.bloom` is display:block so the two lines always land on their own
-                rows — relying on natural wrapping puts them flush against each other
-                and the minifier eats the separating space. */}
-            <h1 className="statement mt-4 max-w-[14ch] text-[clamp(36px,4.6vw,64px)]">
-              Mint your name.
-              <span className="bloom">Keep it forever.</span>
-            </h1>
-            <p className="mt-5 max-w-[52ch] text-[clamp(16px,1.3vw,19px)] text-[var(--dim)]">
-              A lifetime ENS name on Robinhood Chain. One transaction, no renewals, no
-              expiry — you own the ERC-721 and every record on it.
-            </p>
+            <MintIdentityHero />
           </Reveal>
         </section>
 
@@ -118,6 +110,7 @@ export default function MintPage() {
             </div>
           </Reveal>
         </section>
+       </MintQueryProvider>
       </main>
       <Footer />
     </>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useAccount,
@@ -23,6 +24,7 @@ import { formatEth } from "@/lib/format";
 import { VOUCHER_URL } from "@/lib/site";
 import { track } from "@/lib/analytics";
 import { ShareOnX } from "./ShareOnX";
+import { useMintQuery } from "./MintQuery";
 
 type Voucher = {
   totalCredits: string;
@@ -43,8 +45,20 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced;
 }
 
-export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
-  const [query, setQuery] = useState(initialQuery);
+export function MintPanel({
+  initialQuery = "",
+  handoffOnConnect = false,
+}: {
+  initialQuery?: string;
+  /** Home page only: after connecting, carry the typed name over to /mint. */
+  handoffOnConnect?: boolean;
+}) {
+  // Inside the /mint provider the hero owns the query so the oversized line tracks
+  // this field; everywhere else the card keeps its own state.
+  const shared = useMintQuery();
+  const [localQuery, setLocalQuery] = useState(initialQuery);
+  const query = shared ? shared.query : localQuery;
+  const setQuery = shared ? shared.setQuery : setLocalQuery;
   const [method, setMethod] = useState<PayMethod>("eth");
   const [voucher, setVoucher] = useState<Voucher | null>(null);
   const [voucherError, setVoucherError] = useState<string | null>(null);
@@ -55,6 +69,7 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
 
   const { address, isConnected, chainId } = useAccount();
   const { open } = useAppKit();
+  const router = useRouter();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync, data: txHash, isPending, error: writeError } =
     useWriteContract();
@@ -196,11 +211,28 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
 
   const canMintPublic =
     status === MINT_STATUS.AVAILABLE && !canMintWithCredit && !creditUnknown;
+
+  // A locked short name with no credit can't be bought at any price, so the price
+  // ledger, the ETH/USDG toggle and the mint button are all dead weight — and they
+  // push the one thing that *is* actionable, "Earn a credit", off the screen.
+  const lockedNoCredit =
+    shortsLocked && !creditUnknown && creditsLeft === 0 && status === MINT_STATUS.LOCKED;
   const canMint = enabled && (canMintPublic || canMintWithCredit);
+
+  // On the home page, connecting is a commitment to mint — so once the wallet is in,
+  // carry the typed name to /mint rather than leaving them on the marketing page to
+  // find the button again. Cleared if they connect without having asked to mint.
+  const awaitingConnect = useRef(false);
+  useEffect(() => {
+    if (!handoffOnConnect || !awaitingConnect.current || !isConnected) return;
+    awaitingConnect.current = false;
+    router.push(label ? `/mint/?q=${encodeURIComponent(label)}` : "/mint/");
+  }, [handoffOnConnect, isConnected, label, router]);
 
   async function ensureChain() {
     if (!isConnected) {
       track("connect_opened");
+      awaitingConnect.current = true;
       open();
       return false;
     }
@@ -362,36 +394,8 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
       </div>
       {verdict && <div className={`data mt-2 text-xs ${verdict.cls}`}>{verdict.text}</div>}
 
-      {/* The whole pitch in two lines: the hex string you hand people today, and the
-          name that replaces it. Tracks `label`, not `debouncedLabel`, so it fills in
-          under the cursor rather than lagging a search behind. */}
-      {isConnected && address && (
-        <div className="mt-5 rounded-md border border-[var(--line)] p-4">
-          <div className="data text-[11px] uppercase tracking-wider text-[var(--faint)]">
-            Your current wallet address
-          </div>
-          <div className="data mt-1 break-all text-xs leading-relaxed text-[var(--dim)]">
-            {address}
-          </div>
 
-          <div className="my-3 flex items-center gap-2" aria-hidden>
-            <span className="data text-xs text-[var(--faint)]">↓</span>
-            <span className="h-px flex-1 bg-[var(--line)]" />
-          </div>
-
-          <div className="data text-[11px] uppercase tracking-wider text-[var(--faint)]">
-            Your new wallet address
-          </div>
-          <div className="data mt-1 break-all text-base">
-            <span className={label ? "text-[var(--paper)]" : "text-[var(--faint)]"}>
-              {label || "yourname"}
-            </span>
-            <span className="ok">.hoodfi.eth</span>
-          </div>
-        </div>
-      )}
-
-      {debouncedLabel && check.ok && (
+      {debouncedLabel && check.ok && !lockedNoCredit && (
         <div className="mt-5">
           <div className="ledger-row">
             <span className="text-sm text-[var(--dim)]">Length</span>
@@ -426,7 +430,7 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
         </div>
       )}
 
-      {!canMintWithCredit && (
+      {!canMintWithCredit && !lockedNoCredit && debouncedLabel && check.ok && (
         <div className="mt-5 flex gap-2">
           {(["eth", "usdg"] as PayMethod[]).map((m) => (
             <button
@@ -442,6 +446,7 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
         </div>
       )}
 
+      {!lockedNoCredit && (
       <button
         className="btn btn-primary mt-5 w-full"
         onClick={mint}
@@ -464,6 +469,7 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
                       ? `Mint ${debouncedLabel}.hoodfi.eth`
                       : "Mint"}
       </button>
+      )}
 
       {/* Short names pre-goal: explain the one path that unlocks them. */}
       {shortsLocked && creditsLeft === 0 && (

@@ -6,6 +6,8 @@ import { Reveal } from "@/components/Reveal";
 import { HeroIdCard } from "@/components/HeroIdCard";
 import { CenturyRuler } from "@/components/CenturyRuler";
 import { MintPanel } from "@/components/MintPanel";
+import { MintQueryProvider } from "@/components/MintQuery";
+import { ConnectMintButton } from "@/components/ConnectMintButton";
 import { DonatePanel } from "@/components/DonatePanel";
 import { DonationsFeed } from "@/components/DonationsFeed";
 import { PageView } from "@/components/PageView";
@@ -54,12 +56,15 @@ export default function Home() {
       <Header />
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Hero — the offer, opposite a claimed identity */}
-        <section className="hero-glow grid items-center gap-6 pt-12 sm:pt-16 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[1.05fr_0.95fr] lg:pt-0">
+        {/* No min-h/centering here: forcing the row to a full viewport pushed the
+            headline into the middle of the screen and left a dead band above it. */}
+        <MintQueryProvider>
+        <section className="hero-glow grid items-start gap-8 pt-8 sm:pt-10 lg:grid-cols-[1.2fr_0.8fr] lg:gap-12 lg:pt-12">
           <Reveal>
             <div className="eyebrow">ens names · robinhood chain · chain id 4663</div>
             {/* `.bloom` is display:block, keeping the second line on its own row:
                 relying on natural wrapping lets the prod minifier eat the space. */}
-            <h1 className="statement mt-4 max-w-[13ch] text-[clamp(40px,5.6vw,78px)]">
+            <h1 className="statement mt-4 max-w-[14ch] text-[clamp(44px,6.4vw,88px)]">
               Mint your name.
               <span className="bloom">Own it forever.</span>
             </h1>
@@ -72,21 +77,20 @@ export default function Home() {
                 primary action, and a green "Mint a name" button beside it just
                 competes with the thing it points at. */}
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/manage/" className="btn btn-ghost">
-                Manage your names
-              </Link>
+              <ConnectMintButton />
               <Link href="#how" className="btn btn-ghost">
                 How it works
               </Link>
             </div>
           </Reveal>
           <Reveal>
-            <MintPanel />
+            <MintPanel handoffOnConnect />
           </Reveal>
         </section>
+        </MintQueryProvider>
 
         {/* What you actually get, opposite the card that shows it */}
-        <section id="mint" className="scroll-mt-24 py-20 sm:py-28">
+        <section id="mint" className="scroll-mt-24 pt-10 pb-16 sm:pt-14 sm:pb-20">
           <Reveal>
             <div className="grid items-center gap-10 lg:grid-cols-[1fr_minmax(0,480px)]">
               <div>
