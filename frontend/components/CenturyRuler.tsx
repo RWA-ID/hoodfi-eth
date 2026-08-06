@@ -3,18 +3,16 @@
 import { useReadContract } from "wagmi";
 import { mainnet } from "wagmi/chains";
 import { DONATIONS_ADDRESS, donationsAbi } from "@/lib/contracts";
-import { GOAL_YEARS, GOAL_YEAR_LABEL } from "@/lib/site";
+import { GOAL_YEARS, GOAL_YEAR_LABEL, START_YEAR } from "@/lib/site";
 import { expiryDate, expiryYear } from "@/lib/format";
 
-const START_YEAR = 2026;
-const SPAN = GOAL_YEAR_LABEL - START_YEAR; // 1000 years across the track
+const SPAN = GOAL_YEAR_LABEL - START_YEAR; // a century across the track
 
 /**
- * The signature element: a millennium-long ruler from 2026 to 3026. The green
- * marker is hoodfi.eth's live expiry, read straight from the official .eth
- * registrar — donations visibly push it right.
+ * The century ruler: 2026 to 2127. The green marker is hoodfi.eth's live expiry,
+ * read straight from the official .eth registrar — donations visibly push it right.
  */
-export function MillenniumRuler() {
+export function CenturyRuler() {
   const enabled = Boolean(DONATIONS_ADDRESS);
 
   const { data: totalYears } = useReadContract({
@@ -37,18 +35,19 @@ export function MillenniumRuler() {
   const markerYear = expiryYear(expiry) ?? START_YEAR + 1;
   const pct = Math.min(100, Math.max(0.5, ((markerYear - START_YEAR) / SPAN) * 100));
 
-  // Century ticks with decade minors near the start (where the marker lives early on).
-  // On phones only 2026 / 2526 / 3026 keep labels — centuries collide at 390px.
-  const KEEP_ON_MOBILE = new Set([START_YEAR, START_YEAR + 500, GOAL_YEAR_LABEL]);
+  // Quarter-century labels with 5-year minors. On phones only the two ends and the
+  // midpoint keep labels — five of them collide at 390px.
+  const KEEP_ON_MOBILE = new Set([START_YEAR, START_YEAR + 50, GOAL_YEAR_LABEL]);
   const ticks: { pos: number; label?: string; minor?: boolean; mobileHide?: boolean }[] = [];
-  for (let y = START_YEAR; y <= GOAL_YEAR_LABEL; y += 100) {
+  for (let y = START_YEAR; y <= GOAL_YEAR_LABEL; y += 25) {
+    const year = Math.min(y, GOAL_YEAR_LABEL);
     ticks.push({
-      pos: ((y - START_YEAR) / SPAN) * 100,
-      label: `${y}`,
-      mobileHide: !KEEP_ON_MOBILE.has(y),
+      pos: ((year - START_YEAR) / SPAN) * 100,
+      label: `${year}`,
+      mobileHide: !KEEP_ON_MOBILE.has(year),
     });
   }
-  for (let y = START_YEAR + 10; y < START_YEAR + 100; y += 10) {
+  for (let y = START_YEAR + 5; y < GOAL_YEAR_LABEL; y += 5) {
     ticks.push({ pos: ((y - START_YEAR) / SPAN) * 100, minor: true });
   }
 

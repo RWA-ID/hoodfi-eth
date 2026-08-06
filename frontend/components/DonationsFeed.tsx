@@ -7,17 +7,14 @@ import { DONATIONS_ADDRESS, DONATIONS_DEPLOY_BLOCK } from "@/lib/contracts";
 import { formatAddress, formatEth } from "@/lib/format";
 
 const donatedEvent = parseAbiItem(
-  "event Donated(address indexed donor, uint256 numYears, uint256 ethPaid, uint256 newExpiry)"
-);
-const reservedEvent = parseAbiItem(
-  "event NameReserved(address indexed donor, bytes32 indexed labelhash, string label)"
+  "event Donated(address indexed donor, uint256 numYears, uint256 ethPaid, uint256 newExpiry, uint256 creditsTotal, uint256 totalYears)"
 );
 
 type FeedEntry = {
   donor: string;
   years: number;
   ethPaid: bigint;
-  labels: string[];
+  credits: number;
   txHash: string;
   blockNumber: bigint;
 };
@@ -38,34 +35,19 @@ export function DonationsFeed() {
 
     async function load() {
       try {
-        const [donations, reservations] = await Promise.all([
-          publicClient.getLogs({
-            address: DONATIONS_ADDRESS,
-            event: donatedEvent,
-            fromBlock: DONATIONS_DEPLOY_BLOCK,
-            toBlock: "latest",
-          }),
-          publicClient.getLogs({
-            address: DONATIONS_ADDRESS,
-            event: reservedEvent,
-            fromBlock: DONATIONS_DEPLOY_BLOCK,
-            toBlock: "latest",
-          }),
-        ]);
-
-        const labelsByTx = new Map<string, string[]>();
-        for (const log of reservations) {
-          const list = labelsByTx.get(log.transactionHash) ?? [];
-          list.push(log.args.label as string);
-          labelsByTx.set(log.transactionHash, list);
-        }
+        const donations = await publicClient.getLogs({
+          address: DONATIONS_ADDRESS,
+          event: donatedEvent,
+          fromBlock: DONATIONS_DEPLOY_BLOCK,
+          toBlock: "latest",
+        });
 
         const feed = donations
           .map((log) => ({
             donor: log.args.donor as string,
             years: Number(log.args.numYears),
             ethPaid: log.args.ethPaid as bigint,
-            labels: labelsByTx.get(log.transactionHash) ?? [],
+            credits: Number(log.args.numYears),
             txHash: log.transactionHash,
             blockNumber: log.blockNumber,
           }))
@@ -118,11 +100,9 @@ export function DonationsFeed() {
             >
               <div className="min-w-0">
                 <span className="data text-sm">{formatAddress(e.donor)}</span>
-                {e.labels.length > 0 && (
-                  <span className="data ml-3 truncate text-xs text-[var(--dim)]">
-                    {e.labels.map((l) => `${l}.hoodfi.eth`).join(", ")}
-                  </span>
-                )}
+                <span className="data ml-3 truncate text-xs text-[var(--dim)]">
+                  earned {e.credits} short-name credit{e.credits === 1 ? "" : "s"}
+                </span>
               </div>
               <div className="data shrink-0 text-right text-sm">
                 <span className="ok">+{e.years}y</span>

@@ -11,14 +11,14 @@ export function Header() {
           HoodFi<span className="ok">.eth</span>
         </Link>
         <nav className="flex items-center gap-5 sm:gap-7">
-          <Link href="/#how" className="hidden text-sm text-[var(--dim)] hover:text-[var(--paper)] sm:block">
-            How it works
+          <Link href="/mint/" className="text-sm text-[var(--dim)] hover:text-[var(--paper)]">
+            Mint
           </Link>
-          <Link href="/#pricing" className="hidden text-sm text-[var(--dim)] hover:text-[var(--paper)] sm:block">
-            Pricing
+          <Link href="/manage/" className="text-sm text-[var(--dim)] hover:text-[var(--paper)]">
+            Manage
           </Link>
-          <Link href="/claim/" className="text-sm text-[var(--dim)] hover:text-[var(--paper)]">
-            Claim
+          <Link href="/#extend" className="hidden text-sm text-[var(--dim)] hover:text-[var(--paper)] sm:block">
+            Short names
           </Link>
           <Link href="/faq/" className="text-sm text-[var(--dim)] hover:text-[var(--paper)]">
             FAQ

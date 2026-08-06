@@ -202,7 +202,7 @@ function drawFace(
   const fields: [string, string][] = [
     ["TOKEN", "#" + card.token],
     ["CHAIN", "4663"],
-    ["SECURED", "3026"],
+    ["SECURED", "2127"],
   ];
   const colW = (FW - 2 * P) / 3;
   fields.forEach(([label, value], i) => {
@@ -281,7 +281,7 @@ function drawBack(
   }
   c.font = `600 30px ${fonts.mono}`;
   c.fillStyle = "rgba(233,242,234,0.6)";
-  c.fillText("SECURED UNTIL 3026", FW / 2, FH - 150);
+  c.fillText("LIFETIME · NO EXPIRY", FW / 2, FH - 150);
   c.font = `500 22px ${fonts.mono}`;
   c.fillStyle = "rgba(233,242,234,0.34)";
   c.fillText("one name · one time · yours forever", FW / 2, FH - 108);
