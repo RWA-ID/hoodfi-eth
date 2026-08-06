@@ -164,5 +164,3 @@ cast send <registrar> "openShorts()" --rpc-url robinhood
 
 - Send the Robinhood dev team the live link — they asked to be kept updated and this is
   the announcement worth sending.
-- `gateway/scripts/verify-site.ts` is dead scratch with a broken import and is the only
-  thing failing `tsc` in the gateway. Deletion still pending your confirm.
