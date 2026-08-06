@@ -32,12 +32,12 @@ export default function MintPage() {
         <section className="hero-glow pt-12 sm:pt-16">
           <Reveal>
             <div className="eyebrow">robinhood chain · chain id 4663</div>
-            {/* accent is `block` so the two type treatments always land on their own
-                lines — relying on natural wrapping puts them flush against each other
+            {/* `.bloom` is display:block so the two lines always land on their own
+                rows — relying on natural wrapping puts them flush against each other
                 and the minifier eats the separating space. */}
             <h1 className="statement mt-4 max-w-[14ch] text-[clamp(36px,4.6vw,64px)]">
               Mint your name.
-              <span className="block">Keep it forever.</span>
+              <span className="bloom">Keep it forever.</span>
             </h1>
             <p className="mt-5 max-w-[52ch] text-[clamp(16px,1.3vw,19px)] text-[var(--dim)]">
               A lifetime ENS name on Robinhood Chain. One transaction, no renewals, no

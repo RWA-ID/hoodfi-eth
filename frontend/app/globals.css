@@ -98,6 +98,27 @@ body {
   color: transparent;
   -webkit-text-fill-color: transparent;
 }
+/* Second statement line, lit from behind in hood green.
+   Carries its own gradient + clip rather than inheriting the parent's: `filter`
+   creates a stacking context, and a child relying on the parent's background-clip
+   would render as transparent text with nothing painted into it. */
+.statement .bloom {
+  display: block;
+  background: linear-gradient(
+    150deg,
+    #ffffff 0%,
+    #e9f2ea 32%,
+    #9aa3a0 62%,
+    #d7dedb 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--green) 50%, transparent))
+    drop-shadow(0 0 44px color-mix(in srgb, var(--green) 28%, transparent));
+}
+
 /* Opt back out of the gradient clip — the accent is solid green. */
 .statement .accent {
   font-family: var(--font-accent), Georgia, serif;

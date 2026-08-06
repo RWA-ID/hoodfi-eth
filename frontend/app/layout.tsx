@@ -43,6 +43,10 @@ export const metadata: Metadata = {
   title: `${SITE.name} — lifetime names on Robinhood Chain`,
   description: SITE.description,
   metadataBase: new URL(SITE.url),
+  // Search Console ownership. Emitted on every route, which is what Google's
+  // HTML-tag method checks for — it only ever fetches the homepage, but the tag
+  // costs nothing elsewhere and survives whichever page it lands on.
+  verification: { google: "ZUGijkox-osXu7C0HG07r1IN0uoCNURhxUXMaO-TGzc" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

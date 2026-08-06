@@ -57,39 +57,42 @@ export default function Home() {
         <section className="hero-glow grid items-center gap-6 pt-12 sm:pt-16 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[1.05fr_0.95fr] lg:pt-0">
           <Reveal>
             <div className="eyebrow">ens names · robinhood chain · chain id 4663</div>
-            {/* `block` keeps the second line on its own row: relying on natural
-                wrapping lets the prod minifier eat the separating space. */}
+            {/* `.bloom` is display:block, keeping the second line on its own row:
+                relying on natural wrapping lets the prod minifier eat the space. */}
             <h1 className="statement mt-4 max-w-[13ch] text-[clamp(40px,5.6vw,78px)]">
               Mint your name.
-              <span className="block">Own it forever.</span>
+              <span className="bloom">Own it forever.</span>
             </h1>
             <p className="mt-5 max-w-[36ch] text-[clamp(16px,1.3vw,19px)] text-[var(--dim)]">
               A lifetime name like{" "}
               <span className="data text-[var(--paper)]">blake.hoodfi.eth</span> on
               Robinhood Chain. One transaction from $3 — no renewals, no expiry, ever.
             </p>
+            {/* No primary CTA here any more — the mint panel opposite *is* the
+                primary action, and a green "Mint a name" button beside it just
+                competes with the thing it points at. */}
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/mint/" className="btn btn-primary">
-                Mint a name
-              </Link>
               <Link href="/manage/" className="btn btn-ghost">
                 Manage your names
+              </Link>
+              <Link href="#how" className="btn btn-ghost">
+                How it works
               </Link>
             </div>
           </Reveal>
           <Reveal>
-            <HeroIdCard />
+            <MintPanel />
           </Reveal>
         </section>
 
-        {/* Search is the primary action — put it directly under the fold */}
+        {/* What you actually get, opposite the card that shows it */}
         <section id="mint" className="scroll-mt-24 py-20 sm:py-28">
           <Reveal>
-            <div className="grid gap-10 lg:grid-cols-[1fr_minmax(0,420px)]">
+            <div className="grid items-center gap-10 lg:grid-cols-[1fr_minmax(0,480px)]">
               <div>
-                <div className="eyebrow">start here</div>
+                <div className="eyebrow">what you get</div>
                 <h2 className="display mt-3 text-[clamp(28px,3.4vw,44px)]">
-                  Is your name available?
+                  An identity, not a subscription
                 </h2>
                 <p className="mt-4 max-w-[46ch] text-[clamp(15px,1.2vw,18px)] text-[var(--dim)]">
                   Names are lifetime ERC-721s. You control the records, the resolution
@@ -119,7 +122,7 @@ export default function Home() {
                   below.
                 </p>
               </div>
-              <MintPanel />
+              <HeroIdCard />
             </div>
           </Reveal>
         </section>
