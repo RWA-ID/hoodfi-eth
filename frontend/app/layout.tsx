@@ -40,7 +40,7 @@ const plexSerif = IBM_Plex_Serif({
 });
 
 export const metadata: Metadata = {
-  title: `${SITE.name} — names on Robinhood Chain, secured until 3026`,
+  title: `${SITE.name} — lifetime names on Robinhood Chain`,
   description: SITE.description,
   metadataBase: new URL(SITE.url),
 };

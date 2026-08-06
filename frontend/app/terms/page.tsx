@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import { ogMetadata } from "@/lib/metadata";
 import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 
-export const metadata: Metadata = {
-  title: "Terms & Conditions — HoodFi.eth",
+export const metadata: Metadata = ogMetadata({
+  title: "Terms & Conditions",
   description:
-    "Terms and conditions for using the HoodFi.eth interface: donations, name reservations, risks and limitations of liability.",
-};
+    "Terms and conditions for using the HoodFi.eth interface: minting names, donations, risks and limitations of liability.",
+  path: "/terms/",
+  image: "/og/legal.png",
+});
 
 const UPDATED = "July 11, 2026";
 
@@ -100,7 +103,7 @@ export default function TermsPage() {
             </>,
             <>
               Free claiming of reserved names opens only if and when total donations
-              reach the 1,000-year goal and the snapshot is finalized. No date is
+              reach the 100-year goal and short names open to public sale. No date is
               promised and the goal may never be reached. If it is not reached,
               reserved names may never become claimable — donations remain
               non-refundable because their stated effect (extending hoodfi.eth&apos;s
@@ -177,7 +180,7 @@ export default function TermsPage() {
               &ldquo;AS AVAILABLE&rdquo;, WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR
               IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
               PURPOSE, TITLE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE INTERFACE
-              WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE, OR THAT THE 1,000-YEAR GOAL
+              WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE, OR THAT THE 100-YEAR GOAL
               WILL BE REACHED OR ANY LAUNCH WILL OCCUR.
             </>,
           ],

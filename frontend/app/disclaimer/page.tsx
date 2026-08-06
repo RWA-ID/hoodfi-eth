@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import { ogMetadata } from "@/lib/metadata";
 import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 
-export const metadata: Metadata = {
-  title: "Disclaimer — HoodFi.eth",
+export const metadata: Metadata = ogMetadata({
+  title: "Disclaimer",
   description:
-    "HoodFi.eth is an independent community project — not affiliated with Robinhood Markets, Inc. Names are utility, not investments. Use at your own risk.",
-};
+    "Unaudited contracts, no affiliation with Robinhood, and no guarantees — what you should know before minting.",
+  path: "/disclaimer/",
+  image: "/og/legal.png",
+});
 
 const UPDATED = "July 11, 2026";
 
@@ -61,7 +64,7 @@ export default function DisclaimerPage() {
           heading: "No guarantees",
           paragraphs: [
             <>
-              The 1,000-year goal may never be reached, and no launch date is promised.
+              The 100-year goal may never be reached, and no date for opening short names to public sale is promised.
               If the goal is not reached, reserved names may never become claimable.
               Donations are non-refundable in all cases — each donation&apos;s effect
               (extending hoodfi.eth&apos;s expiry via the official ENS controller) is

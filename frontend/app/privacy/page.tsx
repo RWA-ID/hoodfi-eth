@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
+import { ogMetadata } from "@/lib/metadata";
 import { LegalPage } from "@/components/LegalPage";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy — HoodFi.eth",
+export const metadata: Metadata = ogMetadata({
+  title: "Privacy Policy",
   description:
-    "How HoodFi.eth handles data: a static IPFS site with no server, no accounts, no cookies and no analytics.",
-};
+    "How the HoodFi.eth interface handles data: no accounts, no cookies, no tracking of personal information.",
+  path: "/privacy/",
+  image: "/og/legal.png",
+});
 
 const UPDATED = "July 11, 2026";
 
