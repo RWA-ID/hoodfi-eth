@@ -57,9 +57,11 @@ export default function Home() {
         <section className="hero-glow grid items-center gap-6 pt-12 sm:pt-16 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[1.05fr_0.95fr] lg:pt-0">
           <Reveal>
             <div className="eyebrow">ens names · robinhood chain · chain id 4663</div>
+            {/* `block` keeps the second line on its own row: relying on natural
+                wrapping lets the prod minifier eat the separating space. */}
             <h1 className="statement mt-4 max-w-[13ch] text-[clamp(40px,5.6vw,78px)]">
               Mint your name.
-              <span className="accent block">Own it forever.</span>
+              <span className="block">Own it forever.</span>
             </h1>
             <p className="mt-5 max-w-[36ch] text-[clamp(16px,1.3vw,19px)] text-[var(--dim)]">
               A lifetime name like{" "}
