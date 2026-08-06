@@ -4,6 +4,8 @@ import { cors } from 'hono/cors'
 import { type Env } from './env'
 import { getCcipRead, getHealth } from './handlers/getCcipRead'
 import { getTokenMetadata } from './handlers/getTokenMetadata'
+import { getVoucher } from './handlers/getVoucher'
+import { postEvent } from './handlers/postEvent'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -31,5 +33,12 @@ app.post('/v1', async (c) => {
 app.get('/nft/:tokenId', async (c) =>
   getTokenMetadata(c.req.param('tokenId').replace(/\.json$/, ''), c.env)
 )
+
+// Short-name credit voucher. Attests mainnet donation credits so HoodfiRegistrar on
+// Robinhood Chain can let a donor mint a 1-3 char name without a bridge.
+app.get('/voucher/:address', async (c) => getVoucher(c.req.param('address'), c.env))
+
+// Cookieless analytics sink. Always 204s — the site must never break on a bad beacon.
+app.post('/e', async (c) => postEvent(c.req.raw, c.env))
 
 export default app
