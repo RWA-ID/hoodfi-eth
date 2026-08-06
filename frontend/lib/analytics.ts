@@ -70,8 +70,15 @@ export function track(event: TrackEvent, props: Props = {}) {
   try {
     // sendBeacon survives the page unloading mid-navigation, which is exactly when
     // outbound-click and share events fire.
+    //
+    // The blob must be text/plain, not application/json. sendBeacon always sends with
+    // credentials mode "include", and a credentialed request rejects the wildcard
+    // `Access-Control-Allow-Origin: *` the Worker returns — so an application/json
+    // blob (which needs a preflight) is blocked by CORS and every event is lost.
+    // text/plain makes it a simple request: no preflight, no CORS failure. The Worker
+    // parses the body with .json() regardless of the declared content type.
     if (navigator.sendBeacon) {
-      navigator.sendBeacon(ENDPOINT, new Blob([body], { type: "application/json" }));
+      navigator.sendBeacon(ENDPOINT, new Blob([body], { type: "text/plain;charset=UTF-8" }));
       return;
     }
     void fetch(ENDPOINT, { method: "POST", body, keepalive: true });
