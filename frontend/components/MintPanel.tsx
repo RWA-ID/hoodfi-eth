@@ -186,7 +186,16 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
     creditsLeft > 0 &&
     !!voucher &&
     (status === MINT_STATUS.LOCKED || status === MINT_STATUS.AVAILABLE);
-  const canMintPublic = status === MINT_STATUS.AVAILABLE && !canMintWithCredit;
+
+  // Until the voucher request settles we don't know whether this address holds a credit.
+  // After the goal opens shorts to public sale the name reads as AVAILABLE, so without
+  // this the paid path would be live during the fetch and a fast click would charge a
+  // donor for a name their credit mints free.
+  const creditUnknown =
+    short && !!address && (voucherLoading || (!voucher && !voucherError));
+
+  const canMintPublic =
+    status === MINT_STATUS.AVAILABLE && !canMintWithCredit && !creditUnknown;
   const canMint = enabled && (canMintPublic || canMintWithCredit);
 
   async function ensureChain() {
@@ -366,6 +375,8 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
             <span className="data text-sm">
               {canMintWithCredit ? (
                 <span className="ok">free — 1 credit</span>
+              ) : creditUnknown ? (
+                "checking credits…"
               ) : method === "usdg" ? (
                 usdgPrice !== undefined ? (
                   `${(Number(usdgPrice) / 1e6).toFixed(2)} USDG`
@@ -416,11 +427,13 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
               ? "Confirm in wallet…"
               : receipt.isLoading
                 ? "Minting…"
-                : canMintWithCredit
-                  ? `Claim ${debouncedLabel}.hoodfi.eth free`
-                  : canMintPublic
-                    ? `Mint ${debouncedLabel}.hoodfi.eth`
-                    : "Mint"}
+                : creditUnknown
+                  ? "Checking your credits…"
+                  : canMintWithCredit
+                    ? `Claim ${debouncedLabel}.hoodfi.eth free`
+                    : canMintPublic
+                      ? `Mint ${debouncedLabel}.hoodfi.eth`
+                      : "Mint"}
       </button>
 
       {/* Short names pre-goal: explain the one path that unlocks them. */}
