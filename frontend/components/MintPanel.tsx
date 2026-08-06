@@ -362,6 +362,35 @@ export function MintPanel({ initialQuery = "" }: { initialQuery?: string }) {
       </div>
       {verdict && <div className={`data mt-2 text-xs ${verdict.cls}`}>{verdict.text}</div>}
 
+      {/* The whole pitch in two lines: the hex string you hand people today, and the
+          name that replaces it. Tracks `label`, not `debouncedLabel`, so it fills in
+          under the cursor rather than lagging a search behind. */}
+      {isConnected && address && (
+        <div className="mt-5 rounded-md border border-[var(--line)] p-4">
+          <div className="data text-[11px] uppercase tracking-wider text-[var(--faint)]">
+            Your current wallet address
+          </div>
+          <div className="data mt-1 break-all text-xs leading-relaxed text-[var(--dim)]">
+            {address}
+          </div>
+
+          <div className="my-3 flex items-center gap-2" aria-hidden>
+            <span className="data text-xs text-[var(--faint)]">↓</span>
+            <span className="h-px flex-1 bg-[var(--line)]" />
+          </div>
+
+          <div className="data text-[11px] uppercase tracking-wider text-[var(--faint)]">
+            Your new wallet address
+          </div>
+          <div className="data mt-1 break-all text-base">
+            <span className={label ? "text-[var(--paper)]" : "text-[var(--faint)]"}>
+              {label || "yourname"}
+            </span>
+            <span className="ok">.hoodfi.eth</span>
+          </div>
+        </div>
+      )}
+
       {debouncedLabel && check.ok && (
         <div className="mt-5">
           <div className="ledger-row">

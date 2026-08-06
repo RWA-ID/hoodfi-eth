@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 import { CANONICAL_URL } from "@/lib/site";
 
+// Same as robots.ts: `output: export` only emits a metadata route that has
+// declared itself static. Without this the build fails collecting page data.
+export const dynamic = "force-static";
+
 /**
  * Sitemap for the canonical origin.
  *
