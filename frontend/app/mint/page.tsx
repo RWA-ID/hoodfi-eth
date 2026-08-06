@@ -37,7 +37,7 @@ export default function MintPage() {
                 and the minifier eats the separating space. */}
             <h1 className="statement mt-4 max-w-[14ch] text-[clamp(36px,4.6vw,64px)]">
               Mint your name.
-              <span className="accent block">Keep it forever.</span>
+              <span className="block">Keep it forever.</span>
             </h1>
             <p className="mt-5 max-w-[52ch] text-[clamp(16px,1.3vw,19px)] text-[var(--dim)]">
               A lifetime ENS name on Robinhood Chain. One transaction, no renewals, no
