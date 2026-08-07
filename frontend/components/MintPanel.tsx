@@ -173,12 +173,19 @@ export function MintPanel({
 
   const creditsLeft = Number(voucher?.creditsAvailable ?? 0);
 
+  // While the debounce is still catching up, `status` describes the *previous* name.
+  // Reading it then flashes that name's whole layout — type "x" after "blake" and the
+  // 4+ character price ledger appears for a beat before the locked state replaces it.
+  // Treating it as unknown until the read matches what was typed removes the flash.
+  const settledStatus =
+    label !== debouncedLabel || statusFetching ? undefined : status;
+
   const verdict = useMemo(() => {
     if (!query) return null;
     if (!check.ok) return { text: check.reason, cls: "warn" };
     if (!enabled) return { text: "minting opens soon", cls: "warn" };
-    if (statusFetching || status === undefined) return { text: "checking…", cls: "warn" };
-    switch (status) {
+    if (settledStatus === undefined) return { text: "checking…", cls: "warn" };
+    switch (settledStatus) {
       case MINT_STATUS.AVAILABLE:
         return { text: "available", cls: "ok" };
       case MINT_STATUS.TAKEN:
@@ -193,14 +200,14 @@ export function MintPanel({
       default:
         return { text: "invalid", cls: "bad" };
     }
-  }, [query, check, enabled, status, statusFetching, creditsLeft]);
+  }, [query, check, enabled, settledStatus, creditsLeft]);
 
   // A credit beats paying whenever the name is short and one is available.
   const canMintWithCredit =
     short &&
     creditsLeft > 0 &&
     !!voucher &&
-    (status === MINT_STATUS.LOCKED || status === MINT_STATUS.AVAILABLE);
+    (settledStatus === MINT_STATUS.LOCKED || settledStatus === MINT_STATUS.AVAILABLE);
 
   // Until the voucher request settles we don't know whether this address holds a credit.
   // After the goal opens shorts to public sale the name reads as AVAILABLE, so without
@@ -210,13 +217,13 @@ export function MintPanel({
     short && !!address && (voucherLoading || (!voucher && !voucherError));
 
   const canMintPublic =
-    status === MINT_STATUS.AVAILABLE && !canMintWithCredit && !creditUnknown;
+    settledStatus === MINT_STATUS.AVAILABLE && !canMintWithCredit && !creditUnknown;
 
   // A locked short name with no credit can't be bought at any price, so the price
   // ledger, the ETH/USDG toggle and the mint button are all dead weight — and they
   // push the one thing that *is* actionable, "Earn a credit", off the screen.
   const lockedNoCredit =
-    shortsLocked && !creditUnknown && creditsLeft === 0 && status === MINT_STATUS.LOCKED;
+    shortsLocked && !creditUnknown && creditsLeft === 0 && settledStatus === MINT_STATUS.LOCKED;
   const canMint = enabled && (canMintPublic || canMintWithCredit);
 
   // On the home page, connecting is a commitment to mint — so once the wallet is in,
@@ -395,7 +402,7 @@ export function MintPanel({
       {verdict && <div className={`data mt-2 text-xs ${verdict.cls}`}>{verdict.text}</div>}
 
 
-      {debouncedLabel && check.ok && !lockedNoCredit && (
+      {debouncedLabel && check.ok && !lockedNoCredit && settledStatus !== undefined && (
         <div className="mt-5">
           <div className="ledger-row">
             <span className="text-sm text-[var(--dim)]">Length</span>
@@ -430,7 +437,7 @@ export function MintPanel({
         </div>
       )}
 
-      {!canMintWithCredit && !lockedNoCredit && debouncedLabel && check.ok && (
+      {!canMintWithCredit && !lockedNoCredit && debouncedLabel && check.ok && settledStatus !== undefined && (
         <div className="mt-5 flex gap-2">
           {(["eth", "usdg"] as PayMethod[]).map((m) => (
             <button

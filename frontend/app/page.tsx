@@ -54,7 +54,7 @@ export default function Home() {
     <>
       <PageView />
       <Header />
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 2xl:px-12">
         {/* Hero — the offer, opposite a claimed identity */}
         {/* No min-h/centering here: forcing the row to a full viewport pushed the
             headline into the middle of the screen and left a dead band above it. */}

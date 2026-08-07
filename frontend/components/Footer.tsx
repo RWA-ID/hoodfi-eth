@@ -79,7 +79,7 @@ function WalletStrip() {
 export function Footer() {
   return (
     <footer className="hairline-t mt-24">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1600px] px-4 py-10 sm:px-6 lg:px-8 2xl:px-12">
         <WalletStrip />
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div>

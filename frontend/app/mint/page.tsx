@@ -30,7 +30,7 @@ export default function MintPage() {
     <>
       <PageView />
       <Header />
-      <main className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-[1600px] px-4 pb-24 sm:px-6 lg:px-8 2xl:px-12">
        <MintQueryProvider>
         <section className="hero-glow pt-10 sm:pt-14">
           <Reveal>
