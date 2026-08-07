@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { type Address, encodeFunctionData, isAddress } from "viem";
+import { type ReactElement, useEffect, useState } from "react";
+import {
+  type Address,
+  encodeFunctionData,
+  getAddress,
+  isAddress,
+} from "viem";
 import {
   useAccount,
   useReadContract,
@@ -14,17 +19,66 @@ import { useAppKit } from "@reown/appkit/react";
 import { robinhoodChain } from "@/lib/chains";
 import { L2_REGISTRY_ADDRESS, registryAbi } from "@/lib/contracts";
 import {
+  BTC_COIN_TYPE,
   ETH_COIN_TYPE,
   ROBINHOOD_COIN_TYPE,
+  SOL_COIN_TYPE,
   avatarToUrl,
+  decodeChainAddress,
+  encodeChainAddress,
   normalizeXHandle,
 } from "@/lib/ens";
+import { BitcoinLogo, EthereumLogo, SolanaLogo } from "./ChainLogo";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
 import { type OwnedName, useMyNames } from "./useMyNames";
 
 type Field = "addr" | "avatar" | "com.twitter" | "url" | "description";
+
+/**
+ * The address records a name can carry. The EVM row writes two coinTypes at once so the
+ * name resolves the same through the L1 resolver and on Robinhood Chain; BTC and SOL are
+ * stored in their own binary encodings, per ENSIP-9.
+ */
+const ADDRESS_FIELDS: {
+  key: string;
+  label: string;
+  help: string;
+  placeholder: string;
+  coinTypes: bigint[];
+  Logo: (props: { className?: string }) => ReactElement;
+  /** Only the EVM record is what makes the name resolve — don't let it be cleared by accident. */
+  allowClear: boolean;
+}[] = [
+  {
+    key: "addr",
+    label: "Ethereum & Robinhood Chain",
+    help: "The address this name resolves to everywhere.",
+    placeholder: "0x…",
+    coinTypes: [ROBINHOOD_COIN_TYPE, ETH_COIN_TYPE],
+    Logo: EthereumLogo,
+    allowClear: false,
+  },
+  {
+    key: "addr.btc",
+    label: "Bitcoin",
+    help: "Legacy, P2SH or bech32 — all accepted.",
+    placeholder: "bc1… or 1…",
+    coinTypes: [BTC_COIN_TYPE],
+    Logo: BitcoinLogo,
+    allowClear: true,
+  },
+  {
+    key: "addr.sol",
+    label: "Solana",
+    help: "",
+    placeholder: "Base58 address",
+    coinTypes: [SOL_COIN_TYPE],
+    Logo: SolanaLogo,
+    allowClear: true,
+  },
+];
 
 const TEXT_FIELDS: {
   key: Field;
@@ -69,6 +123,17 @@ function useTextRecord(node: `0x${string}` | undefined, key: string) {
   });
 }
 
+function useAddrRecord(node: `0x${string}` | undefined, coinType: bigint) {
+  return useReadContract({
+    address: L2_REGISTRY_ADDRESS,
+    abi: registryAbi,
+    functionName: "addr",
+    args: [node ?? "0x", coinType],
+    chainId: robinhoodChain.id,
+    query: { enabled: Boolean(L2_REGISTRY_ADDRESS && node) },
+  });
+}
+
 function NameEditor({
   name,
   onSaved,
@@ -91,7 +156,7 @@ function NameEditor({
 
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [dirty, setDirty] = useState<Set<string>>(new Set());
-  const [savingField, setSavingField] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   // Chain-switch and submission failures: no hook reports these for us.
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -100,21 +165,21 @@ function NameEditor({
   const url = useTextRecord(name.node, "url");
   const description = useTextRecord(name.node, "description");
 
-  const { data: addrRecord } = useReadContract({
-    address: L2_REGISTRY_ADDRESS,
-    abi: registryAbi,
-    functionName: "addr",
-    args: [name.node, ROBINHOOD_COIN_TYPE],
-    chainId: robinhoodChain.id,
-    query: { enabled: Boolean(L2_REGISTRY_ADDRESS) },
-  });
+  const evmAddr = useAddrRecord(name.node, ROBINHOOD_COIN_TYPE);
+  const btcAddr = useAddrRecord(name.node, BTC_COIN_TYPE);
+  const solAddr = useAddrRecord(name.node, SOL_COIN_TYPE);
+
+  const evmRecord = evmAddr.data as string | undefined;
 
   const onChainValues: Record<string, string> = {
     avatar: avatar.data ?? "",
     "com.twitter": twitter.data ?? "",
     url: url.data ?? "",
     description: description.data ?? "",
-    addr: addrRecord && addrRecord !== "0x" ? (addrRecord as string) : "",
+    addr:
+      evmRecord && evmRecord !== "0x" ? getAddress(evmRecord as Address) : "",
+    "addr.btc": decodeChainAddress(BTC_COIN_TYPE, btcAddr.data as string),
+    "addr.sol": decodeChainAddress(SOL_COIN_TYPE, solAddr.data as string),
   };
 
   // Seed the form from chain state once, then let the user's edits win.
@@ -127,21 +192,28 @@ function NameEditor({
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [avatar.data, twitter.data, url.data, description.data, addrRecord]);
+  }, [
+    avatar.data,
+    twitter.data,
+    url.data,
+    description.data,
+    evmAddr.data,
+    btcAddr.data,
+    solAddr.data,
+  ]);
 
   useEffect(() => {
-    if (receipt.isSuccess && savingField) {
-      track("record_saved", { method: savingField });
-      setDirty((d) => {
-        const next = new Set(d);
-        next.delete(savingField);
-        return next;
-      });
-      setSavingField(null);
+    if (receipt.isSuccess && saving) {
+      track("record_saved", { method: String(dirty.size) });
+      setDirty(new Set());
+      setSaving(false);
       void avatar.refetch();
       void twitter.refetch();
       void url.refetch();
       void description.refetch();
+      void evmAddr.refetch();
+      void btcAddr.refetch();
+      void solAddr.refetch();
       onSaved();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,92 +230,119 @@ function NameEditor({
     }
   }
 
-  async function saveText(key: string) {
-    if (!L2_REGISTRY_ADDRESS) return;
-    setActionError(null);
-    try {
-      await ensureChain();
-      const value =
-        key === "com.twitter"
-          ? normalizeXHandle(draft[key] ?? "")
-          : draft[key] ?? "";
-      setSavingField(key);
-      await writeContractAsync({
-        address: L2_REGISTRY_ADDRESS,
-        abi: registryAbi,
-        functionName: "setText",
-        args: [name.node, key, value],
-        chainId: robinhoodChain.id,
-      });
-    } catch (error) {
-      setSavingField(null);
-      setActionError(walletErrorMessage(error));
-    }
+  /**
+   * The bytes to store for an address row, or null if it can't be written yet.
+   * "0x" clears a record the user deliberately emptied.
+   */
+  function addrBytes(
+    field: (typeof ADDRESS_FIELDS)[number],
+    coinType: bigint
+  ): `0x${string}` | null {
+    const value = (draft[field.key] ?? "").trim();
+    if (value === "") return field.allowClear ? "0x" : null;
+    // The EVM row is a plain 20-byte address; the others need their chain's encoding.
+    if (field.key === "addr") return isAddress(value) ? getAddress(value) : null;
+    return encodeChainAddress(coinType, value);
   }
 
-  async function saveAddr() {
+  /** True once a row holds something that isn't a valid address for its chain. */
+  function addrInvalid(field: (typeof ADDRESS_FIELDS)[number]): boolean {
+    const value = (draft[field.key] ?? "").trim();
+    if (value === "") return false;
+    return addrBytes(field, field.coinTypes[0]) === null;
+  }
+
+  /** Every pending edit, encoded as registry calls — the whole form in one batch. */
+  function pendingCalls(): `0x${string}`[] {
+    const calls: `0x${string}`[] = [];
+
+    for (const field of ADDRESS_FIELDS) {
+      if (!dirty.has(field.key)) continue;
+      for (const coinType of field.coinTypes) {
+        const bytes = addrBytes(field, coinType);
+        if (bytes === null) continue;
+        calls.push(
+          encodeFunctionData({
+            abi: registryAbi,
+            functionName: "setAddr",
+            args: [name.node, coinType, bytes],
+          })
+        );
+      }
+    }
+
+    for (const field of TEXT_FIELDS) {
+      if (!dirty.has(field.key)) continue;
+      const raw = draft[field.key] ?? "";
+      const value =
+        field.key === "com.twitter" ? normalizeXHandle(raw) : raw.trim();
+      calls.push(
+        encodeFunctionData({
+          abi: registryAbi,
+          functionName: "setText",
+          args: [name.node, field.key, value],
+        })
+      );
+    }
+    return calls;
+  }
+
+  async function saveAll() {
     if (!L2_REGISTRY_ADDRESS) return;
-    const value = (draft.addr ?? "").trim();
-    if (!isAddress(value)) return;
+    const calls = pendingCalls();
+    if (calls.length === 0) return;
     setActionError(null);
     try {
       await ensureChain();
-      setSavingField("addr");
-      // Point both this chain's record and mainnet ETH at the same address, so the name
-      // resolves identically through the L1 resolver and on Robinhood Chain. Batched
-      // through the registry's multicall so the user signs once, not twice.
+      setSaving(true);
+      // Batched through the registry's multicall so the user signs once for the
+      // whole form, however many records changed.
       await writeContractAsync({
         address: L2_REGISTRY_ADDRESS,
         abi: registryAbi,
         functionName: "multicall",
-        args: [
-          [ROBINHOOD_COIN_TYPE, ETH_COIN_TYPE].map((coinType) =>
-            encodeFunctionData({
-              abi: registryAbi,
-              functionName: "setAddr",
-              args: [name.node, coinType, value as Address],
-            })
-          ),
-        ],
+        args: [calls],
         chainId: robinhoodChain.id,
       });
     } catch (error) {
-      setSavingField(null);
+      setSaving(false);
       setActionError(walletErrorMessage(error));
     }
   }
 
-  const addrValue = (draft.addr ?? "").trim();
-  const addrValid = addrValue === "" || isAddress(addrValue);
   const busy = isPending || receipt.isLoading;
   const avatarPreview = avatarToUrl(draft.avatar ?? "");
+  // An address left unparseable blocks the whole batch — it's one transaction.
+  const blocked = ADDRESS_FIELDS.some(addrInvalid);
+  const changeCount = pendingCalls().length === 0 ? 0 : dirty.size;
+  const canSave = changeCount > 0 && !blocked && !busy;
 
   return (
     <div className="panel p-6 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4 sm:gap-5">
           {avatarPreview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={avatarPreview}
               alt=""
-              className="h-11 w-11 rounded-full border border-[var(--line)] object-cover"
+              className="h-20 w-20 shrink-0 rounded-full border border-[var(--line)] object-cover sm:h-24 sm:w-24"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
             />
           ) : (
-            <div className="grid h-11 w-11 place-items-center rounded-full border border-[var(--line)] text-sm text-[var(--faint)]">
+            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full border border-[var(--line)] text-xl text-[var(--faint)] sm:h-24 sm:w-24">
               {name.label.slice(0, 2)}
             </div>
           )}
-          <div>
-            <div className="data text-base font-semibold break-all">
+          <div className="min-w-0">
+            <div className="data text-xl font-semibold leading-tight break-all sm:text-2xl">
               {name.label}
               <span className="text-[var(--dim)]">.hoodfi.eth</span>
             </div>
             <a
-              className="data text-xs text-[var(--faint)] underline"
+              className="data mt-1 inline-block text-xs text-[var(--faint)] underline"
               href={`${robinhoodChain.blockExplorers.default.url}/token/${L2_REGISTRY_ADDRESS}/instance/${name.tokenId}`}
               target="_blank"
               rel="noreferrer"
@@ -261,63 +360,51 @@ function NameEditor({
       </div>
 
       <div className="mt-6 flex flex-col gap-5">
-        {/* Address record first — it's the one that makes the name actually resolve. */}
-        <div>
-          <label className="eyebrow" htmlFor={`addr-${name.label}`}>
-            address it resolves to
-          </label>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+        {/* Addresses first — they're what make the name actually resolve. */}
+        {ADDRESS_FIELDS.map((field) => (
+          <div key={field.key}>
+            <label
+              className="eyebrow flex items-center gap-2"
+              htmlFor={`${field.key}-${name.label}`}
+            >
+              <field.Logo className="h-4 w-4 shrink-0" />
+              {field.label}
+            </label>
             <input
-              id={`addr-${name.label}`}
-              className="input flex-1 data text-sm"
-              placeholder={address ?? "0x…"}
-              value={draft.addr ?? ""}
-              onChange={(e) => set("addr", e.target.value)}
+              id={`${field.key}-${name.label}`}
+              className="input data mt-2 w-full text-sm"
+              placeholder={field.key === "addr" ? address ?? "0x…" : field.placeholder}
+              value={draft[field.key] ?? ""}
+              onChange={(e) => set(field.key, e.target.value)}
               spellCheck={false}
               autoCapitalize="none"
             />
-            <button
-              className="btn btn-ghost sm:w-32"
-              onClick={saveAddr}
-              disabled={
-                busy || !addrValid || !dirty.has("addr") || addrValue === ""
-              }
-              type="button"
-            >
-              {savingField === "addr" && busy ? "Saving…" : "Save"}
-            </button>
+            {addrInvalid(field) ? (
+              <div className="data mt-1 text-xs bad">
+                That isn&apos;t a valid {field.label.split(" ")[0]} address
+              </div>
+            ) : (
+              field.help && (
+                <p className="mt-1 text-xs text-[var(--faint)]">{field.help}</p>
+              )
+            )}
           </div>
-          {!addrValid && (
-            <div className="data mt-1 text-xs bad">
-              That isn&apos;t a valid address
-            </div>
-          )}
-        </div>
+        ))}
 
         {TEXT_FIELDS.map((field) => (
           <div key={field.key}>
             <label className="eyebrow" htmlFor={`${field.key}-${name.label}`}>
               {field.label}
             </label>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <input
-                id={`${field.key}-${name.label}`}
-                className="input flex-1 text-sm"
-                placeholder={field.placeholder}
-                value={draft[field.key] ?? ""}
-                onChange={(e) => set(field.key, e.target.value)}
-                spellCheck={false}
-                autoCapitalize="none"
-              />
-              <button
-                className="btn btn-ghost sm:w-32"
-                onClick={() => saveText(field.key)}
-                disabled={busy || !dirty.has(field.key)}
-                type="button"
-              >
-                {savingField === field.key && busy ? "Saving…" : "Save"}
-              </button>
-            </div>
+            <input
+              id={`${field.key}-${name.label}`}
+              className="input mt-2 w-full text-sm"
+              placeholder={field.placeholder}
+              value={draft[field.key] ?? ""}
+              onChange={(e) => set(field.key, e.target.value)}
+              spellCheck={false}
+              autoCapitalize="none"
+            />
             {field.help && (
               <p className="mt-1 text-xs text-[var(--faint)]">{field.help}</p>
             )}
@@ -325,18 +412,35 @@ function NameEditor({
         ))}
       </div>
 
+      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[var(--line)] pt-5">
+        <button
+          className="btn btn-primary sm:w-48"
+          onClick={saveAll}
+          disabled={!canSave}
+          type="button"
+        >
+          {saving && busy ? "Saving…" : "Save changes"}
+        </button>
+        <span className="data text-xs text-[var(--faint)]">
+          {changeCount === 0
+            ? "No unsaved changes"
+            : `${changeCount} record${changeCount === 1 ? "" : "s"} — one transaction`}
+        </span>
+      </div>
+
       {(actionError || error) && (
         <div className="data mt-4 break-words text-xs bad">
           {actionError ?? walletErrorMessage(error)}
         </div>
       )}
-      {receipt.isSuccess && !savingField && (
-        <div className="data mt-4 text-xs ok">✓ Record saved onchain.</div>
+      {receipt.isSuccess && !saving && (
+        <div className="data mt-4 text-xs ok">✓ Records saved onchain.</div>
       )}
 
       <p className="data mt-5 text-[11px] leading-relaxed text-[var(--faint)]">
-        Each record is one transaction on Robinhood Chain. You&apos;re the owner
-        — these writes go straight to the registry, not through us.
+        Every change you make saves in a single transaction on Robinhood Chain.
+        You&apos;re the owner — these writes go straight to the registry, not
+        through us.
       </p>
     </div>
   );

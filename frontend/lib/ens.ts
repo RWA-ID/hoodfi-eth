@@ -1,10 +1,75 @@
+import { bytesToHex, hexToBytes } from "viem";
+import {
+  decodeBtcAddress,
+  decodeSolAddress,
+  encodeBtcAddress,
+  encodeSolAddress,
+} from "@ensdomains/address-encoder/coders";
 import { ROBINHOOD_CHAIN_ID } from "./chains";
 
-/** ENSIP-11 coinType for Robinhood Chain — the forward address record a name resolves to. */
-export const ROBINHOOD_COIN_TYPE = BigInt(0x80000000 | ROBINHOOD_CHAIN_ID);
+/**
+ * ENSIP-11 coinType for Robinhood Chain — the forward address record a name resolves to.
+ *
+ * Done in BigInt on purpose. JS bitwise operators coerce to *signed* 32-bit, so the
+ * obvious `0x80000000 | chainId` comes back negative (-2147478985 for chain 4663) and
+ * every encode against a uint256 throws.
+ */
+export const ROBINHOOD_COIN_TYPE = 0x80000000n | BigInt(ROBINHOOD_CHAIN_ID);
 
 /** Mainnet ETH, per SLIP-44. Set alongside the chain-specific record on every mint. */
 export const ETH_COIN_TYPE = 60n;
+
+/** SLIP-44 coinTypes for the non-EVM chains a name can also carry an address for. */
+export const BTC_COIN_TYPE = 0n;
+export const SOL_COIN_TYPE = 501n;
+
+/** Per-chain codecs, imported one at a time so the other 240 coins stay out of the bundle. */
+const CODERS: Record<
+  string,
+  { decode: (value: string) => Uint8Array; encode: (bytes: Uint8Array) => string }
+> = {
+  [BTC_COIN_TYPE.toString()]: {
+    decode: decodeBtcAddress,
+    encode: encodeBtcAddress,
+  },
+  [SOL_COIN_TYPE.toString()]: {
+    decode: decodeSolAddress,
+    encode: encodeSolAddress,
+  },
+};
+
+/**
+ * Address text -> the binary form ENSIP-9 stores. Bitcoin keeps its scriptPubKey and
+ * Solana its raw ed25519 pubkey, so neither can be written as the string the user typed.
+ * Returns null when the input doesn't parse for that chain — which is also our validation.
+ */
+export function encodeChainAddress(
+  coinType: bigint,
+  value: string
+): `0x${string}` | null {
+  const trimmed = value.trim();
+  const coder = CODERS[coinType.toString()];
+  if (!trimmed || !coder) return null;
+  try {
+    return bytesToHex(coder.decode(trimmed));
+  } catch {
+    return null;
+  }
+}
+
+/** Stored bytes -> the address text a user recognises. Empty when unset or undecodable. */
+export function decodeChainAddress(
+  coinType: bigint,
+  stored: string | undefined
+): string {
+  const coder = CODERS[coinType.toString()];
+  if (!stored || stored === "0x" || !coder) return "";
+  try {
+    return coder.encode(hexToBytes(stored as `0x${string}`));
+  } catch {
+    return "";
+  }
+}
 
 /**
  * Decodes a DNS-wire-format name (as the registry stores it) back to dot notation.
