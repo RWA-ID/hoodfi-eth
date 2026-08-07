@@ -15,6 +15,7 @@ import { DONATIONS_ADDRESS, donationsAbi } from "@/lib/contracts";
 import { formatEth } from "@/lib/format";
 import { GOAL_YEARS } from "@/lib/site";
 import { track } from "@/lib/analytics";
+import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
 
 /**
@@ -25,14 +26,22 @@ import { ShareOnX } from "./ShareOnX";
 export function DonatePanel() {
   const [years, setYears] = useState(1);
   // Snapshot of what was submitted, so the share text can't drift while confirming.
+  const [actionError, setActionError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<number | null>(null);
 
   const { address, isConnected, chainId } = useAccount();
   const { open } = useAppKit();
   const { switchChainAsync } = useSwitchChain();
-  const { writeContractAsync, data: txHash, isPending, error: writeError } =
-    useWriteContract();
-  const receipt = useWaitForTransactionReceipt({ hash: txHash, chainId: mainnet.id });
+  const {
+    writeContractAsync,
+    data: txHash,
+    isPending,
+    error: writeError,
+  } = useWriteContract();
+  const receipt = useWaitForTransactionReceipt({
+    hash: txHash,
+    chainId: mainnet.id,
+  });
 
   const enabled = Boolean(DONATIONS_ADDRESS);
 
@@ -69,22 +78,29 @@ export function DonatePanel() {
       open();
       return;
     }
-    if (chainId !== mainnet.id) {
-      await switchChainAsync({ chainId: mainnet.id });
+    setActionError(null);
+    try {
+      // Declining the network prompt rejects here; uncaught it escaped the click
+      // handler and the button just went dead.
+      if (chainId !== mainnet.id) {
+        await switchChainAsync({ chainId: mainnet.id });
+      }
+      track("donate_started", { value: years });
+      // 5% buffer absorbs oracle drift between quote and inclusion; the contract
+      // refunds every wei above the live renewal price in the same transaction.
+      const value = (quote * 105n) / 100n;
+      await writeContractAsync({
+        address: DONATIONS_ADDRESS,
+        abi: donationsAbi,
+        functionName: "donate",
+        args: [BigInt(years)],
+        value,
+        chainId: mainnet.id,
+      });
+      setSubmitted(years);
+    } catch (error) {
+      setActionError(walletErrorMessage(error));
     }
-    track("donate_started", { value: years });
-    // 5% buffer absorbs oracle drift between quote and inclusion; the contract
-    // refunds every wei above the live renewal price in the same transaction.
-    const value = (quote * 105n) / 100n;
-    await writeContractAsync({
-      address: DONATIONS_ADDRESS,
-      abi: donationsAbi,
-      functionName: "donate",
-      args: [BigInt(years)],
-      value,
-      chainId: mainnet.id,
-    });
-    setSubmitted(years);
   }
 
   return (
@@ -99,9 +115,9 @@ export function DonatePanel() {
       </div>
 
       <p className="mt-3 text-sm leading-relaxed text-[var(--dim)]">
-        Add a year to hoodfi.eth&apos;s expiry on Ethereum and earn one credit. Each
-        credit mints any 1, 2 or 3 character name — free, and before they open to
-        everyone at {GOAL_YEARS} years.
+        Add a year to hoodfi.eth&apos;s expiry on Ethereum and earn one credit.
+        Each credit mints any 1, 2 or 3 character name — free, and before they
+        open to everyone at {GOAL_YEARS} years.
       </p>
 
       <div className="mt-6 flex items-center gap-3">
@@ -120,7 +136,9 @@ export function DonatePanel() {
           max={GOAL_YEARS}
           value={years}
           onChange={(e) =>
-            setYears(Math.max(1, Math.min(GOAL_YEARS, Number(e.target.value) || 1)))
+            setYears(
+              Math.max(1, Math.min(GOAL_YEARS, Number(e.target.value) || 1))
+            )
           }
           aria-label="Years to donate"
         />
@@ -136,17 +154,23 @@ export function DonatePanel() {
 
       <div className="mt-4">
         <div className="ledger-row">
-          <span className="text-sm text-[var(--dim)]">Extends hoodfi.eth by</span>
+          <span className="text-sm text-[var(--dim)]">
+            Extends hoodfi.eth by
+          </span>
           <span className="data text-sm">
             {years} year{years === 1 ? "" : "s"}
           </span>
         </div>
         <div className="ledger-row">
-          <span className="text-sm text-[var(--dim)]">Short-name credits earned</span>
+          <span className="text-sm text-[var(--dim)]">
+            Short-name credits earned
+          </span>
           <span className="data text-sm ok">{years}</span>
         </div>
         <div className="ledger-row">
-          <span className="text-sm text-[var(--dim)]">Cost (live ENS renewal price)</span>
+          <span className="text-sm text-[var(--dim)]">
+            Cost (live ENS renewal price)
+          </span>
           <span className="data text-sm">
             {enabled ? (quote ? `${formatEth(quote)} ETH` : "…") : "—"}
           </span>
@@ -162,12 +186,12 @@ export function DonatePanel() {
         {!enabled
           ? "Opens soon"
           : !isConnected
-            ? "Connect to donate"
-            : isPending
-              ? "Confirm in wallet…"
-              : receipt.isLoading
-                ? "Extending hoodfi.eth…"
-                : `Donate ${years} year${years === 1 ? "" : "s"}`}
+          ? "Connect to donate"
+          : isPending
+          ? "Confirm in wallet…"
+          : receipt.isLoading
+          ? "Extending hoodfi.eth…"
+          : `Donate ${years} year${years === 1 ? "" : "s"}`}
       </button>
 
       {receipt.isSuccess && txHash && (
@@ -190,20 +214,24 @@ export function DonatePanel() {
           <ShareOnX
             className="btn btn-ghost mt-2 w-full"
             eventLabel="donate_success"
-            text={`Just added ${submitted} year${submitted === 1 ? "" : "s"} to hoodfi.eth's ENS expiry and earned ${submitted} premium name credit${submitted === 1 ? "" : "s"} on Robinhood Chain.\n\nEvery year donated keeps the name alive and unlocks a 1-3 character name:`}
+            text={`Just added ${submitted} year${
+              submitted === 1 ? "" : "s"
+            } to hoodfi.eth's ENS expiry and earned ${submitted} premium name credit${
+              submitted === 1 ? "" : "s"
+            } on Robinhood Chain.\n\nEvery year donated keeps the name alive and unlocks a 1-3 character name:`}
           />
         </div>
       )}
-      {writeError && (
+      {(actionError || writeError) && (
         <div className="data mt-3 break-words text-xs bad">
-          {writeError.message.split("\n")[0]}
+          {actionError ?? walletErrorMessage(writeError)}
         </div>
       )}
 
       <p className="data mt-4 text-[11px] leading-relaxed text-[var(--faint)]">
         One transaction on Ethereum. Your ETH goes straight to the official ENS
-        controller — this site&apos;s contract can&apos;t hold funds, and any excess is
-        refunded in the same transaction.
+        controller — this site&apos;s contract can&apos;t hold funds, and any
+        excess is refunded in the same transaction.
       </p>
     </div>
   );

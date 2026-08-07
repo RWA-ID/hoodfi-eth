@@ -20,12 +20,18 @@ import {
   normalizeXHandle,
 } from "@/lib/ens";
 import { track } from "@/lib/analytics";
+import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
 import { type OwnedName, useMyNames } from "./useMyNames";
 
 type Field = "addr" | "avatar" | "com.twitter" | "url" | "description";
 
-const TEXT_FIELDS: { key: Field; label: string; placeholder: string; help: string }[] = [
+const TEXT_FIELDS: {
+  key: Field;
+  label: string;
+  placeholder: string;
+  help: string;
+}[] = [
   {
     key: "avatar",
     label: "Avatar",
@@ -63,10 +69,21 @@ function useTextRecord(node: `0x${string}` | undefined, key: string) {
   });
 }
 
-function NameEditor({ name, onSaved }: { name: OwnedName; onSaved: () => void }) {
+function NameEditor({
+  name,
+  onSaved,
+}: {
+  name: OwnedName;
+  onSaved: () => void;
+}) {
   const { address, chainId } = useAccount();
   const { switchChainAsync } = useSwitchChain();
-  const { writeContractAsync, data: txHash, isPending, error } = useWriteContract();
+  const {
+    writeContractAsync,
+    data: txHash,
+    isPending,
+    error,
+  } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({
     hash: txHash,
     chainId: robinhoodChain.id,
@@ -75,6 +92,8 @@ function NameEditor({ name, onSaved }: { name: OwnedName; onSaved: () => void })
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [dirty, setDirty] = useState<Set<string>>(new Set());
   const [savingField, setSavingField] = useState<string | null>(null);
+  // Chain-switch and submission failures: no hook reports these for us.
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const avatar = useTextRecord(name.node, "avatar");
   const twitter = useTextRecord(name.node, "com.twitter");
@@ -141,42 +160,57 @@ function NameEditor({ name, onSaved }: { name: OwnedName; onSaved: () => void })
 
   async function saveText(key: string) {
     if (!L2_REGISTRY_ADDRESS) return;
-    await ensureChain();
-    const value = key === "com.twitter" ? normalizeXHandle(draft[key] ?? "") : (draft[key] ?? "");
-    setSavingField(key);
-    await writeContractAsync({
-      address: L2_REGISTRY_ADDRESS,
-      abi: registryAbi,
-      functionName: "setText",
-      args: [name.node, key, value],
-      chainId: robinhoodChain.id,
-    });
+    setActionError(null);
+    try {
+      await ensureChain();
+      const value =
+        key === "com.twitter"
+          ? normalizeXHandle(draft[key] ?? "")
+          : draft[key] ?? "";
+      setSavingField(key);
+      await writeContractAsync({
+        address: L2_REGISTRY_ADDRESS,
+        abi: registryAbi,
+        functionName: "setText",
+        args: [name.node, key, value],
+        chainId: robinhoodChain.id,
+      });
+    } catch (error) {
+      setSavingField(null);
+      setActionError(walletErrorMessage(error));
+    }
   }
 
   async function saveAddr() {
     if (!L2_REGISTRY_ADDRESS) return;
     const value = (draft.addr ?? "").trim();
     if (!isAddress(value)) return;
-    await ensureChain();
-    setSavingField("addr");
-    // Point both this chain's record and mainnet ETH at the same address, so the name
-    // resolves identically through the L1 resolver and on Robinhood Chain. Batched
-    // through the registry's multicall so the user signs once, not twice.
-    await writeContractAsync({
-      address: L2_REGISTRY_ADDRESS,
-      abi: registryAbi,
-      functionName: "multicall",
-      args: [
-        [ROBINHOOD_COIN_TYPE, ETH_COIN_TYPE].map((coinType) =>
-          encodeFunctionData({
-            abi: registryAbi,
-            functionName: "setAddr",
-            args: [name.node, coinType, value as Address],
-          })
-        ),
-      ],
-      chainId: robinhoodChain.id,
-    });
+    setActionError(null);
+    try {
+      await ensureChain();
+      setSavingField("addr");
+      // Point both this chain's record and mainnet ETH at the same address, so the name
+      // resolves identically through the L1 resolver and on Robinhood Chain. Batched
+      // through the registry's multicall so the user signs once, not twice.
+      await writeContractAsync({
+        address: L2_REGISTRY_ADDRESS,
+        abi: registryAbi,
+        functionName: "multicall",
+        args: [
+          [ROBINHOOD_COIN_TYPE, ETH_COIN_TYPE].map((coinType) =>
+            encodeFunctionData({
+              abi: registryAbi,
+              functionName: "setAddr",
+              args: [name.node, coinType, value as Address],
+            })
+          ),
+        ],
+        chainId: robinhoodChain.id,
+      });
+    } catch (error) {
+      setSavingField(null);
+      setActionError(walletErrorMessage(error));
+    }
   }
 
   const addrValue = (draft.addr ?? "").trim();
@@ -245,14 +279,18 @@ function NameEditor({ name, onSaved }: { name: OwnedName; onSaved: () => void })
             <button
               className="btn btn-ghost sm:w-32"
               onClick={saveAddr}
-              disabled={busy || !addrValid || !dirty.has("addr") || addrValue === ""}
+              disabled={
+                busy || !addrValid || !dirty.has("addr") || addrValue === ""
+              }
               type="button"
             >
               {savingField === "addr" && busy ? "Saving…" : "Save"}
             </button>
           </div>
           {!addrValid && (
-            <div className="data mt-1 text-xs bad">That isn&apos;t a valid address</div>
+            <div className="data mt-1 text-xs bad">
+              That isn&apos;t a valid address
+            </div>
           )}
         </div>
 
@@ -287,9 +325,9 @@ function NameEditor({ name, onSaved }: { name: OwnedName; onSaved: () => void })
         ))}
       </div>
 
-      {error && (
+      {(actionError || error) && (
         <div className="data mt-4 break-words text-xs bad">
-          {error.message.split("\n")[0]}
+          {actionError ?? walletErrorMessage(error)}
         </div>
       )}
       {receipt.isSuccess && !savingField && (
@@ -297,8 +335,8 @@ function NameEditor({ name, onSaved }: { name: OwnedName; onSaved: () => void })
       )}
 
       <p className="data mt-5 text-[11px] leading-relaxed text-[var(--faint)]">
-        Each record is one transaction on Robinhood Chain. You&apos;re the owner — these
-        writes go straight to the registry, not through us.
+        Each record is one transaction on Robinhood Chain. You&apos;re the owner
+        — these writes go straight to the registry, not through us.
       </p>
     </div>
   );
@@ -333,7 +371,9 @@ export function ManagePanel() {
   if (loading) {
     return (
       <div className="panel p-8 text-center">
-        <div className="data text-sm text-[var(--dim)]">Loading your names…</div>
+        <div className="data text-sm text-[var(--dim)]">
+          Loading your names…
+        </div>
       </div>
     );
   }

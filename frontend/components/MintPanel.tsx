@@ -19,10 +19,17 @@ import {
   erc20Abi,
   registrarAbi,
 } from "@/lib/contracts";
-import { MINT_STATUS, TIER_USD, checkLabel, isShort, tierOf } from "@/lib/labels";
+import {
+  MINT_STATUS,
+  TIER_USD,
+  checkLabel,
+  isShort,
+  tierOf,
+} from "@/lib/labels";
 import { formatEth } from "@/lib/format";
 import { VOUCHER_URL } from "@/lib/site";
 import { track } from "@/lib/analytics";
+import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
 import { useMintQuery } from "./MintQuery";
 
@@ -66,13 +73,19 @@ export function MintPanel({
   // Snapshot at submit time so the success card can't drift if the field is edited
   // while the transaction confirms.
   const [minted, setMinted] = useState<string | null>(null);
+  // Chain-switch and submission failures, which no hook reports for us.
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const { address, isConnected, chainId } = useAccount();
   const { open } = useAppKit();
   const router = useRouter();
   const { switchChainAsync } = useSwitchChain();
-  const { writeContractAsync, data: txHash, isPending, error: writeError } =
-    useWriteContract();
+  const {
+    writeContractAsync,
+    data: txHash,
+    isPending,
+    error: writeError,
+  } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({
     hash: txHash,
     chainId: robinhoodChain.id,
@@ -126,7 +139,9 @@ export function MintPanel({
     args: [address ?? ZERO_ADDRESS, REGISTRAR_ADDRESS ?? ZERO_ADDRESS],
     chainId: robinhoodChain.id,
     query: {
-      enabled: Boolean(USDC_ADDRESS && REGISTRAR_ADDRESS && address) && method === "usdg",
+      enabled:
+        Boolean(USDC_ADDRESS && REGISTRAR_ADDRESS && address) &&
+        method === "usdg",
       refetchInterval: 10_000,
     },
   });
@@ -192,7 +207,10 @@ export function MintPanel({
         return { text: "already taken", cls: "bad" };
       case MINT_STATUS.LOCKED:
         return {
-          text: creditsLeft > 0 ? "unlocked by your credit" : "premium — needs a credit",
+          text:
+            creditsLeft > 0
+              ? "unlocked by your credit"
+              : "premium — needs a credit",
           cls: creditsLeft > 0 ? "ok" : "warn",
         };
       case MINT_STATUS.BLOCKED:
@@ -207,7 +225,8 @@ export function MintPanel({
     short &&
     creditsLeft > 0 &&
     !!voucher &&
-    (settledStatus === MINT_STATUS.LOCKED || settledStatus === MINT_STATUS.AVAILABLE);
+    (settledStatus === MINT_STATUS.LOCKED ||
+      settledStatus === MINT_STATUS.AVAILABLE);
 
   // Until the voucher request settles we don't know whether this address holds a credit.
   // After the goal opens shorts to public sale the name reads as AVAILABLE, so without
@@ -217,13 +236,18 @@ export function MintPanel({
     short && !!address && (voucherLoading || (!voucher && !voucherError));
 
   const canMintPublic =
-    settledStatus === MINT_STATUS.AVAILABLE && !canMintWithCredit && !creditUnknown;
+    settledStatus === MINT_STATUS.AVAILABLE &&
+    !canMintWithCredit &&
+    !creditUnknown;
 
   // A locked short name with no credit can't be bought at any price, so the price
   // ledger, the ETH/USDG toggle and the mint button are all dead weight — and they
   // push the one thing that *is* actionable, "Earn a credit", off the screen.
   const lockedNoCredit =
-    shortsLocked && !creditUnknown && creditsLeft === 0 && settledStatus === MINT_STATUS.LOCKED;
+    shortsLocked &&
+    !creditUnknown &&
+    creditsLeft === 0 &&
+    settledStatus === MINT_STATUS.LOCKED;
   const canMint = enabled && (canMintPublic || canMintWithCredit);
 
   // On the home page, connecting is a commitment to mint — so once the wallet is in,
@@ -251,11 +275,15 @@ export function MintPanel({
 
   async function mint() {
     if (!REGISTRAR_ADDRESS || !debouncedLabel) return;
-    if (!(await ensureChain())) return;
+    setActionError(null);
 
     const snapshot = debouncedLabel;
 
     try {
+      // Inside the try: declining the network prompt rejects here, and used to
+      // escape as an unhandled rejection with nothing shown to the user.
+      if (!(await ensureChain())) return;
+
       if (canMintWithCredit && voucher) {
         track("short_mint_started", { tier: String(tier) });
         await writeContractAsync({
@@ -304,7 +332,7 @@ export function MintPanel({
       setMinted(snapshot);
     } catch (error) {
       track("mint_failed", { tier: String(tier) });
-      throw error;
+      setActionError(walletErrorMessage(error));
     }
   }
 
@@ -327,8 +355,8 @@ export function MintPanel({
           <span className="text-[var(--dim)]">.hoodfi.eth</span>
         </h3>
         <p className="mt-2 text-sm text-[var(--dim)]">
-          It&apos;s yours for life — no renewals, no expiry. Add an avatar, an address
-          and your links next.
+          It&apos;s yours for life — no renewals, no expiry. Add an avatar, an
+          address and your links next.
         </p>
 
         <div className="mt-5 flex flex-col gap-3">
@@ -399,83 +427,94 @@ export function MintPanel({
           .hoodfi.eth
         </span>
       </div>
-      {verdict && <div className={`data mt-2 text-xs ${verdict.cls}`}>{verdict.text}</div>}
+      {verdict && (
+        <div className={`data mt-2 text-xs ${verdict.cls}`}>{verdict.text}</div>
+      )}
 
-
-      {debouncedLabel && check.ok && !lockedNoCredit && settledStatus !== undefined && (
-        <div className="mt-5">
-          <div className="ledger-row">
-            <span className="text-sm text-[var(--dim)]">Length</span>
-            <span className="data text-sm">
-              {debouncedLabel.length} character{debouncedLabel.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <div className="ledger-row">
-            <span className="text-sm text-[var(--dim)]">Price</span>
-            <span className="data text-sm">
-              {canMintWithCredit ? (
-                <span className="ok">free — 1 credit</span>
-              ) : creditUnknown ? (
-                "checking credits…"
-              ) : method === "usdg" ? (
-                usdgPrice !== undefined ? (
-                  `${(Number(usdgPrice) / 1e6).toFixed(2)} USDG`
+      {debouncedLabel &&
+        check.ok &&
+        !lockedNoCredit &&
+        settledStatus !== undefined && (
+          <div className="mt-5">
+            <div className="ledger-row">
+              <span className="text-sm text-[var(--dim)]">Length</span>
+              <span className="data text-sm">
+                {debouncedLabel.length} character
+                {debouncedLabel.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div className="ledger-row">
+              <span className="text-sm text-[var(--dim)]">Price</span>
+              <span className="data text-sm">
+                {canMintWithCredit ? (
+                  <span className="ok">free — 1 credit</span>
+                ) : creditUnknown ? (
+                  "checking credits…"
+                ) : method === "usdg" ? (
+                  usdgPrice !== undefined ? (
+                    `${(Number(usdgPrice) / 1e6).toFixed(2)} USDG`
+                  ) : (
+                    "…"
+                  )
+                ) : weiPrice !== undefined ? (
+                  `${formatEth(weiPrice)} ETH`
                 ) : (
-                  "…"
-                )
-              ) : weiPrice !== undefined ? (
-                `${formatEth(weiPrice)} ETH`
-              ) : (
-                `$${TIER_USD[tier]}`
-              )}
-            </span>
+                  `$${TIER_USD[tier]}`
+                )}
+              </span>
+            </div>
+            <div className="ledger-row">
+              <span className="text-sm text-[var(--dim)]">Renewals</span>
+              <span className="data text-sm ok">never — lifetime</span>
+            </div>
           </div>
-          <div className="ledger-row">
-            <span className="text-sm text-[var(--dim)]">Renewals</span>
-            <span className="data text-sm ok">never — lifetime</span>
-          </div>
-        </div>
-      )}
+        )}
 
-      {!canMintWithCredit && !lockedNoCredit && debouncedLabel && check.ok && settledStatus !== undefined && (
-        <div className="mt-5 flex gap-2">
-          {(["eth", "usdg"] as PayMethod[]).map((m) => (
-            <button
-              key={m}
-              className={`btn flex-1 ${method === m ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => setMethod(m)}
-              type="button"
-              disabled={m === "usdg" && !USDC_ADDRESS}
-            >
-              Pay in {m === "eth" ? "ETH" : "USDG"}
-            </button>
-          ))}
-        </div>
-      )}
+      {!canMintWithCredit &&
+        !lockedNoCredit &&
+        debouncedLabel &&
+        check.ok &&
+        settledStatus !== undefined && (
+          <div className="mt-5 flex gap-2">
+            {(["eth", "usdg"] as PayMethod[]).map((m) => (
+              <button
+                key={m}
+                className={`btn flex-1 ${
+                  method === m ? "btn-primary" : "btn-ghost"
+                }`}
+                onClick={() => setMethod(m)}
+                type="button"
+                disabled={m === "usdg" && !USDC_ADDRESS}
+              >
+                Pay in {m === "eth" ? "ETH" : "USDG"}
+              </button>
+            ))}
+          </div>
+        )}
 
       {!lockedNoCredit && (
-      <button
-        className="btn btn-primary mt-5 w-full"
-        onClick={mint}
-        disabled={!canMint || isPending || receipt.isLoading}
-        type="button"
-      >
-        {!enabled
-          ? "Minting opens soon"
-          : !isConnected
+        <button
+          className="btn btn-primary mt-5 w-full"
+          onClick={mint}
+          disabled={!canMint || isPending || receipt.isLoading}
+          type="button"
+        >
+          {!enabled
+            ? "Minting opens soon"
+            : !isConnected
             ? "Connect to mint"
             : isPending
-              ? "Confirm in wallet…"
-              : receipt.isLoading
-                ? "Minting…"
-                : creditUnknown
-                  ? "Checking your credits…"
-                  : canMintWithCredit
-                    ? `Claim ${debouncedLabel}.hoodfi.eth free`
-                    : canMintPublic
-                      ? `Mint ${debouncedLabel}.hoodfi.eth`
-                      : "Mint"}
-      </button>
+            ? "Confirm in wallet…"
+            : receipt.isLoading
+            ? "Minting…"
+            : creditUnknown
+            ? "Checking your credits…"
+            : canMintWithCredit
+            ? `Claim ${debouncedLabel}.hoodfi.eth free`
+            : canMintPublic
+            ? `Mint ${debouncedLabel}.hoodfi.eth`
+            : "Mint"}
+        </button>
       )}
 
       {/* Short names pre-goal: explain the one path that unlocks them. */}
@@ -486,8 +525,9 @@ export function MintPanel({
           </div>
           <p className="mt-2 text-xs leading-relaxed text-[var(--dim)]">
             {voucherError && address ? `${voucherError} ` : ""}
-            Donate one year to hoodfi.eth&apos;s ENS expiry and you can mint any 1–3
-            character name free. They open to everyone once the 100-year goal is reached.
+            Donate one year to hoodfi.eth&apos;s ENS expiry and you can mint any
+            1–3 character name free. They open to everyone once the 100-year
+            goal is reached.
           </p>
           <Link href="/#extend" className="btn btn-ghost mt-3 w-full">
             Earn a credit
@@ -495,15 +535,15 @@ export function MintPanel({
         </div>
       )}
 
-      {writeError && (
+      {(actionError || writeError) && (
         <div className="data mt-3 break-words text-xs bad">
-          {writeError.message.split("\n")[0]}
+          {actionError ?? walletErrorMessage(writeError)}
         </div>
       )}
 
       <p className="data mt-4 text-[11px] leading-relaxed text-[var(--faint)]">
-        Names are lifetime ERC-721s on Robinhood Chain. You control every record — this
-        site can&apos;t edit or reclaim your name.
+        Names are lifetime ERC-721s on Robinhood Chain. You control every record
+        — this site can&apos;t edit or reclaim your name.
       </p>
     </div>
   );
