@@ -100,8 +100,26 @@ NEXT_PUBLIC_USDC_ADDRESS=0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168
 NEXT_PUBLIC_L2_DEPLOY_BLOCK=15164296
 NEXT_PUBLIC_VOUCHER_URL=https://hoodfi-gateway.dmpay.workers.dev/voucher
 NEXT_PUBLIC_ANALYTICS_URL=https://hoodfi-gateway.dmpay.workers.dev/e
+NEXT_PUBLIC_DONATIONS_URL=https://hoodfi-gateway.dmpay.workers.dev/donations
 NEXT_PUBLIC_CANONICAL_URL=https://hoodfi.name
+NEXT_PUBLIC_ALCHEMY_API_KEY=            # optional — see below
 ```
+
+**Every one of these must also be set in the Vercel project**, not just in
+`frontend/.env.local`. They are inlined at *build* time, so adding one to Vercel does
+nothing until the next build — redeploy after changing any of them. This list omitting
+`NEXT_PUBLIC_ALCHEMY_API_KEY` is why it was never set on Vercel, which is what left the
+donation ledger reading a public RPC that refuses archive `eth_getLogs` and rendering
+the failure as "No donations yet".
+
+### Which key goes where
+
+`NEXT_PUBLIC_*` is **inlined into the client bundle** — anything here is public. Do not
+put the paid Alchemy key in it; that key is a worker secret
+(`wrangler secret put MAINNET_RPC_URL`) and the archive-heavy reads live there for that
+reason. If you want Alchemy in the browser at all, use a *separate* app restricted by
+allowed origin — the frontend only needs `eth_call` and CCIP, which the public fallback
+already serves, so this is a reliability upgrade rather than a requirement.
 
 Plus **per deployment**:
 
