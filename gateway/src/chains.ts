@@ -2,6 +2,8 @@ import { defineChain } from 'viem'
 
 export const ROBINHOOD_CHAIN_ID = 4663
 export const DEFAULT_ROBINHOOD_RPC = 'https://rpc.mainnet.chain.robinhood.com'
+/** Last resort when the public RPC rate-limits us. Also throttled, but on its own budget. */
+export const FALLBACK_ROBINHOOD_RPC = 'https://robinhoodchain.blockscout.com/api/eth-rpc'
 
 export const robinhoodChain = defineChain({
   id: ROBINHOOD_CHAIN_ID,

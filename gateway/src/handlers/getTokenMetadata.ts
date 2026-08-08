@@ -1,7 +1,7 @@
-import { http, type Hex, createPublicClient, parseAbi, toHex } from 'viem'
+import { type Hex, parseAbi, toHex } from 'viem'
 
-import { robinhoodChain, DEFAULT_ROBINHOOD_RPC } from '../chains'
-import { type Env, envVar, envVarOptional } from '../env'
+import { type Env, envVar } from '../env'
+import { robinhoodClient } from '../rpc'
 import { dnsDecodeName } from '../ccip-read/utils'
 
 /** Collection art, shared by every name. Pinned on IPFS so metadata art outlives the worker. */
@@ -26,14 +26,9 @@ export async function getTokenMetadata(tokenId: string, env: Env) {
     return Response.json({ message: 'Invalid token id' }, { status: 400 })
   }
 
-  const client = createPublicClient({
-    chain: robinhoodChain,
-    transport: http(envVarOptional('ROBINHOOD_RPC_URL', env) ?? DEFAULT_ROBINHOOD_RPC),
-  })
-
   let dnsEncodedName: Hex
   try {
-    dnsEncodedName = await client.readContract({
+    dnsEncodedName = await robinhoodClient(env).readContract({
       address: envVar('L2_REGISTRY_ADDRESS', env),
       abi: registryAbi,
       functionName: 'names',

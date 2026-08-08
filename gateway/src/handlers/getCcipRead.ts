@@ -95,7 +95,16 @@ export const getCcipRead = async (
     return Response.json({ message: 'Unable to decode request payload' }, { status: 400 })
   }
 
-  const result = await handleQuery({ ...decoded, env })
+  const query = await handleQuery({ ...decoded, env })
+
+  // Signing is an assertion that we read the chain. When we couldn't, say so with a
+  // status code instead — a signed empty answer verifies perfectly against the
+  // resolver and gets cached by clients as "this name has no records", which is how
+  // an RPC outage turned into every hoodfi name silently vanishing from wallets.
+  if (!query.ok) {
+    return Response.json({ message: query.reason }, { status: 502 })
+  }
+  const result = query.data
 
   const ttl = 300
   const validUntil = Math.floor(Date.now() / 1000 + ttl)

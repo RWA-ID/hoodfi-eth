@@ -1,7 +1,4 @@
 import {
-  http,
-  type Hex,
-  createPublicClient,
   encodeAbiParameters,
   getAddress,
   isAddress,
@@ -9,10 +6,10 @@ import {
   parseAbi,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { mainnet } from 'viem/chains'
 
-import { ROBINHOOD_CHAIN_ID, DEFAULT_ROBINHOOD_RPC, robinhoodChain } from '../chains'
-import { type Env, envVar, envVarOptional } from '../env'
+import { ROBINHOOD_CHAIN_ID } from '../chains'
+import { type Env, envVar } from '../env'
+import { mainnetClient, robinhoodClient } from '../rpc'
 
 /** How long a signed voucher stays valid. Short enough to bound staleness, long
  *  enough to survive a slow wallet confirmation. */
@@ -43,14 +40,9 @@ export async function getVoucher(rawAddress: string, env: Env) {
   const donationsAddress = envVar('DONATIONS_ADDRESS', env)
   const registrarAddress = envVar('REGISTRAR_ADDRESS', env)
 
-  const l1 = createPublicClient({
-    chain: mainnet,
-    transport: http(envVarOptional('MAINNET_RPC_URL', env)),
-  })
-
   let totalCredits: bigint
   try {
-    totalCredits = await l1.readContract({
+    totalCredits = await mainnetClient(env).readContract({
       address: donationsAddress,
       abi: donationsAbi,
       functionName: 'shortCredits',
@@ -97,29 +89,30 @@ export async function getVoucher(rawAddress: string, env: Env) {
   const signature = await account.signMessage({ message: { raw: inner } })
 
   // Reported so the UI can show "2 of 3 credits left" without a second RPC round trip.
-  let spent = 0n
+  // A failed read used to fall through as zero, which reads as "all your credits are
+  // unspent" — the UI would then offer a free mint that reverts on submission. Report
+  // the gap honestly instead and let the caller decide what to show.
+  let spent: bigint | null = null
   try {
-    const l2 = createPublicClient({
-      chain: robinhoodChain,
-      transport: http(envVarOptional('ROBINHOOD_RPC_URL', env) ?? DEFAULT_ROBINHOOD_RPC),
-    })
-    spent = await l2.readContract({
+    spent = await robinhoodClient(env).readContract({
       address: registrarAddress,
       abi: registrarAbi,
       functionName: 'creditsSpent',
       args: [donor],
     })
-  } catch {
-    // Non-fatal: the registrar enforces the real accounting on-chain anyway.
+  } catch (error) {
+    // Non-fatal: the registrar enforces the real accounting on-chain regardless.
+    console.error(`creditsSpent unreadable for ${donor}:`, error)
   }
 
-  const available = totalCredits > spent ? totalCredits - spent : 0n
+  const available =
+    spent === null ? null : totalCredits > spent ? totalCredits - spent : 0n
 
   return Response.json({
     donor,
     totalCredits: totalCredits.toString(),
-    creditsSpent: spent.toString(),
-    creditsAvailable: available.toString(),
+    creditsSpent: spent === null ? null : spent.toString(),
+    creditsAvailable: available === null ? null : available.toString(),
     expiry: expiry.toString(),
     signature,
     signer: account.address,

@@ -17,6 +17,7 @@
     "evm-providers": "^0.6.0",
     "hono": "^4.7.7",
     "viem": "^2.47.10",
+    "workers-og": "^0.0.27",
     "zod": "^3.21.4"
   },
   "peerDependencies": {

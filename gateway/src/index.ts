@@ -3,6 +3,8 @@ import { cors } from 'hono/cors'
 
 import { type Env } from './env'
 import { getCcipRead, getHealth } from './handlers/getCcipRead'
+import { getNameCard } from './handlers/getNameCard'
+import { getSharePage } from './handlers/getSharePage'
 import { getTokenMetadata } from './handlers/getTokenMetadata'
 import { getVoucher } from './handlers/getVoucher'
 import { postEvent } from './handlers/postEvent'
@@ -37,6 +39,14 @@ app.get('/nft/:tokenId', async (c) =>
 // Short-name credit voucher. Attests mainnet donation credits so HoodfiRegistrar on
 // Robinhood Chain can let a donor mint a 1-3 char name without a bridge.
 app.get('/voucher/:address', async (c) => getVoucher(c.req.param('address'), c.env))
+
+// Per-name share link. A static export serves identical HTML for every name, so this
+// is the only place a crawler can be told what `gm.hoodfi.eth` actually is. Rewritten
+// onto the site's own domain, so shared URLs never expose workers.dev.
+app.get('/n/:label', async (c) => getSharePage(c.req.param('label'), c.req.url, c.env))
+
+// The 1200x630 image those tags point at, rendered per name.
+app.get('/card/:label', async (c) => getNameCard(c.req.param('label'), c.env))
 
 // Cookieless analytics sink. Always 204s — the site must never break on a bad beacon.
 app.post('/e', async (c) => postEvent(c.req.raw, c.env))
