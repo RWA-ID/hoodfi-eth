@@ -16,6 +16,14 @@
     {
       "source": "/card/:label/",
       "destination": "https://hoodfi-gateway.dmpay.workers.dev/card/:label"
+    },
+    {
+      "source": "/:label([a-z0-9-]{1,32})",
+      "destination": "https://hoodfi-gateway.dmpay.workers.dev/n/:label"
+    },
+    {
+      "source": "/:label([a-z0-9-]{1,32})/",
+      "destination": "https://hoodfi-gateway.dmpay.workers.dev/n/:label"
     }
   ]
 }

@@ -42,10 +42,13 @@ export const GOAL_YEAR_LABEL = 2127;
  * HTML for every query string, so only a route that renders per name can describe it.
  */
 export function nameShareUrl(label: string): string {
-  // Trailing slash is load-bearing. `trailingSlash: true` makes the host 308 the
-  // slashless form, and a redirect hop is one more thing a crawler can time out on —
-  // the rewrite matches both, but only this form is answered directly.
-  return `${CANONICAL_URL}/n/${encodeURIComponent(label)}/`;
+  // Bare `/<label>` — the shape the profile card advertises, and the one worth putting
+  // on a name service. A vercel.json rewrite maps it to the gateway's share page, and
+  // `/n/<label>` still resolves so links shared before this keep working.
+  //
+  // Trailing slash is load-bearing: `trailingSlash: true` 308s the slashless form, and
+  // a redirect hop is one more thing a crawler can time out on.
+  return `${CANONICAL_URL}/${encodeURIComponent(label)}/`;
 }
 
 /** Gateway route that signs short-name credit vouchers. */

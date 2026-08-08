@@ -519,24 +519,34 @@ function NameCard({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${
+      // --panel-2, not --panel: against --ink the latter is a three-value difference
+      // and the card disappears into the page, which is exactly how these read as one
+      // long bar rather than as separate, clickable things.
+      className={`group relative flex w-[168px] shrink-0 cursor-pointer flex-col items-center gap-2.5 overflow-hidden rounded-xl border p-4 text-center transition ${
         selected
-          ? "border-[var(--green)] bg-[var(--green-soft)]"
-          : "border-[var(--line)] bg-[var(--panel-2)] hover:border-[var(--line-strong)]"
+          ? "border-[var(--green)] bg-[color-mix(in_srgb,var(--green)_10%,var(--panel))] shadow-[0_0_0_1px_var(--green),0_18px_40px_-24px_color-mix(in_srgb,var(--green)_70%,transparent)]"
+          : "border-[var(--line-strong)] bg-[var(--panel-2)] hover:-translate-y-0.5 hover:border-[var(--green)] hover:bg-[color-mix(in_srgb,var(--green)_8%,var(--panel-2))]"
       }`}
     >
+      {/* Says which one you're editing without relying on colour alone. */}
+      <span
+        className={`data absolute right-2 top-2 text-[9px] uppercase tracking-[0.16em] ${
+          selected ? "text-[var(--green)]" : "text-transparent group-hover:text-[var(--faint)]"
+        }`}
+      >
+        {selected ? "editing" : "edit"}
+      </span>
+
       <NameAvatar
         label={name.label}
         avatar={avatar.data ?? ""}
-        className="h-10 w-10"
-        textClassName="text-xs"
+        className="h-12 w-12"
+        textClassName="text-sm"
       />
-      <div className="data min-w-0 text-sm font-semibold leading-tight">
-        <span className="block truncate">{name.label}</span>
-        <span className="block text-xs font-normal text-[var(--dim)]">
-          .hoodfi.eth
-        </span>
-      </div>
+      <span className="data block max-w-full truncate text-sm font-semibold leading-tight">
+        {name.label}
+      </span>
+      <span className="data -mt-1.5 text-[10px] text-[var(--faint)]">.hoodfi.eth</span>
     </button>
   );
 }
@@ -622,16 +632,16 @@ export function ManagePanel() {
       {/* Every name visible at once. Stacking full editors meant a second name sat
           below the fold, so a wallet holding several looked like it held one. */}
       {names.length > 1 && (
-        <div className="panel p-5 sm:p-6">
+        <div>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <div className="eyebrow">
-              {names.length} names in this wallet
-            </div>
+            <div className="eyebrow">{names.length} names in this wallet</div>
             <div className="data text-xs text-[var(--faint)]">
               Pick one to edit its records
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {/* Deliberately not wrapped in a .panel: a single bordered box around them
+              reads as the object, and the cards inside it disappear. */}
+          <div className="mt-4 flex flex-wrap gap-3">
             {names.map((name) => (
               <NameCard
                 key={name.node}
