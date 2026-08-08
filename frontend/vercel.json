@@ -6,7 +6,15 @@
       "destination": "https://hoodfi-gateway.dmpay.workers.dev/n/:label"
     },
     {
+      "source": "/n/:label/",
+      "destination": "https://hoodfi-gateway.dmpay.workers.dev/n/:label"
+    },
+    {
       "source": "/card/:label",
+      "destination": "https://hoodfi-gateway.dmpay.workers.dev/card/:label"
+    },
+    {
+      "source": "/card/:label/",
       "destination": "https://hoodfi-gateway.dmpay.workers.dev/card/:label"
     }
   ]

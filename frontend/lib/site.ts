@@ -42,7 +42,10 @@ export const GOAL_YEAR_LABEL = 2127;
  * HTML for every query string, so only a route that renders per name can describe it.
  */
 export function nameShareUrl(label: string): string {
-  return `${CANONICAL_URL}/n/${encodeURIComponent(label)}`;
+  // Trailing slash is load-bearing. `trailingSlash: true` makes the host 308 the
+  // slashless form, and a redirect hop is one more thing a crawler can time out on —
+  // the rewrite matches both, but only this form is answered directly.
+  return `${CANONICAL_URL}/n/${encodeURIComponent(label)}/`;
 }
 
 /** Gateway route that signs short-name credit vouchers. */
