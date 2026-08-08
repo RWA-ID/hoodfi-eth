@@ -34,10 +34,12 @@ export async function getSharePage(
   env: Env
 ): Promise<Response> {
   const site = (envVarOptional('SITE_URL', env) ?? DEFAULT_SITE).replace(/\/$/, '')
-  // The card is addressed relative to however this page was reached, so it resolves
-  // whether the request arrived through the site's rewrite or straight at the worker.
-  // Pinning it to SITE_URL would 404 until the rewrite is deployed.
+  // Card URL prefers the site's own domain — /card/ is rewritten there, so a shared
+  // card never exposes a workers.dev address. A rewrite proxies with the worker's Host,
+  // so the request origin can't be used for this; it stays as the fallback for direct
+  // hits on the worker, where the site rewrite may not exist yet.
   const origin = new URL(requestUrl).origin
+  const cardBase = site || origin
   const label = normalizeLabel(rawLabel)
 
   if (!label) {
@@ -71,7 +73,7 @@ export async function getSharePage(
       : status === MINT_STATUS.LOCKED
         ? `Short names unlock once hoodfi.eth's expiry reaches the 100-year goal — or mint one free now with a donation credit.`
         : `Nobody owns ${name} yet. Mint it for life in one transaction on Robinhood Chain.`
-  const image = profile ? `${origin}/card/${label}.png` : `${site}/og/default.png`
+  const image = profile ? `${cardBase}/card/${label}.png` : `${site}/og/default.png`
 
   const html = `<!doctype html>
 <html lang="en">

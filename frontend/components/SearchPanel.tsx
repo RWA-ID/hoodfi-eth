@@ -201,13 +201,18 @@ function Row({
  * gateway returns a signed empty answer that looks identical to "no records set".
  */
 function L1Badge({ state }: { state: L1State }) {
+  // The check itself is a mainnet lookup, but naming only Ethereum undersells what a
+  // pass means: wallets resolve against L1 whatever network they're on, and the address
+  // it returns is valid on every EVM chain. Success is stated that way; failure stays
+  // specific, because "not resolving across EVM chains" would read as a partial outage
+  // when it is a total one.
   const map: Record<string, { cls: string; text: string }> = {
-    checking: { cls: "text-[var(--faint)]", text: "Checking Ethereum…" },
+    checking: { cls: "text-[var(--faint)]", text: "Checking resolution…" },
     idle: { cls: "text-[var(--faint)]", text: "" },
-    ok: { cls: "ok", text: "✓ Resolving on Ethereum" },
-    mismatch: { cls: "warn", text: "⚠ Ethereum returns a different address" },
-    empty: { cls: "bad", text: "✗ Not resolving on Ethereum" },
-    error: { cls: "bad", text: "✗ Ethereum check failed" },
+    ok: { cls: "ok", text: "✓ Resolving across EVM chains" },
+    mismatch: { cls: "warn", text: "⚠ Mainnet returns a different address" },
+    empty: { cls: "bad", text: "✗ Not resolving — wallets can't see this name" },
+    error: { cls: "bad", text: "✗ Couldn't check resolution" },
   };
   const view = map[state.status];
   if (!view.text) return null;
@@ -215,6 +220,12 @@ function L1Badge({ state }: { state: L1State }) {
   return (
     <div className="mt-2">
       <span className={`data text-xs ${view.cls}`}>{view.text}</span>
+      {state.status === "ok" && (
+        <p className="mt-1 max-w-[52ch] text-xs text-[var(--faint)]">
+          Answered from Ethereum mainnet, so the same address works on Base, Arbitrum,
+          Polygon, Optimism and Robinhood Chain.
+        </p>
+      )}
       {state.status === "empty" && (
         <p className="mt-1 max-w-[52ch] text-xs text-[var(--faint)]">
           The records above are stored correctly on Robinhood Chain, but mainnet
@@ -224,7 +235,7 @@ function L1Badge({ state }: { state: L1State }) {
       )}
       {state.status === "mismatch" && (
         <p className="data mt-1 text-xs text-[var(--faint)]">
-          Ethereum says {state.addr}
+          Mainnet says {state.addr}
         </p>
       )}
     </div>
