@@ -32,7 +32,24 @@ and app through the ENS Universal Resolver.
 | CCIP gateway | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/v1/{sender}/{data}.json` |
 | Credit voucher signer | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/voucher/{address}` |
 | ERC-721 metadata | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/nft/{tokenId}` |
+| Per-name share page | Cloudflare Workers | `https://www.hoodfi.name/{label}` → `/n/{label}` (per-name OG tags) |
+| Per-name share card | Cloudflare Workers | `https://www.hoodfi.name/card/{label}.png` (generated 1200×630) |
+| Donation ledger | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/donations` |
 | Website | hosted + IPFS | `https://www.hoodfi.name` · `https://hoodfi.eth.limo` |
+
+**`hoodfi.name/{label}` is a real URL** — a `vercel.json` rewrite maps it to the
+gateway's share page, restricted to the `[a-z0-9-]{1,32}` charset the registrar
+enforces. Vercel checks the filesystem before rewrites, so every real route wins;
+the tradeoff is that an unknown single-segment path renders "available" rather
+than 404ing. `/n/{label}` still resolves, so links shared before this keep working.
+
+Three of those endpoints exist because the site is a **static export**, which can
+serve only one HTML document per route. A crawler fetching `/search/?q=gm` sees
+byte-identical markup for every name, so per-name cards need a route that renders
+per request; and a wide `eth_getLogs` needs an archive-capable RPC, which the
+browser can only be given by inlining the key into the bundle. Both jobs therefore
+live on the worker, where the key is a secret. Every ledger row still carries its
+transaction hash, so the feed stays checkable without trusting us.
 
 The v1 contracts (`0x12c03c69…11cE2` donations, `0x75d61F7d…4f51` registrar) are
 retired. The **L2Registry was not redeployed**, so every name minted under v1 —
@@ -51,7 +68,18 @@ before and after the v2 registrar swap.
 2. **Mint.** One transaction in **ETH** or **USDG**, at the tier price below. The
    name is an ERC-721 that lands in your wallet immediately.
 3. **Make it yours.** Set the address, avatar, X handle, website and bio straight
-   on the L2Registry from `/manage`. The registrar has no say in it.
+   on the L2Registry from `/manage`. The registrar has no say in it. Every change
+   in the form saves as one `multicall`, so it costs a single signature however
+   many records moved.
+4. **Show it off.** `/search` renders any name's records for anyone, no wallet
+   required, and `hoodfi.name/{name}` unfurls with a generated card. `/manage`
+   previews that same card live against your unsaved draft.
+
+Addresses cover **Ethereum and every EVM chain** from one `addr` record — a wallet
+resolves against L1 whatever network it's on, and the address it gets is valid on
+Base, Arbitrum, Polygon, Optimism and Robinhood Chain alike. **Bitcoin and Solana**
+are separate ENSIP-9 coinType records, stored in each chain's own binary encoding
+rather than as the text you typed.
 
 | Length | Price | Availability |
 |---|---|---|
@@ -125,8 +153,18 @@ Resolution design notes:
 - The gateway accepts all three callData wire shapes seen in the wild:
   the resolver's `stuffedResolveCall`, tooling's `resolve(bytes,bytes)`
   (`0x9061b923`), and the legacy raw `abi.encode(name,data)` tuple. It answers
-  GET (`/v1/{sender}/{data}.json`, `.json` optional) and POST, and returns empty
-  bytes — never a 500 — for unknown records or unminted names.
+  GET (`/v1/{sender}/{data}.json`, `.json` optional) and POST.
+- **The gateway signs answers, so it must never sign one it didn't get.** A
+  reverting call is a real answer — an unminted name or an unsupported record —
+  and is returned as signed empty bytes. A *transport* failure is not an answer,
+  and returns 502 instead. Collapsing the two is not a small bug: a signed empty
+  response verifies perfectly against the resolver, so every client caches a
+  cryptographically valid "this name has no records" and the outage is invisible.
+  That is precisely what happened on 2026-08-08, when the public RPC began
+  rate-limiting the worker's shared egress IP and every hoodfi name silently
+  stopped resolving in wallets while the records sat untouched on L2. The worker
+  now uses a dedicated RPC with the public endpoints behind it via `fallback()`,
+  and distinguishes the two failure modes by walking viem's error chain.
 
 ## Repository layout
 
@@ -139,11 +177,19 @@ Resolution design notes:
 | `contracts/src/hoodfi/LabelUtils.sol` | Shared label validation (mirrored in `frontend/lib/labels.ts`) |
 | `contracts/scripts/hoodfi/` | Deploy scripts (donations / L2 stack / L1 resolver / `UpgradeRegistrar`) |
 | `contracts/test/hoodfi/` | Unit + mainnet-fork tests, including a full rehearsal of the registrar upgrade |
-| `gateway/` | Cloudflare Worker (Hono + viem): CCIP-Read gateway, credit-voucher signer, NFT metadata, analytics sink |
+| `gateway/` | Cloudflare Worker (Hono + viem): CCIP-Read gateway, credit-voucher signer, NFT metadata, share pages and cards, donation ledger, analytics sink |
+| `gateway/src/rpc.ts` | Shared clients. Dedicated RPC first, public endpoints behind it via `fallback()` — a public RPC rate-limits the worker's shared egress even when the same call works from a laptop |
+| `gateway/src/ccip-read/query.ts` | Separates "the chain answered no" from "we couldn't reach the chain"; only the first is ever signed |
 | `gateway/src/handlers/getVoucher.ts` | Reads `shortCredits` on L1, signs the voucher the registrar accepts |
+| `gateway/src/handlers/getSharePage.ts` · `getNameCard.ts` | Per-name OG tags, and the 1200×630 card they point at (satori) |
+| `gateway/src/handlers/getDonations.ts` | The donation ledger, read with the private archive RPC |
 | `frontend/` | Next.js 16 static export → hosted + IPFS |
-| `frontend/app/mint/` · `app/manage/` | Search-and-mint, and record editing for names you own |
+| `frontend/app/mint/` · `app/manage/` · `app/search/` | Search-and-mint, record editing for names you own, and the public name lookup |
 | `frontend/components/MintPanel.tsx` | The search card: live status, tier pricing, credit vouchers |
+| `frontend/components/SearchPanel.tsx` | Public lookup: reads the L2Registry directly, so it keeps working — and keeps telling the truth — when the gateway in front of it doesn't |
+| `frontend/components/ProfileCard.tsx` | The shareable card, used read-only on `/search` and as a live draft preview on `/manage` |
+| `frontend/lib/resolution.ts` | Mainnet resolution check and the mint-date lookup, shared by both pages |
+| `frontend/vercel.json` | Rewrites `/{label}`, `/n/`, `/card/` onto the worker. Not `next.config` — `rewrites` there are unsupported under `output: export` |
 | `DEPLOY.md` | The v2 deploy runbook, in the order it must be run |
 
 ## Contract reference
