@@ -32,6 +32,8 @@ import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
 import { NameAvatar } from "./NameAvatar";
+import { ProfileCard, type L1State } from "./ProfileCard";
+import { readMintDate, resolveOnL1 } from "@/lib/resolution";
 import { nameShareUrl } from "@/lib/site";
 import { type OwnedName, useMyNames } from "./useMyNames";
 
@@ -160,6 +162,10 @@ function NameEditor({
   const [saving, setSaving] = useState(false);
   // Chain-switch and submission failures: no hook reports these for us.
   const [actionError, setActionError] = useState<string | null>(null);
+  // Card preview extras. Both are non-blocking — the editor is usable before either
+  // lands, and neither is worth a spinner.
+  const [l1, setL1] = useState<L1State>({ status: "idle" });
+  const [mintedOn, setMintedOn] = useState<string | null>(null);
 
   const avatar = useTextRecord(name.node, "avatar");
   const twitter = useTextRecord(name.node, "com.twitter");
@@ -219,6 +225,33 @@ function NameEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [receipt.isSuccess]);
+
+  // Mint date is immutable, so it's fetched once per name.
+  useEffect(() => {
+    let cancelled = false;
+    void readMintDate(name.tokenId).then((d) => {
+      if (!cancelled) setMintedOn(d);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [name.tokenId]);
+
+  // Resolution is re-checked whenever the saved EVM record changes — after a save it
+  // genuinely can flip, and telling someone their name resolves when it no longer does
+  // is the failure this badge exists to catch.
+  useEffect(() => {
+    let cancelled = false;
+    const onChainEvm =
+      evmRecord && evmRecord !== "0x" ? getAddress(evmRecord as Address) : "";
+    setL1({ status: "checking" });
+    void resolveOnL1(name.label, onChainEvm).then((s) => {
+      if (!cancelled) setL1(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [name.label, evmRecord]);
 
   function set(key: string, value: string) {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -318,117 +351,149 @@ function NameEditor({
   const canSave = changeCount > 0 && !blocked && !busy;
 
   return (
-    <div className="panel p-6 sm:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4 sm:gap-5">
-          <NameAvatar label={name.label} avatar={draft.avatar ?? ""} />
-          <div className="min-w-0">
-            <div className="data text-xl font-semibold leading-tight break-all sm:text-2xl">
-              {name.label}
-              <span className="text-[var(--dim)]">.hoodfi.eth</span>
-            </div>
-            <a
-              className="data mt-1 inline-block text-xs text-[var(--faint)] underline"
-              href={`${robinhoodChain.blockExplorers.default.url}/token/${L2_REGISTRY_ADDRESS}/instance/${name.tokenId}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View NFT
-            </a>
-          </div>
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(330px,420px)_minmax(330px,1fr)]">
+      {/* Live preview — driven by the draft, not the chain, so it shows what you are
+          about to publish rather than what is already published. */}
+      <div className="flex flex-col gap-3">
+        <ProfileCard
+          name={{
+            label: name.label,
+            node: name.node,
+            avatar: draft.avatar ?? "",
+            description: draft.description ?? "",
+          }}
+          l1={l1}
+          mintedOn={mintedOn}
+          actions={false}
+          eyebrow={changeCount > 0 ? "Preview" : "Lifetime"}
+        />
+        <div className="flex flex-wrap gap-2.5">
+          <a
+            className="btn btn-ghost min-w-[150px] flex-1"
+            href={`${robinhoodChain.blockExplorers.default.url}/token/${L2_REGISTRY_ADDRESS}/instance/${name.tokenId}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            View NFT
+          </a>
+          <ShareOnX
+            text={`${name.label}.hoodfi.eth is mine — a lifetime ENS name on Robinhood Chain.\n\nGet yours:`}
+            url={nameShareUrl(name.label)}
+            className="btn btn-ghost min-w-[150px] flex-1"
+            eventLabel="manage"
+          >
+            Share
+          </ShareOnX>
         </div>
-        <ShareOnX
-          text={`${name.label}.hoodfi.eth is mine — a lifetime ENS name on Robinhood Chain.\n\nGet yours:`}
-          url={nameShareUrl(name.label)}
-          eventLabel="manage"
-        >
-          Share
-        </ShareOnX>
       </div>
 
-      <div className="mt-6 flex flex-col gap-5">
+      {/* Editor, laid out as the same ledger the lookup page renders read-only. */}
+      <div className="w-full rounded-xl border border-[var(--line)] bg-[color-mix(in_srgb,var(--panel)_85%,transparent)]">
+        <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3.5 sm:px-5">
+          <span className="data text-[11px] uppercase tracking-[0.2em] text-[var(--dim)]">
+            Onchain records
+          </span>
+          <span className="data flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-[var(--faint)]">
+            editing {name.label}
+          </span>
+        </div>
+
         {/* Addresses first — they're what make the name actually resolve. */}
         {ADDRESS_FIELDS.map((field) => (
-          <div key={field.key}>
+          <div
+            key={field.key}
+            className="flex flex-col gap-2 border-b border-[color-mix(in_srgb,var(--line)_70%,transparent)] px-4 py-4 sm:grid sm:grid-cols-[170px_minmax(0,1fr)] sm:items-start sm:gap-3 sm:px-5"
+          >
             <label
-              className="eyebrow flex items-center gap-2"
+              className="flex items-center gap-2 pt-2"
               htmlFor={`${field.key}-${name.label}`}
             >
               <field.Logo className="h-4 w-4 shrink-0" />
-              {field.label}
+              <span className="data text-[10.5px] uppercase leading-[1.35] tracking-[0.16em] text-[var(--dim)]">
+                {field.label}
+              </span>
             </label>
-            <input
-              id={`${field.key}-${name.label}`}
-              className="input data mt-2 w-full text-sm"
-              placeholder={field.key === "addr" ? address ?? "0x…" : field.placeholder}
-              value={draft[field.key] ?? ""}
-              onChange={(e) => set(field.key, e.target.value)}
-              spellCheck={false}
-              autoCapitalize="none"
-            />
-            {addrInvalid(field) ? (
-              <div className="data mt-1 text-xs bad">
-                That isn&apos;t a valid {field.label.split(" ")[0]} address
-              </div>
-            ) : (
-              field.help && (
-                <p className="mt-1 text-xs text-[var(--faint)]">{field.help}</p>
-              )
-            )}
+            <div className="min-w-0">
+              <input
+                id={`${field.key}-${name.label}`}
+                className="input data w-full text-sm"
+                placeholder={field.key === "addr" ? address ?? "0x…" : field.placeholder}
+                value={draft[field.key] ?? ""}
+                onChange={(e) => set(field.key, e.target.value)}
+                spellCheck={false}
+                autoCapitalize="none"
+              />
+              {addrInvalid(field) ? (
+                <div className="data mt-1.5 text-xs bad">
+                  That isn&apos;t a valid {field.label.split(" ")[0]} address
+                </div>
+              ) : (
+                field.help && (
+                  <p className="mt-1.5 text-xs text-[var(--faint)]">{field.help}</p>
+                )
+              )}
+            </div>
           </div>
         ))}
 
         {TEXT_FIELDS.map((field) => (
-          <div key={field.key}>
-            <label className="eyebrow" htmlFor={`${field.key}-${name.label}`}>
-              {field.label}
+          <div
+            key={field.key}
+            className="flex flex-col gap-2 border-b border-[color-mix(in_srgb,var(--line)_70%,transparent)] px-4 py-4 sm:grid sm:grid-cols-[170px_minmax(0,1fr)] sm:items-start sm:gap-3 sm:px-5"
+          >
+            <label className="pt-2" htmlFor={`${field.key}-${name.label}`}>
+              <span className="data text-[10.5px] uppercase leading-[1.35] tracking-[0.16em] text-[var(--dim)]">
+                {field.label}
+              </span>
             </label>
-            <input
-              id={`${field.key}-${name.label}`}
-              className="input mt-2 w-full text-sm"
-              placeholder={field.placeholder}
-              value={draft[field.key] ?? ""}
-              onChange={(e) => set(field.key, e.target.value)}
-              spellCheck={false}
-              autoCapitalize="none"
-            />
-            {field.help && (
-              <p className="mt-1 text-xs text-[var(--faint)]">{field.help}</p>
-            )}
+            <div className="min-w-0">
+              <input
+                id={`${field.key}-${name.label}`}
+                className="input w-full text-sm"
+                placeholder={field.placeholder}
+                value={draft[field.key] ?? ""}
+                onChange={(e) => set(field.key, e.target.value)}
+                spellCheck={false}
+                autoCapitalize="none"
+              />
+              {field.help && (
+                <p className="mt-1.5 text-xs text-[var(--faint)]">{field.help}</p>
+              )}
+            </div>
           </div>
         ))}
-      </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[var(--line)] pt-5">
-        <button
-          className="btn btn-primary sm:w-48"
-          onClick={saveAll}
-          disabled={!canSave}
-          type="button"
-        >
-          {saving && busy ? "Saving…" : "Save changes"}
-        </button>
-        <span className="data text-xs text-[var(--faint)]">
-          {changeCount === 0
-            ? "No unsaved changes"
-            : `${changeCount} record${changeCount === 1 ? "" : "s"} — one transaction`}
-        </span>
-      </div>
-
-      {(actionError || error) && (
-        <div className="data mt-4 break-words text-xs bad">
-          {actionError ?? walletErrorMessage(error)}
+        <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-5">
+          <button
+            className="btn btn-primary sm:w-48"
+            onClick={saveAll}
+            disabled={!canSave}
+            type="button"
+          >
+            {saving && busy ? "Saving…" : "Save changes"}
+          </button>
+          <span className="data text-xs text-[var(--faint)]">
+            {changeCount === 0
+              ? "No unsaved changes"
+              : `${changeCount} record${changeCount === 1 ? "" : "s"} — one transaction`}
+          </span>
         </div>
-      )}
-      {receipt.isSuccess && !saving && (
-        <div className="data mt-4 text-xs ok">✓ Records saved onchain.</div>
-      )}
 
-      <p className="data mt-5 text-[11px] leading-relaxed text-[var(--faint)]">
-        Every change you make saves in a single transaction on Robinhood Chain.
-        You&apos;re the owner — these writes go straight to the registry, not
-        through us.
-      </p>
+        <div className="px-4 pb-5 sm:px-5">
+          {(actionError || error) && (
+            <div className="data break-words text-xs bad">
+              {actionError ?? walletErrorMessage(error)}
+            </div>
+          )}
+          {receipt.isSuccess && !saving && (
+            <div className="data text-xs ok">✓ Records saved onchain.</div>
+          )}
+          <p className="data mt-3 text-[11px] leading-relaxed text-[var(--faint)]">
+            Every change saves in a single transaction on Robinhood Chain. You&apos;re
+            the owner — these writes go straight to the registry, not through us.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

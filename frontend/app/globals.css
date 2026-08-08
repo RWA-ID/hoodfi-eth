@@ -400,6 +400,120 @@ button {
   opacity: 1;
   transform: none;
 }
+/* Current route. Sets colours only — `.nav-pill` deliberately owns no `display`,
+   and neither does this, so Tailwind's `hidden` still wins on mobile. */
+.nav-pill-active {
+  background: color-mix(in srgb, var(--green) 92%, transparent);
+  border-color: var(--green);
+  color: #04270a;
+  font-weight: 600;
+}
+.nav-pill-active:hover {
+  background: var(--green);
+  color: #04270a;
+}
+
+/* ── name lookup ──
+   The card is one object: a gradient hairline frame, a faint plotting grid, and a
+   slow sheen. Everything here is decoration over a real record read, so all of it
+   is switched off under reduced motion. */
+
+/* 1px gradient border. A real border can't carry a gradient, so the frame is a
+   padded element whose background shows through around its child. */
+.card-frame {
+  padding: 1px;
+  border-radius: 16px;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--green) 75%, transparent),
+    rgba(148, 210, 165, 0.14) 40%,
+    color-mix(in srgb, var(--green) 35%, transparent)
+  );
+  box-shadow: 0 40px 90px -40px color-mix(in srgb, var(--green) 55%, transparent);
+}
+.card-surface {
+  border-radius: 15px;
+  background: linear-gradient(165deg, var(--panel-2), var(--ink) 60%);
+  overflow: hidden;
+  position: relative;
+}
+/* Plotting grid, faded so it reads as texture rather than lines. */
+.card-grid {
+  background-image:
+    linear-gradient(rgba(148, 210, 165, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 210, 165, 0.05) 1px, transparent 1px);
+  background-size: 26px 26px;
+  opacity: 0.55;
+}
+.card-sheen {
+  width: 220%;
+  height: 220%;
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    color-mix(in srgb, var(--green) 16%, transparent) 48%,
+    rgba(233, 242, 234, 0.1) 52%,
+    transparent 62%
+  );
+  animation: hf-sheen 7s linear infinite;
+}
+@keyframes hf-sheen {
+  from {
+    transform: translate(-60%, -60%) rotate(18deg);
+  }
+  to {
+    transform: translate(60%, 60%) rotate(18deg);
+  }
+}
+
+/* Avatar ring — a conic gradient behind a disc, so the ring is the padding. */
+.avatar-ring {
+  padding: 2px;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 210deg,
+    var(--green),
+    color-mix(in srgb, var(--green) 15%, transparent),
+    var(--green)
+  );
+}
+
+/* Indeterminate sweep for the in-flight lookup. */
+.hf-track {
+  height: 2px;
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  overflow: hidden;
+}
+.hf-track > span {
+  display: block;
+  height: 100%;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+  animation: hf-bar 1s linear infinite;
+}
+@keyframes hf-bar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
+.hf-rise {
+  animation: hf-rise 0.45s ease both;
+}
+@keyframes hf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     opacity: 1;
@@ -408,6 +522,15 @@ button {
   }
   .live-dot {
     animation: none;
+  }
+  .card-sheen,
+  .hf-track > span {
+    animation: none;
+  }
+  .hf-rise {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
   .ruler-progress,
   .ruler-marker {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ConnectButton } from "./ConnectButton";
 
 // Only Mint earns a slot on a 390px screen: logo + five pills + Connect overflows the
@@ -15,6 +16,14 @@ const NAV = [
 ];
 
 export function Header() {
+  // The current route's pill is filled, so it reads as "you are here" rather than as
+  // one more thing to click. Compared with trailingSlash in mind — pathname is "/search/".
+  const pathname = usePathname();
+  const isActive = (href: string) =>
+    href.startsWith("/") && href.length > 1 && !href.includes("#")
+      ? pathname === href || pathname === href.replace(/\/$/, "")
+      : false;
+
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--ink)_88%,transparent)] backdrop-blur">
       <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 2xl:px-12">
@@ -33,9 +42,10 @@ export function Header() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive(item.href) ? "page" : undefined}
               className={`nav-pill items-center ${
                 item.desktopOnly ? "hidden sm:inline-flex" : "inline-flex"
-              }`}
+              } ${isActive(item.href) ? "nav-pill-active" : ""}`}
             >
               {item.label}
             </Link>

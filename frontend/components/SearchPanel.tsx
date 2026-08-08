@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getAddress, namehash, type Address } from "viem";
 import { robinhoodChain } from "@/lib/chains";
 import {
@@ -11,7 +11,7 @@ import {
   registryAbi,
   ZERO_ADDRESS,
 } from "@/lib/contracts";
-import { l2Client, publicClient } from "@/lib/wagmi";
+import { l2Client } from "@/lib/wagmi";
 import {
   BTC_COIN_TYPE,
   ROBINHOOD_COIN_TYPE,
@@ -19,11 +19,13 @@ import {
   decodeChainAddress,
 } from "@/lib/ens";
 import { MINT_STATUS, checkLabel, normalizeLabel } from "@/lib/labels";
-import { BitcoinLogo, EthereumLogo, SolanaLogo } from "./ChainLogo";
 import { track } from "@/lib/analytics";
-import { ShareOnX } from "./ShareOnX";
-import { NameAvatar } from "./NameAvatar";
-import { nameShareUrl } from "@/lib/site";
+import { ProfileCard, useCopy, type CardName } from "./ProfileCard";
+import { readMintDate, resolveOnL1, type L1State } from "@/lib/resolution";
+
+/** Names offered as one-tap examples. `vitalik` is unregistered on purpose — it's the
+ *  only way to reach the available state without typing something made up. */
+const TRY = ["gm", "test1000", "degen", "vitalik"];
 
 /** Text records worth surfacing, in the order a profile reads best. */
 const TEXT_KEYS = [
@@ -56,20 +58,6 @@ type Lookup =
   | { kind: "registered"; records: Records }
   | { kind: "unregistered"; status: number };
 
-type L1State =
-  | { status: "idle" | "checking" }
-  | { status: "ok"; addr: Address }
-  | { status: "mismatch"; addr: Address }
-  | { status: "empty" }
-  | { status: "error"; message: string };
-
-/**
- * Everything stored against a name, read straight from the L2Registry.
- *
- * Deliberately not routed through mainnet: the registry is the source of truth, and
- * reading it directly means this page keeps working — and keeps telling the truth —
- * even when the CCIP gateway in front of it doesn't.
- */
 /** Why a name that nobody owns still can't be minted right now. */
 async function readMintStatus(label: string): Promise<number> {
   if (!REGISTRAR_ADDRESS) return MINT_STATUS.AVAILABLE;
@@ -86,14 +74,20 @@ async function readMintStatus(label: string): Promise<number> {
   }
 }
 
+/**
+ * Everything stored against a name, read straight from the L2Registry.
+ *
+ * Deliberately not routed through mainnet: the registry is the source of truth, and
+ * reading it directly means this page keeps working — and keeps telling the truth —
+ * even when the CCIP gateway in front of it doesn't.
+ */
 async function readRecords(label: string): Promise<Lookup> {
   // Captured into a local so the narrowing survives into the closures below — a
   // narrowed *imported* binding widens again inside a callback.
   const registry = L2_REGISTRY_ADDRESS;
   if (!registry) throw new Error("Registry address is not configured");
 
-  const name = `${label}.hoodfi.eth`;
-  const node = namehash(name) as `0x${string}`;
+  const node = namehash(`${label}.hoodfi.eth`) as `0x${string}`;
   const tokenId = BigInt(node);
 
   // ownerOf reverts for a name nobody has minted — that is the "not registered" signal.
@@ -135,14 +129,12 @@ async function readRecords(label: string): Promise<Lookup> {
     addr(SOL_COIN_TYPE),
   ]);
 
-  const evm = evmRaw && evmRaw !== "0x" ? getAddress(evmRaw as Address) : "";
-
   const records: Records = {
     label,
     node,
     tokenId,
     owner: getAddress(owner),
-    evm,
+    evm: evmRaw && evmRaw !== "0x" ? getAddress(evmRaw as Address) : "",
     btc: decodeChainAddress(BTC_COIN_TYPE, btcRaw as string),
     sol: decodeChainAddress(SOL_COIN_TYPE, solRaw as string),
     avatar: avatar ?? "",
@@ -155,89 +147,182 @@ async function readRecords(label: string): Promise<Lookup> {
   return { kind: "registered", records };
 }
 
-function Row({
-  label,
-  value,
-  href,
-  mono = true,
-  Logo,
-}: {
+/** The card wants a flat profile; the ledger wants every record. Narrow, don't widen. */
+function toCardName(records: Records): CardName {
+  return {
+    label: records.label,
+    node: records.node,
+    avatar: records.avatar,
+    description: records.texts.find((t) => t.key === "description")?.value ?? "",
+  };
+}
+
+type LedgerRow = {
+  key: string;
   label: string;
   value: string;
+  mark?: string;
   href?: string;
-  mono?: boolean;
-  Logo?: (props: { className?: string }) => React.ReactElement;
-}) {
+  prose?: boolean;
+};
+
+function RecordsLedger({ records }: { records: Records }) {
+  const { copied, copy } = useCopy();
+
+  const rows: LedgerRow[] = [
+    { key: "evm", label: "Ethereum & EVM", value: records.evm, mark: "ethereum" },
+    { key: "btc", label: "Bitcoin", value: records.btc, mark: "bitcoin" },
+    { key: "sol", label: "Solana", value: records.sol, mark: "solana" },
+    ...records.texts.map((t) => ({
+      key: t.key,
+      label: t.label,
+      value: t.value,
+      prose: t.key === "description",
+      href:
+        t.key === "url"
+          ? t.value
+          : t.key === "com.twitter"
+            ? `https://x.com/${t.value}`
+            : undefined,
+    })),
+    { key: "owner", label: "Owner", value: records.owner },
+  ].filter((r) => r.value !== "");
+
   return (
-    <div className="flex flex-col gap-1 border-t border-[var(--line)] py-3 sm:flex-row sm:items-baseline sm:gap-4">
-      <div className="eyebrow flex shrink-0 items-center gap-2 sm:w-56">
-        {Logo && <Logo className="h-4 w-4 shrink-0" />}
-        {label}
+    <div className="w-full rounded-xl border border-[var(--line)] bg-[color-mix(in_srgb,var(--panel)_85%,transparent)]">
+      <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3.5 sm:px-5">
+        <span className="data text-[11px] uppercase tracking-[0.2em] text-[var(--dim)]">
+          Onchain records
+        </span>
+        <button
+          type="button"
+          className="data rounded border border-[color-mix(in_srgb,var(--green)_35%,transparent)] px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] text-[color-mix(in_srgb,var(--green)_90%,transparent)] transition hover:bg-[color-mix(in_srgb,var(--green)_12%,transparent)]"
+          onClick={() =>
+            copy("all", rows.map((r) => `${r.label.toUpperCase()}: ${r.value}`).join("\n"))
+          }
+        >
+          {copied === "all" ? "Copied ✓" : "Copy all"}
+        </button>
       </div>
-      <div className={`min-w-0 break-all text-sm ${mono ? "data" : ""}`}>
-        {href ? (
-          <a
-            className="underline hover:text-[var(--green)]"
-            href={href}
-            target="_blank"
-            rel="noreferrer noopener"
+
+      {rows.map((row) => (
+        <div
+          key={row.key}
+          className="flex flex-col gap-2 border-b border-[color-mix(in_srgb,var(--line)_70%,transparent)] px-4 py-4 sm:grid sm:grid-cols-[170px_minmax(0,1fr)_64px] sm:items-start sm:gap-3 sm:px-5"
+        >
+          <div className="flex items-center gap-2">
+            {row.mark && (
+              // eslint-disable-next-line @next/next/no-img-element -- static export
+              <img
+                src={`/marks/${row.mark}.png`}
+                alt=""
+                className="h-[22px] w-[22px] shrink-0 rounded-md object-contain"
+              />
+            )}
+            <span className="data text-[10.5px] uppercase leading-[1.35] tracking-[0.16em] text-[var(--dim)]">
+              {row.label}
+            </span>
+          </div>
+
+          <div
+            className={`min-w-0 break-all text-sm leading-relaxed ${
+              row.prose ? "text-[color-mix(in_srgb,var(--paper)_85%,transparent)]" : "data"
+            }`}
           >
-            {value}
-          </a>
-        ) : (
-          value
-        )}
+            {row.href ? (
+              <a
+                className="border-b border-[color-mix(in_srgb,var(--green)_35%,transparent)] text-[var(--green)]"
+                href={row.href}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                {row.value}
+              </a>
+            ) : (
+              row.value
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="data w-fit justify-self-start rounded border border-[var(--line-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-[var(--faint)] transition hover:border-[color-mix(in_srgb,var(--green)_50%,transparent)] hover:text-[var(--green)] sm:justify-self-end"
+            onClick={() => copy(row.key, row.value)}
+          >
+            {copied === row.key ? "Copied" : "Copy"}
+          </button>
+        </div>
+      ))}
+
+      <div className="flex flex-wrap gap-2.5 px-4 py-4 sm:px-5">
+        <a
+          className="btn btn-ghost"
+          href={`${robinhoodChain.blockExplorers.default.url}/token/${L2_REGISTRY_ADDRESS}/instance/${records.tokenId}`}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          View NFT
+        </a>
+        <Link className="btn btn-ghost" href="/mint/">
+          Mint your own
+        </Link>
       </div>
     </div>
   );
 }
 
-/**
- * Whether the name also resolves through Ethereum mainnet.
- *
- * This is the one thing the L2 read cannot tell you. A name can be perfectly stored
- * on Robinhood Chain and still be invisible to every wallet if the CCIP gateway in
- * front of it is failing — which is exactly what happened, silently, because a broken
- * gateway returns a signed empty answer that looks identical to "no records set".
- */
-function L1Badge({ state }: { state: L1State }) {
-  // The check itself is a mainnet lookup, but naming only Ethereum undersells what a
-  // pass means: wallets resolve against L1 whatever network they're on, and the address
-  // it returns is valid on every EVM chain. Success is stated that way; failure stays
-  // specific, because "not resolving across EVM chains" would read as a partial outage
-  // when it is a total one.
-  const map: Record<string, { cls: string; text: string }> = {
-    checking: { cls: "text-[var(--faint)]", text: "Checking resolution…" },
-    idle: { cls: "text-[var(--faint)]", text: "" },
-    ok: { cls: "ok", text: "✓ Resolving across EVM chains" },
-    mismatch: { cls: "warn", text: "⚠ Mainnet returns a different address" },
-    empty: { cls: "bad", text: "✗ Not resolving — wallets can't see this name" },
-    error: { cls: "bad", text: "✗ Couldn't check resolution" },
-  };
-  const view = map[state.status];
-  if (!view.text) return null;
+/** Registry says nobody owns it — but the registrar decides whether it can be had. */
+function UnregisteredState({ label, status }: { label: string; status: number }) {
+  const blocked = status === MINT_STATUS.BLOCKED;
+  const locked = status === MINT_STATUS.LOCKED;
 
   return (
-    <div className="mt-2">
-      <span className={`data text-xs ${view.cls}`}>{view.text}</span>
-      {state.status === "ok" && (
-        <p className="mt-1 max-w-[52ch] text-xs text-[var(--faint)]">
-          Answered from Ethereum mainnet, so the same address works on Base, Arbitrum,
-          Polygon, Optimism and Robinhood Chain.
-        </p>
+    <div className="hf-rise mx-auto w-full max-w-[760px] rounded-[10px] border border-dashed border-[color-mix(in_srgb,var(--green)_40%,transparent)] bg-[color-mix(in_srgb,var(--green)_5%,transparent)] px-7 py-10 text-center">
+      <div className="data text-[11px] uppercase tracking-[0.2em] text-[color-mix(in_srgb,var(--green)_80%,transparent)]">
+        {blocked ? "Reserved" : locked ? "Premium" : "Unregistered"}
+      </div>
+      <div className="data mt-3 break-all text-[clamp(22px,3.6vw,32px)] font-semibold">
+        {label}
+        <span className="text-[var(--faint)]">.hoodfi.eth</span>
+      </div>
+      <p className="mx-auto mt-3 max-w-[40ch] text-[15px] text-[var(--dim)]">
+        {blocked
+          ? "This label is reserved as infrastructure and can't be minted by anyone."
+          : locked
+            ? "Short names unlock for everyone once hoodfi.eth's expiry reaches the 100-year goal — or mint one free right now with a donation credit."
+            : "Nobody owns this name yet — it could be yours, for life."}
+      </p>
+      {!blocked && (
+        <Link
+          href={locked ? "/#extend" : `/mint/?q=${encodeURIComponent(label)}`}
+          className="btn btn-primary mt-6"
+        >
+          {locked ? "Earn a credit" : "Mint this name"}
+        </Link>
       )}
-      {state.status === "empty" && (
-        <p className="mt-1 max-w-[52ch] text-xs text-[var(--faint)]">
-          The records above are stored correctly on Robinhood Chain, but mainnet
-          lookups are returning nothing — wallets won&apos;t see this name until that
-          clears.
-        </p>
-      )}
-      {state.status === "mismatch" && (
-        <p className="data mt-1 text-xs text-[var(--faint)]">
-          Mainnet says {state.addr}
-        </p>
-      )}
+    </div>
+  );
+}
+
+const STRIP_CHAINS = ["ethereum", "base", "arbitrum", "optimism", "polygon", "bitcoin"];
+const STRIP_WALLETS = ["metamask", "rainbow", "phantom", "trust", "uniswap"];
+
+function ChainWalletStrip() {
+  return (
+    <div className="mt-16 flex flex-col gap-6 border-t border-[var(--line)] pt-7 sm:flex-row sm:items-center sm:justify-between">
+      <p className="data max-w-[26ch] text-[11px] uppercase leading-[1.7] tracking-[0.2em] text-[var(--faint)]">
+        One name. Every wallet, every chain.
+      </p>
+      <div className="flex flex-wrap items-center gap-3.5">
+        {STRIP_CHAINS.map((m) => (
+          // eslint-disable-next-line @next/next/no-img-element -- static export
+          <img key={m} src={`/marks/${m}.png`} alt={m} title={m} className="h-[38px] w-[38px] rounded-[10px] object-contain opacity-85 transition hover:opacity-100" />
+        ))}
+        <span className="h-[26px] w-px bg-[var(--line-strong)]" />
+        {STRIP_WALLETS.map((m) => (
+          // eslint-disable-next-line @next/next/no-img-element -- static export
+          <img key={m} src={`/marks/${m}.png`} alt={m} title={m} className="h-[38px] w-[38px] rounded-[10px] object-contain opacity-85 transition hover:opacity-100" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -249,26 +334,17 @@ export function SearchPanel() {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [l1, setL1] = useState<L1State>({ status: "idle" });
+  const [mintedOn, setMintedOn] = useState<string | null>(null);
+  const resultRef = useRef<HTMLDivElement | null>(null);
 
-  /** Runs after the records render — the profile shouldn't wait on a CCIP round trip. */
+  /** Runs after the card paints — the profile shouldn't wait on a CCIP round trip. */
   const checkL1 = useCallback(async (label: string, expected: string) => {
     setL1({ status: "checking" });
-    try {
-      const resolved = await publicClient.getEnsAddress({
-        name: `${label}.hoodfi.eth`,
-      });
-      if (!resolved) return setL1({ status: "empty" });
-      if (expected && getAddress(resolved) !== getAddress(expected as Address)) {
-        return setL1({ status: "mismatch", addr: getAddress(resolved) });
-      }
-      setL1({ status: "ok", addr: getAddress(resolved) });
-    } catch (e) {
-      setL1({ status: "error", message: String(e) });
-    }
+    setL1(await resolveOnL1(label, expected));
   }, []);
 
   const lookup = useCallback(
-    async (raw: string) => {
+    async (raw: string, opts: { scroll: boolean }) => {
       const check = checkLabel(raw);
       if (!check.ok) {
         setError(check.reason);
@@ -281,6 +357,7 @@ export function SearchPanel() {
       setError(null);
       setResult(null);
       setL1({ status: "idle" });
+      setMintedOn(null);
       setSubmitted(check.label);
       track("name_searched", { method: String(check.label.length) });
 
@@ -288,9 +365,22 @@ export function SearchPanel() {
         const found = await readRecords(check.label);
         setResult(found);
         setState("done");
-        // Fired without awaiting: the L1 badge fills in after the profile paints.
         if (found.kind === "registered") {
           void checkL1(check.label, found.records.evm);
+          void readMintDate(found.records.tokenId).then(setMintedOn);
+        }
+        // Only for a search the user just made — scrolling on the ?q= hydration
+        // would yank the page out from under someone arriving from a shared link.
+        if (opts.scroll) {
+          requestAnimationFrame(() => {
+            const el = resultRef.current;
+            if (!el) return;
+            const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            window.scrollTo({
+              top: el.getBoundingClientRect().top + window.scrollY - 88,
+              behavior: reduce ? "auto" : "smooth",
+            });
+          });
         }
       } catch {
         setError("Couldn't reach Robinhood Chain. Check your connection and retry.");
@@ -300,168 +390,134 @@ export function SearchPanel() {
     [checkL1]
   );
 
-  // A shared /search/?q=gm link resolves on arrival rather than waiting for a click.
-  // Read after mount, never during render: the page is prerendered to static HTML and
-  // touching location during render would desync hydration.
+  // A shared /search/?q=gm link resolves on arrival. Read after mount, never during
+  // render: the page is prerendered to static HTML and touching location during
+  // render would desync hydration.
   useEffect(() => {
-    const handoff = new URLSearchParams(window.location.search).get("q");
-    const seed = normalizeLabel(handoff ?? "");
+    const seed = normalizeLabel(
+      new URLSearchParams(window.location.search).get("q") ?? ""
+    );
     if (!seed) return;
     setQuery(seed);
-    void lookup(seed);
+    void lookup(seed, { scroll: false });
   }, [lookup]);
 
   const records = result?.kind === "registered" ? result.records : null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="panel p-6 sm:p-8">
+    <div className="flex flex-col">
+      {/* Search console */}
+      <div className="mx-auto w-full max-w-[760px] overflow-hidden rounded-[10px] border border-[color-mix(in_srgb,var(--line-strong)_80%,transparent)] bg-gradient-to-b from-[var(--panel-2)] to-[var(--panel)] shadow-[0_28px_70px_-30px_color-mix(in_srgb,var(--green)_35%,transparent)]">
+        <div className="flex items-center justify-between border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--ink)_60%,transparent)] px-3.5 py-2.5">
+          <span className="data text-[11px] uppercase tracking-[0.14em] text-[var(--faint)]">
+            resolver · l2registry
+          </span>
+          <span className="data flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-[color-mix(in_srgb,var(--green)_85%,transparent)]">
+            <span className="live-dot" />
+            connected
+          </span>
+        </div>
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void lookup(query);
+            void lookup(query, { scroll: true });
           }}
-          className="flex flex-col gap-3 sm:flex-row"
+          className="flex items-center gap-2.5 px-4 py-3.5"
         >
-          <div className="relative flex-1">
-            <input
-              className="input data w-full pr-28 text-base"
-              placeholder="Search any name"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              spellCheck={false}
-              autoCapitalize="none"
-              autoComplete="off"
-              aria-label="HoodFi name to look up"
-            />
-            <span className="data pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[var(--faint)]">
-              .hoodfi.eth
-            </span>
-          </div>
+          <span className="data shrink-0 text-xl text-[color-mix(in_srgb,var(--green)_85%,transparent)]">
+            &gt;
+          </span>
+          <input
+            className="data min-w-0 flex-1 border-0 bg-transparent py-1.5 text-[clamp(20px,3.2vw,30px)] font-medium tracking-[-0.01em] text-[var(--paper)] outline-none placeholder:text-[var(--faint)]"
+            placeholder="a friend, or yourself"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            spellCheck={false}
+            autoCapitalize="none"
+            autoComplete="off"
+            aria-label="HoodFi name to look up"
+          />
+          <span className="data hidden shrink-0 text-[clamp(15px,2.2vw,22px)] text-[color-mix(in_srgb,var(--paper)_30%,transparent)] sm:block">
+            .hoodfi.eth
+          </span>
           <button
-            className="btn btn-primary sm:w-40"
+            className="btn btn-primary shrink-0"
             type="submit"
             disabled={state === "loading" || query.trim() === ""}
           >
-            {state === "loading" ? "Looking up…" : "Look up"}
+            {state === "loading" ? "…" : "Look up"}
           </button>
         </form>
-        {error && <div className="data mt-3 text-xs bad">{error}</div>}
       </div>
 
-      {result?.kind === "unregistered" && (
-        <div className="panel p-8 text-center">
-          <h3 className="display text-xl">
-            <span className="data">{submitted}</span>
-            <span className="text-[var(--dim)]">.hoodfi.eth</span> isn&apos;t taken
-          </h3>
-          {result.status === MINT_STATUS.BLOCKED ? (
-            <p className="mt-2 text-sm text-[var(--dim)]">
-              This label is reserved as infrastructure and can&apos;t be minted by
-              anyone.
-            </p>
-          ) : result.status === MINT_STATUS.LOCKED ? (
-            <>
-              <p className="mt-2 max-w-[46ch] mx-auto text-sm text-[var(--dim)]">
-                Short names are premium inventory. They unlock for everyone once
-                hoodfi.eth&apos;s expiry reaches the 100-year goal — or you can mint one
-                free right now with a donation credit.
-              </p>
-              <Link href="/#extend" className="btn btn-primary mt-5">
-                Earn a credit
-              </Link>
-            </>
-          ) : (
-            <>
-              <p className="mt-2 text-sm text-[var(--dim)]">
-                Nobody owns this name yet — it could be yours.
-              </p>
-              <Link
-                href={`/mint/?q=${encodeURIComponent(submitted)}`}
-                className="btn btn-primary mt-5"
-              >
-                Mint {submitted}.hoodfi.eth
-              </Link>
-            </>
-          )}
+      <div className="mx-auto mt-3.5 flex w-full max-w-[760px] flex-wrap items-center gap-2">
+        <span className="data text-[11px] uppercase tracking-[0.18em] text-[var(--faint)]">
+          Try
+        </span>
+        {TRY.map((t) => (
+          <button
+            key={t}
+            type="button"
+            className="data rounded-full border border-[var(--line)] bg-[color-mix(in_srgb,var(--panel-2)_80%,transparent)] px-3 py-1.5 text-xs text-[var(--dim)] transition hover:border-[color-mix(in_srgb,var(--green)_55%,transparent)] hover:bg-[color-mix(in_srgb,var(--green)_10%,transparent)] hover:text-[var(--paper)]"
+            onClick={() => {
+              setQuery(t);
+              void lookup(t, { scroll: true });
+            }}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div className="data mx-auto mt-3 w-full max-w-[760px] text-xs text-[var(--red)]">
+          {error}
         </div>
       )}
 
-      {records && (
-        <div className="panel p-6 sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-center gap-4 sm:gap-5">
-              <NameAvatar label={records.label} avatar={records.avatar} />
-              <div className="min-w-0">
-                <div className="data text-xl font-semibold leading-tight break-all sm:text-2xl">
-                  {records.label}
-                  <span className="text-[var(--dim)]">.hoodfi.eth</span>
-                </div>
-                <L1Badge state={l1} />
-              </div>
+      <div ref={resultRef} className="scroll-mt-[88px]">
+        {state === "loading" && (
+          <div className="mx-auto mt-8 w-full max-w-[760px] overflow-hidden rounded-[10px] border border-[var(--line)] bg-[color-mix(in_srgb,var(--panel)_80%,transparent)]">
+            <div className="hf-track">
+              <span />
             </div>
-            <ShareOnX
-              text={`${records.label}.hoodfi.eth — a lifetime ENS name on Robinhood Chain.\n\nLook it up:`}
-              url={nameShareUrl(records.label)}
-              eventLabel="search"
-            >
-              Share
-            </ShareOnX>
+            <div className="flex flex-col gap-1.5 px-6 py-5">
+              {[
+                `› namehash(${submitted})`,
+                "› ownerOf(tokenId) → reading L2 registry…",
+                "› resolving records",
+              ].map((line, i) => (
+                <div
+                  key={line}
+                  className={`data text-[12.5px] ${i === 2 ? "text-[color-mix(in_srgb,var(--green)_80%,transparent)]" : "text-[var(--dim)]"}`}
+                >
+                  {line}
+                </div>
+              ))}
+            </div>
           </div>
+        )}
 
-          <div className="mt-6">
-            {records.evm && (
-              <Row
-                label="Ethereum & Robinhood Chain"
-                value={records.evm}
-                Logo={EthereumLogo}
-              />
-            )}
-            {records.btc && (
-              <Row label="Bitcoin" value={records.btc} Logo={BitcoinLogo} />
-            )}
-            {records.sol && (
-              <Row label="Solana" value={records.sol} Logo={SolanaLogo} />
-            )}
-            {records.texts.map((t) => (
-              <Row
-                key={t.key}
-                label={t.label}
-                value={t.value}
-                mono={t.key !== "description"}
-                href={
-                  t.key === "url"
-                    ? t.value
-                    : t.key === "com.twitter"
-                      ? `https://x.com/${t.value}`
-                      : undefined
-                }
-              />
-            ))}
-            <Row label="Owner" value={records.owner} />
+        {result?.kind === "unregistered" && (
+          <div className="mt-8">
+            <UnregisteredState label={submitted} status={result.status} />
           </div>
+        )}
 
-          {records.texts.length === 0 && !records.btc && !records.sol && (
-            <p className="mt-4 text-sm text-[var(--dim)]">
-              This name is registered but its owner hasn&apos;t added a profile yet.
-            </p>
-          )}
-
-          <div className="mt-6 flex flex-wrap gap-3 border-t border-[var(--line)] pt-5">
-            <a
-              className="btn btn-ghost"
-              href={`${robinhoodChain.blockExplorers.default.url}/token/${L2_REGISTRY_ADDRESS}/instance/${records.tokenId}`}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              View NFT
-            </a>
-            <Link className="btn btn-ghost" href="/mint/">
-              Mint your own
-            </Link>
+        {records && (
+          <div className="hf-rise mx-auto mt-8 grid w-full max-w-[1100px] items-start justify-items-center gap-6 lg:grid-cols-[minmax(330px,420px)_minmax(330px,1fr)]">
+            <ProfileCard
+              name={toCardName(records)}
+              l1={l1}
+              mintedOn={mintedOn}
+            />
+            <RecordsLedger records={records} />
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      <ChainWalletStrip />
     </div>
   );
 }
