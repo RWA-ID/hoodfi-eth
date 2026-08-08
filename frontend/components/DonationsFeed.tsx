@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { parseAbiItem, type Log } from "viem";
-import { publicClient } from "@/lib/wagmi";
-import { DONATIONS_ADDRESS, DONATIONS_DEPLOY_BLOCK } from "@/lib/contracts";
+import { DONATIONS_URL } from "@/lib/site";
 import { formatAddress, formatEth } from "@/lib/format";
-
-const donatedEvent = parseAbiItem(
-  "event Donated(address indexed donor, uint256 numYears, uint256 ethPaid, uint256 newExpiry, uint256 creditsTotal, uint256 totalYears)"
-);
 
 type FeedEntry = {
   donor: string;
@@ -16,51 +10,61 @@ type FeedEntry = {
   ethPaid: bigint;
   credits: number;
   txHash: string;
-  blockNumber: bigint;
 };
 
+/** Distinguished on purpose: an empty ledger and an unreachable one are different
+ *  facts, and only one of them is an invitation to donate. */
+type FeedState =
+  | { kind: "loading" }
+  | { kind: "ready"; entries: FeedEntry[] }
+  | { kind: "error" };
+
 /**
- * Onchain transparency: the feed is rebuilt from mainnet logs in the browser —
- * no indexer, no backend, nothing to trust.
+ * Onchain transparency: the ledger is rebuilt from mainnet logs, and every row links
+ * to its transaction so nothing here has to be taken on trust.
+ *
+ * The log query runs on the gateway rather than in the browser. A wide `eth_getLogs`
+ * needs an archive-capable RPC, and the only way to hand the browser one is to inline
+ * the key into the bundle — `NEXT_PUBLIC_*` is public by construction. Reading it
+ * through the worker keeps the key private. Before this, the browser fell back to a
+ * public endpoint that refuses archive queries, and the failure rendered as
+ * "No donations yet" — while the counter beside it correctly read 1.
  */
 export function DonationsFeed() {
-  const [entries, setEntries] = useState<FeedEntry[] | null>(null);
+  const [state, setState] = useState<FeedState>({ kind: "loading" });
 
   useEffect(() => {
-    if (!DONATIONS_ADDRESS) {
-      setEntries([]);
-      return;
-    }
     let cancelled = false;
 
     async function load() {
       try {
-        const donations = await publicClient.getLogs({
-          address: DONATIONS_ADDRESS,
-          event: donatedEvent,
-          fromBlock: DONATIONS_DEPLOY_BLOCK,
-          toBlock: "latest",
-        });
-
-        const feed = donations
-          .map((log) => ({
-            donor: log.args.donor as string,
-            years: Number(log.args.numYears),
-            ethPaid: log.args.ethPaid as bigint,
-            credits: Number(log.args.numYears),
-            txHash: log.transactionHash,
-            blockNumber: log.blockNumber,
+        const res = await fetch(DONATIONS_URL);
+        if (!res.ok) throw new Error(String(res.status));
+        const data = (await res.json()) as {
+          donations: {
+            donor: string;
+            numYears: string;
+            ethPaid: string;
+            txHash: string;
+          }[];
+        };
+        const entries: FeedEntry[] = data.donations
+          .map((d) => ({
+            donor: d.donor,
+            years: Number(d.numYears),
+            ethPaid: BigInt(d.ethPaid),
+            credits: Number(d.numYears),
+            txHash: d.txHash,
           }))
           .reverse()
           .slice(0, 24);
-
-        if (!cancelled) setEntries(feed);
+        if (!cancelled) setState({ kind: "ready", entries });
       } catch {
-        if (!cancelled) setEntries([]);
+        if (!cancelled) setState({ kind: "error" });
       }
     }
 
-    load();
+    void load();
     const t = setInterval(load, 60_000);
     return () => {
       cancelled = true;
@@ -78,11 +82,19 @@ export function DonationsFeed() {
         <span className="data text-xs text-[var(--faint)]">read from Ethereum logs</span>
       </div>
       <div className="max-h-[380px] overflow-y-auto">
-        {entries === null ? (
+        {state.kind === "loading" ? (
           <div className="data px-5 py-8 text-center text-sm text-[var(--faint)]">
             reading chain…
           </div>
-        ) : entries.length === 0 ? (
+        ) : state.kind === "error" ? (
+          <div className="px-5 py-10 text-center">
+            <div className="data text-sm warn">Couldn&apos;t reach Ethereum.</div>
+            <div className="mt-1 text-xs text-[var(--faint)]">
+              The ledger is unavailable right now — this doesn&apos;t mean there are no
+              donations.
+            </div>
+          </div>
+        ) : state.entries.length === 0 ? (
           <div className="px-5 py-10 text-center">
             <div className="data text-sm text-[var(--dim)]">No donations yet.</div>
             <div className="mt-1 text-xs text-[var(--faint)]">
@@ -90,7 +102,7 @@ export function DonationsFeed() {
             </div>
           </div>
         ) : (
-          entries.map((e) => (
+          state.entries.map((e) => (
             <a
               key={e.txHash}
               href={`https://etherscan.io/tx/${e.txHash}`}

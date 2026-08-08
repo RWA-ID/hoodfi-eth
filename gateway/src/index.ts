@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 
 import { type Env } from './env'
 import { getCcipRead, getHealth } from './handlers/getCcipRead'
+import { getDonations } from './handlers/getDonations'
 import { getNameCard } from './handlers/getNameCard'
 import { getSharePage } from './handlers/getSharePage'
 import { getTokenMetadata } from './handlers/getTokenMetadata'
@@ -47,6 +48,10 @@ app.get('/n/:label', async (c) => getSharePage(c.req.param('label'), c.req.url, 
 
 // The 1200x630 image those tags point at, rendered per name.
 app.get('/card/:label', async (c) => getNameCard(c.req.param('label'), c.env))
+
+// Donation ledger. Proxied because a wide eth_getLogs needs an archive endpoint, and
+// the browser can only be given one by publishing the key in the bundle.
+app.get('/donations', async (c) => getDonations(c.env))
 
 // Cookieless analytics sink. Always 204s — the site must never break on a bad beacon.
 app.post('/e', async (c) => postEvent(c.req.raw, c.env))

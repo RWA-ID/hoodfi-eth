@@ -11,6 +11,8 @@ export interface Env {
   MAINNET_RPC_URL?: string
   /** HoodfiDonations on mainnet — the source of truth for earned short-name credits. */
   DONATIONS_ADDRESS?: Hex
+  /** First block that can hold a donation; bounds the ledger's log query. */
+  DONATIONS_DEPLOY_BLOCK?: string
   /** HoodfiRegistrar on Robinhood Chain — bound into the voucher digest. */
   REGISTRAR_ADDRESS?: Hex
   /** Public origin the share pages link back to. Defaults to the hosted domain. */

@@ -52,3 +52,13 @@ export function nameShareUrl(label: string): string {
 export const VOUCHER_URL =
   process.env.NEXT_PUBLIC_VOUCHER_URL ??
   "https://hoodfi-gateway.dmpay.workers.dev/voucher";
+
+/**
+ * Gateway route serving the donation ledger.
+ *
+ * Read server-side because a wide `eth_getLogs` needs an archive-capable RPC, and any
+ * key reachable from the browser has to be inlined into the bundle to get there.
+ */
+export const DONATIONS_URL =
+  process.env.NEXT_PUBLIC_DONATIONS_URL ??
+  "https://hoodfi-gateway.dmpay.workers.dev/donations";
