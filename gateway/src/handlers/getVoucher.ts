@@ -49,8 +49,12 @@ export async function getVoucher(rawAddress: string, env: Env) {
       args: [donor],
     })
   } catch (error) {
+    // The error is logged, never returned. viem's messages embed the full RPC URL,
+    // and that URL carries the API key — echoing it turns any mainnet hiccup into a
+    // public key disclosure on an unauthenticated endpoint.
+    console.error(`shortCredits read failed for ${donor}:`, error)
     return Response.json(
-      { message: 'Could not read donation credits from mainnet', error: String(error) },
+      { message: 'Could not read donation credits from mainnet' },
       { status: 502 }
     )
   }

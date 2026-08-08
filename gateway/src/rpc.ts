@@ -40,13 +40,30 @@ export function robinhoodClient(env: Env) {
   })
 }
 
-/** Mainnet client for the donation-credit reads behind short-name vouchers. */
+/** CORS-safe public mainnet endpoint. Serves eth_call fine; refuses archive getLogs. */
+const PUBLIC_MAINNET_RPC = 'https://ethereum-rpc.publicnode.com'
+
+/**
+ * Mainnet client for donation credits and the donation ledger.
+ *
+ * Same fallback shape as Robinhood, and for a reason learned the hard way: a dedicated
+ * key can stop working without being wrong — an Alchemy app restricted to a browser
+ * origin rejects this worker outright, because a server-side fetch sends no Referer.
+ * Without a fallback that took out vouchers and the ledger together.
+ *
+ * The public endpoint can only cover `eth_call`; a wide `getLogs` still needs the
+ * dedicated key, so the ledger degrades to an honest 502 rather than an empty list.
+ */
 export function mainnetClient(env: Env) {
   const dedicated = envVarOptional('MAINNET_RPC_URL', env)
+  const urls = [dedicated, PUBLIC_MAINNET_RPC].filter(
+    (url): url is string => Boolean(url)
+  )
   return createPublicClient({
     chain: mainnet,
-    transport: dedicated
-      ? http(dedicated, { retryCount: 2, retryDelay: 200, timeout: 6_000 })
-      : http(undefined, { retryCount: 2, retryDelay: 200, timeout: 6_000 }),
+    transport: fallback(
+      urls.map((url) => http(url, { retryCount: 2, retryDelay: 200, timeout: 6_000 })),
+      { rank: false }
+    ),
   })
 }
