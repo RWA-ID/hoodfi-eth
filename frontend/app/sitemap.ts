@@ -19,6 +19,7 @@ export const dynamic = "force-static";
 const ROUTES: { path: string; priority: number }[] = [
   { path: "/", priority: 1 },
   { path: "/mint/", priority: 0.9 },
+  { path: "/search/", priority: 0.8 },
   { path: "/manage/", priority: 0.7 },
   { path: "/faq/", priority: 0.6 },
   { path: "/terms/", priority: 0.2 },

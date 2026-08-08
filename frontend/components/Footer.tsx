@@ -105,6 +105,9 @@ export function Footer() {
               <Link href="/claim/" className="hover:text-[var(--paper)]">
                 Claim
               </Link>
+              <Link href="/search/" className="hover:text-[var(--paper)]">
+                Look up
+              </Link>
               <Link href="/faq/" className="hover:text-[var(--paper)]">
                 FAQ
               </Link>

@@ -23,7 +23,6 @@ import {
   ETH_COIN_TYPE,
   ROBINHOOD_COIN_TYPE,
   SOL_COIN_TYPE,
-  avatarToUrl,
   decodeChainAddress,
   encodeChainAddress,
   normalizeXHandle,
@@ -32,6 +31,8 @@ import { BitcoinLogo, EthereumLogo, SolanaLogo } from "./ChainLogo";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
+import { NameAvatar } from "./NameAvatar";
+import { nameShareUrl } from "@/lib/site";
 import { type OwnedName, useMyNames } from "./useMyNames";
 
 type Field = "addr" | "avatar" | "com.twitter" | "url" | "description";
@@ -311,7 +312,6 @@ function NameEditor({
   }
 
   const busy = isPending || receipt.isLoading;
-  const avatarPreview = avatarToUrl(draft.avatar ?? "");
   // An address left unparseable blocks the whole batch — it's one transaction.
   const blocked = ADDRESS_FIELDS.some(addrInvalid);
   const changeCount = pendingCalls().length === 0 ? 0 : dirty.size;
@@ -321,21 +321,7 @@ function NameEditor({
     <div className="panel p-6 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4 sm:gap-5">
-          {avatarPreview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarPreview}
-              alt=""
-              className="h-20 w-20 shrink-0 rounded-full border border-[var(--line)] object-cover sm:h-24 sm:w-24"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          ) : (
-            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full border border-[var(--line)] text-xl text-[var(--faint)] sm:h-24 sm:w-24">
-              {name.label.slice(0, 2)}
-            </div>
-          )}
+          <NameAvatar label={name.label} avatar={draft.avatar ?? ""} />
           <div className="min-w-0">
             <div className="data text-xl font-semibold leading-tight break-all sm:text-2xl">
               {name.label}
@@ -353,6 +339,7 @@ function NameEditor({
         </div>
         <ShareOnX
           text={`${name.label}.hoodfi.eth is mine — a lifetime ENS name on Robinhood Chain.\n\nGet yours:`}
+          url={nameShareUrl(name.label)}
           eventLabel="manage"
         >
           Share
@@ -446,10 +433,66 @@ function NameEditor({
   );
 }
 
+/**
+ * One name in the picker. Reads only its avatar — enough to recognise a name at a
+ * glance without mounting a full editor per name, which is what used to push a
+ * second name below the fold.
+ */
+function NameCard({
+  name,
+  selected,
+  onSelect,
+}: {
+  name: OwnedName;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const avatar = useTextRecord(name.node, "avatar");
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${
+        selected
+          ? "border-[var(--green)] bg-[var(--green-soft)]"
+          : "border-[var(--line)] bg-[var(--panel-2)] hover:border-[var(--line-strong)]"
+      }`}
+    >
+      <NameAvatar
+        label={name.label}
+        avatar={avatar.data ?? ""}
+        className="h-10 w-10"
+        textClassName="text-xs"
+      />
+      <div className="data min-w-0 text-sm font-semibold leading-tight">
+        <span className="block truncate">{name.label}</span>
+        <span className="block text-xs font-normal text-[var(--dim)]">
+          .hoodfi.eth
+        </span>
+      </div>
+    </button>
+  );
+}
+
 export function ManagePanel() {
   const { address, isConnected } = useAccount();
   const { open } = useAppKit();
   const { names, loading, error, reload } = useMyNames(address);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+
+  // Keep the selection pointing at a name that still exists — the list reloads after
+  // every save, and a name that was transferred away must not leave a dead editor.
+  useEffect(() => {
+    if (names.length === 0) {
+      setSelectedNode(null);
+      return;
+    }
+    if (!selectedNode || !names.some((n) => n.node === selectedNode)) {
+      setSelectedNode(names[0].node);
+    }
+  }, [names, selectedNode]);
 
   if (!isConnected) {
     return (
@@ -507,11 +550,40 @@ export function ManagePanel() {
     );
   }
 
+  const selected = names.find((n) => n.node === selectedNode) ?? names[0];
+
   return (
     <div className="flex flex-col gap-6">
-      {names.map((name) => (
-        <NameEditor key={name.node} name={name} onSaved={reload} />
-      ))}
+      {/* Every name visible at once. Stacking full editors meant a second name sat
+          below the fold, so a wallet holding several looked like it held one. */}
+      {names.length > 1 && (
+        <div className="panel p-5 sm:p-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div className="eyebrow">
+              {names.length} names in this wallet
+            </div>
+            <div className="data text-xs text-[var(--faint)]">
+              Pick one to edit its records
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {names.map((name) => (
+              <NameCard
+                key={name.node}
+                name={name}
+                selected={name.node === selected?.node}
+                onSelect={() => setSelectedNode(name.node)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selected && (
+        // Keyed on the node so switching names remounts the editor — otherwise the
+        // draft state and dirty set would carry over onto the next name's records.
+        <NameEditor key={selected.node} name={selected} onSaved={reload} />
+      )}
     </div>
   );
 }

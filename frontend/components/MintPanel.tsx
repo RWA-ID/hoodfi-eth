@@ -27,7 +27,7 @@ import {
   tierOf,
 } from "@/lib/labels";
 import { formatEth } from "@/lib/format";
-import { VOUCHER_URL } from "@/lib/site";
+import { VOUCHER_URL, nameShareUrl } from "@/lib/site";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
@@ -35,7 +35,9 @@ import { useMintQuery } from "./MintQuery";
 
 type Voucher = {
   totalCredits: string;
-  creditsAvailable: string;
+  /** Null when the gateway couldn't read the registrar — treated as zero, so a
+   *  credit is never offered on a guess that would revert on submission. */
+  creditsAvailable: string | null;
   expiry: string;
   signature: `0x${string}`;
 };
@@ -362,6 +364,7 @@ export function MintPanel({
         <div className="mt-5 flex flex-col gap-3">
           <ShareOnX
             text={`I just minted ${minted}.hoodfi.eth on Robinhood Chain.\n\nLifetime ENS name, one transaction, no renewals ever. Get yours:`}
+            url={nameShareUrl(minted)}
             className="btn btn-primary w-full"
             eventLabel="mint_success"
           >

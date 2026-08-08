@@ -32,6 +32,19 @@ export const GOAL_YEARS = 100;
 export const START_YEAR = 2026;
 export const GOAL_YEAR_LABEL = 2127;
 
+/**
+ * Share link for a single name.
+ *
+ * Deliberately built from CANONICAL_URL, not SITE.url. This export ships to IPFS too,
+ * and a share pointing at hoodfi.eth.limo asks X's crawler to fetch through an IPFS
+ * gateway inside its own short timeout — which is how a share ends up with no card at
+ * all. It also has to be /n/, not /search/?q=: a static export serves byte-identical
+ * HTML for every query string, so only a route that renders per name can describe it.
+ */
+export function nameShareUrl(label: string): string {
+  return `${CANONICAL_URL}/n/${encodeURIComponent(label)}`;
+}
+
 /** Gateway route that signs short-name credit vouchers. */
 export const VOUCHER_URL =
   process.env.NEXT_PUBLIC_VOUCHER_URL ??

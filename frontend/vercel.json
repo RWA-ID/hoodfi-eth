@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/n/:label",
+      "destination": "https://hoodfi-gateway.dmpay.workers.dev/n/:label"
+    },
+    {
+      "source": "/card/:label",
+      "destination": "https://hoodfi-gateway.dmpay.workers.dev/card/:label"
+    }
+  ]
+}

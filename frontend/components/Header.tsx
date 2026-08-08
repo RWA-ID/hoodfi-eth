@@ -8,6 +8,7 @@ import { ConnectButton } from "./ConnectButton";
 // of them are reachable from the footer regardless.
 const NAV = [
   { href: "/mint/", label: "Mint", desktopOnly: false },
+  { href: "/search/", label: "Look up", desktopOnly: true },
   { href: "/manage/", label: "Manage", desktopOnly: true },
   { href: "/#extend", label: "Short names", desktopOnly: true },
   { href: "/faq/", label: "FAQ", desktopOnly: true },

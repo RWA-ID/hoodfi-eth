@@ -10,6 +10,7 @@ import { MintQueryProvider } from "@/components/MintQuery";
 import { ConnectMintButton } from "@/components/ConnectMintButton";
 import { DonatePanel } from "@/components/DonatePanel";
 import { DonationsFeed } from "@/components/DonationsFeed";
+import { ResolvesEverywhere } from "@/components/ResolvesEverywhere";
 import { PageView } from "@/components/PageView";
 import { TIER_USD } from "@/lib/labels";
 import { GOAL_YEARS, GOAL_YEAR_LABEL } from "@/lib/site";
@@ -154,6 +155,17 @@ export default function Home() {
               </Reveal>
             ))}
           </div>
+        </section>
+
+        {/* Where the name actually reaches — answers the question every new visitor
+            has right after "what is it": will anything I use recognise this? */}
+        <section
+          id="resolves"
+          className="scroll-mt-24 border-t border-[var(--line)] py-20 sm:py-28"
+        >
+          <Reveal>
+            <ResolvesEverywhere />
+          </Reveal>
         </section>
 
         {/* The perk — donation drive, now clearly secondary */}
