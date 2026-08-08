@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Pin the static export to Pinata and print the CID for the yournames.eth
-# contenthash. Usage: PINATA_JWT=… bash pin.sh   (or set PINATA_JWT in .env.local)
+# Pin the static export to Pinata and print the CID for the hoodfi.eth contenthash.
+# Usage: PINATA_JWT=… bash pin.sh   (or set PINATA_JWT in .env.local)
+#
+# The contenthash goes on HoodfiL1Resolver, NOT the ENS PublicResolver — hoodfi.eth
+# resolves through our own resolver, so app.ens.domains is the wrong route for it.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -32,5 +35,5 @@ RESPONSE=$(curl -s -X POST "https://api.pinata.cloud/pinning/pinFileToIPFS" \
 CID=$(echo "$RESPONSE" | python3 -c 'import sys,json;print(json.load(sys.stdin)["IpfsHash"])')
 echo
 echo "Pinned ✓  CID: ${CID}"
-echo "Set the reserve.hoodfi.eth contenthash to: ipfs://${CID}"
+echo "Set the hoodfi.eth contenthash on HoodfiL1Resolver to: ipfs://${CID}"
 echo "Preview: https://${CID}.ipfs.dweb.link/"
