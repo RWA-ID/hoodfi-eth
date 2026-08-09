@@ -23,64 +23,71 @@ const WALLET_ANDROID =
 /* Robinhood Wallet is the self-custody wallet that speaks Robinhood Chain, so
    it's where a HoodFi name actually lands. Store artwork is Apple's and
    Google's official badge art — linked, never restyled. */
-function WalletStrip() {
+function StoreBadges() {
   return (
-    <div className="panel mb-10 flex flex-col gap-6 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:p-6">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-wrap items-center gap-4">
+      <a
+        href={WALLET_IOS}
+        target="_blank"
+        rel="noreferrer"
+        className="store-badge"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
         <img
-          src="/robinhood/robinhood-wallet-icon.png"
-          alt=""
-          aria-hidden="true"
-          className="h-16 w-16 shrink-0 rounded-2xl"
+          src="/robinhood/appstore-badge.png"
+          alt="Download Robinhood Wallet on the App Store"
+          className="block h-10 w-auto"
         />
-        <div>
-          <p className="eyebrow">Holds your name</p>
-          {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
-          <img
-            src="/robinhood/robinhood-wallet-wordmark.png"
-            alt="Robinhood Wallet"
-            className="mt-1.5 block h-[22px] w-auto"
-          />
-          <p className="mt-2 max-w-sm text-xs leading-relaxed text-[var(--dim)]">
-            A self-custody wallet with Robinhood Chain built in — the network your
-            HoodFi name lives on. Download it today and you&rsquo;ll be ready to claim
-            and manage your name the day we launch.
-          </p>
-        </div>
-      </div>
-      <div className="flex shrink-0 flex-col gap-2.5 sm:items-end">
-        <p className="data text-[11px] tracking-wide text-[var(--green)]">
-          Get the wallet today →
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <a href={WALLET_IOS} target="_blank" rel="noreferrer">
-            {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
-            <img
-              src="/robinhood/appstore-badge.png"
-              alt="Download Robinhood Wallet on the App Store"
-              className="block h-10 w-auto opacity-90 transition-opacity hover:opacity-100"
-            />
-          </a>
-          <a href={WALLET_ANDROID} target="_blank" rel="noreferrer">
-            {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
-            <img
-              src="/robinhood/googleplay-badge.png"
-              alt="Get Robinhood Wallet on Google Play"
-              className="block h-10 w-auto opacity-90 transition-opacity hover:opacity-100"
-            />
-          </a>
-        </div>
-      </div>
+      </a>
+      <a
+        href={WALLET_ANDROID}
+        target="_blank"
+        rel="noreferrer"
+        className="store-badge"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
+        <img
+          src="/robinhood/googleplay-badge.png"
+          alt="Get Robinhood Wallet on Google Play"
+          className="block h-10 w-auto"
+        />
+      </a>
     </div>
+  );
+}
+
+function WalletBand() {
+  return (
+    <section className="wallet-band">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-10 px-4 py-14 sm:px-6 lg:px-8 xl:min-h-[600px] xl:flex-row xl:items-center xl:gap-0 xl:py-24 2xl:px-12">
+        <div className="relative z-10 max-w-[34rem] xl:w-[48%] xl:shrink-0">
+          <p className="eyebrow">Holds your name</p>
+          <h2 className="display mt-4 text-[clamp(32px,4.4vw,58px)]">
+            Robinhood <span className="font-normal">Wallet</span>
+          </h2>
+          <p className="mt-5 max-w-[46ch] text-pretty text-[clamp(15px,1.2vw,17px)] leading-relaxed text-[var(--dim)]">
+            A self-custody wallet with Robinhood Chain built in — the network your
+            HoodFi name lives on. Download it, connect, and mint your name in a
+            single transaction. Minting is open now.
+          </p>
+          <div className="mt-8">
+            <StoreBadges />
+          </div>
+        </div>
+        {/* Reserves the art's half so the copy can never run under the phone. */}
+        <div className="hidden xl:block xl:w-[52%]" aria-hidden="true" />
+        <div className="wallet-art wallet-art-stacked xl:hidden" aria-hidden="true" />
+      </div>
+      <div className="wallet-art wallet-art-wide hidden xl:block" aria-hidden="true" />
+    </section>
   );
 }
 
 export function Footer() {
   return (
     <footer className="hairline-t mt-24">
-      <div className="mx-auto max-w-[1600px] px-4 py-10 sm:px-6 lg:px-8 2xl:px-12">
-        <WalletStrip />
+      <WalletBand />
+      <div className="hairline-t mx-auto max-w-[1600px] px-4 py-10 sm:px-6 lg:px-8 2xl:px-12">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div>
             {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}

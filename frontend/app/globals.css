@@ -203,6 +203,67 @@ body {
   border-top: 1px solid var(--line);
 }
 
+/* ── Robinhood Wallet band ──────────────────────────────────────────────────
+   Full-bleed, deliberately unframed: the render carries its own light, so a
+   panel border would read as a picture hung on the page instead of the page
+   opening onto it. The art's alpha is keyed off its own luminance, so the
+   black it was rendered on is genuinely absent — the glow lands straight on
+   the page ink and there is no rectangle to hide at any viewport width. */
+.wallet-band {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: radial-gradient(
+      900px 560px at 78% 60%,
+      rgba(0, 200, 5, 0.07),
+      transparent 70%
+    ),
+    var(--ink);
+}
+
+.wallet-band .eyebrow {
+  color: var(--green);
+}
+
+.wallet-art {
+  background: url("/robinhood/robinhood-wallet-render.webp") no-repeat;
+  pointer-events: none;
+}
+
+/* Wide: pinned to the right edge and sized off the band's height, so the phone
+   fills the band and the light runs off the page rather than stopping in it. */
+.wallet-art-wide {
+  position: absolute;
+  top: 2rem; /* the render fills its own frame — buy the phone some headroom */
+  right: 0;
+  bottom: 0;
+  width: min(52%, 860px);
+  background-size: auto 100%;
+  background-position: right center;
+}
+
+/* Narrow: the art stacks under the copy. */
+.wallet-art-stacked {
+  height: clamp(260px, 76vw, 420px);
+  background-size: contain;
+  background-position: center bottom;
+}
+
+/* Store badges are Apple's and Google's official art — never restyled. The
+   ring is a separate frame held off the badge by its own clear space. */
+.store-badge {
+  display: block;
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: rgba(10, 15, 12, 0.72);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.store-badge:hover {
+  border-color: rgba(0, 200, 5, 0.55);
+  box-shadow: 0 0 24px rgba(0, 200, 5, 0.16);
+}
+
 .ledger-row {
   display: flex;
   align-items: baseline;
