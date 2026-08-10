@@ -79,6 +79,19 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
+/* Opt a whole heading out of the shading, back to solid weight.
+   The lighter grey-shaded setting is right for a section heading introducing copy;
+   it is wrong on a feature banner that has to hold its own against a full-bleed
+   render beside it. The Robinhood Wallet band is the case: at 600 with the ramp,
+   the wordmark stopped reading as a title and started reading as a caption. */
+.display-solid {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: none;
+  color: var(--paper);
+  -webkit-text-fill-color: currentColor;
+}
+
 /* Opt a child back out of the clip.
    `-webkit-text-fill-color` inherits and outranks `color`, so a span inside a
    shaded heading loses its own colour and is painted by the parent's gradient

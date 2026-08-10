@@ -70,7 +70,7 @@ export function WalletBand() {
       <div className="mx-auto flex max-w-[1600px] flex-col gap-10 px-4 py-14 sm:px-6 lg:px-8 xl:min-h-[600px] xl:flex-row xl:items-center xl:gap-0 xl:py-24 2xl:px-12">
         <div className="relative z-10 max-w-[34rem] xl:w-[48%] xl:shrink-0">
           <p className="eyebrow">Holds your name</p>
-          <h2 className="display mt-4 text-[clamp(32px,4.4vw,58px)]">
+          <h2 className="display display-solid mt-4 text-[clamp(32px,4.4vw,58px)]">
             Robinhood <span className="font-normal">Wallet</span>
           </h2>
           <p className="mt-5 max-w-[46ch] text-pretty text-[clamp(15px,1.2vw,17px)] leading-relaxed text-[var(--dim)]">
