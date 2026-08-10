@@ -38,8 +38,13 @@ export default function MintPage() {
           </Reveal>
         </section>
 
+        {/* The panel is the page's job; "What you get" and "Pricing" are support. On a
+            phone the stack is the reading order, so the panel goes first — it used to
+            sit last, roughly 2000px down behind the hero and both info panels, which
+            put the only name input on the page below two screens of scrolling. The
+            desktop two-column arrangement is unchanged. */}
         <section className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
-          <Reveal>
+          <Reveal className="order-2 lg:order-none">
             <div className="flex flex-col gap-6">
               <div className="panel p-6 sm:p-8">
                 <h2 className="display text-lg">What you get</h2>
@@ -104,7 +109,7 @@ export default function MintPage() {
             </div>
           </Reveal>
 
-          <Reveal>
+          <Reveal className="order-1 lg:order-none">
             <div className="lg:sticky lg:top-24">
               <MintPanel />
             </div>

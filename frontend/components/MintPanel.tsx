@@ -100,6 +100,7 @@ export function MintPanel({
   const short = isShort(debouncedLabel);
   const tier = debouncedLabel ? tierOf(debouncedLabel) : 3;
 
+  const panelRef = useRef<HTMLDivElement>(null);
   const searched = useRef<string>("");
   useEffect(() => {
     if (debouncedLabel && debouncedLabel !== searched.current) {
@@ -189,6 +190,30 @@ export function MintPanel({
   }, [needsVoucher, address]);
 
   const creditsLeft = Number(voucher?.creditsAvailable ?? 0);
+
+  /**
+   * Bring the whole card into view when someone starts typing on a phone.
+   *
+   * The card grows as you type — a verdict line, three ledger rows, the pay-method
+   * buttons — and all of it appears *below* the input. Tap the field near the bottom of
+   * the screen and the Mint button is pushed off it, so the flow ends with hunting for
+   * a button that wasn't there a moment ago.
+   *
+   * Pinning the card's top under the header instead means the expansion has somewhere
+   * to go. Deferred because the keyboard animating in moves the viewport under us, and
+   * scrolling before it settles lands in the wrong place.
+   */
+  function revealPanel() {
+    if (typeof window === "undefined" || window.innerWidth >= 640) return;
+    window.setTimeout(() => {
+      const el = panelRef.current;
+      if (!el) return;
+      const HEADER = 72; // the sticky bar, plus a little air
+      const top = el.getBoundingClientRect().top + window.scrollY - HEADER;
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top, behavior: reduced ? "auto" : "smooth" });
+    }, 300);
+  }
 
   // While the debounce is still catching up, `status` describes the *previous* name.
   // Reading it then flashes that name's whole layout — type "x" after "blake" and the
@@ -402,7 +427,7 @@ export function MintPanel({
   }
 
   return (
-    <div className="panel p-6 sm:p-8">
+    <div ref={panelRef} className="panel scroll-mt-20 p-6 sm:p-8">
       <div className="flex items-baseline justify-between gap-4">
         <h3 className="display text-xl">Find your name</h3>
         {needsVoucher && address && (
@@ -421,6 +446,7 @@ export function MintPanel({
           placeholder="yourname"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onFocus={revealPanel}
           spellCheck={false}
           autoCapitalize="none"
           autoComplete="off"
