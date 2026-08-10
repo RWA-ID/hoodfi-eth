@@ -624,7 +624,13 @@ export function ManagePanel() {
     );
   }
 
-  if (loading) {
+  // Only when there is nothing to show yet. Saving calls `reload()` to pick up the new
+  // records, and swapping the whole editor for this one line mid-save tore the page
+  // down to a fraction of its height — the browser kept the scroll offset, which now
+  // pointed at the footer, so saving appeared to jump to the Robinhood Wallet band and
+  // then jump back once the editor remounted. A refresh behind an already-rendered
+  // editor should be invisible.
+  if (loading && names.length === 0) {
     return (
       <div className="panel p-8 text-center">
         <div className="data text-sm text-[var(--dim)]">

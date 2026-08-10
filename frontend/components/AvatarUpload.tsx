@@ -2,15 +2,15 @@
 
 import { useRef, useState } from "react";
 import { useSignMessage } from "wagmi";
-import { prepareAvatar, stashAvatar, uploadAvatar } from "@/lib/avatar";
+import { AvatarCropper } from "./AvatarCropper";
+import { MAX_SOURCE_BYTES, stashAvatar, uploadAvatar } from "@/lib/avatar";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
 import { AVATAR_UPLOAD_URL } from "@/lib/site";
 
-type Stage = "idle" | "preparing" | "signing" | "uploading";
+type Stage = "idle" | "signing" | "uploading";
 
 const STAGE_LABEL: Record<Exclude<Stage, "idle">, string> = {
-  preparing: "Preparing image…",
   signing: "Confirm in your wallet…",
   uploading: "Uploading…",
 };
@@ -40,16 +40,27 @@ export function AvatarUpload({
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  /** The picked file, while its crop is being chosen. Nothing is uploaded until then. */
+  const [pending, setPending] = useState<File | null>(null);
 
   const busy = stage !== "idle";
 
-  async function handleFile(file: File) {
+  /** Step one: hand the picked file to the cropper. Nothing leaves the device yet. */
+  function handleFile(file: File) {
     setError(null);
     setDone(false);
-    try {
-      setStage("preparing");
-      const dataUrl = await prepareAvatar(file);
+    if (file.size > MAX_SOURCE_BYTES) {
+      setError("That image is too large — pick one under 20MB.");
+      return;
+    }
+    setPending(file);
+  }
 
+  /** Step two: the crop the owner chose, uploaded. */
+  async function handleCropped(dataUrl: string) {
+    setPending(null);
+    setError(null);
+    try {
       setStage("signing");
       const uri = await uploadAvatar({
         endpoint: AVATAR_UPLOAD_URL,
@@ -82,7 +93,8 @@ export function AvatarUpload({
   }
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+    <div className="mt-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <input
         ref={input}
         type="file"
@@ -90,13 +102,16 @@ export function AvatarUpload({
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) void handleFile(file);
+          if (file) handleFile(file);
+          // Reset immediately so re-picking the same file still fires a change event,
+          // whether the crop was confirmed or cancelled.
+          e.target.value = "";
         }}
       />
       <button
         type="button"
         className="btn btn-ghost h-8 px-3 text-xs"
-        disabled={busy}
+        disabled={busy || Boolean(pending)}
         onClick={() => input.current?.click()}
       >
         {busy ? STAGE_LABEL[stage] : "Upload an image"}
@@ -114,9 +129,17 @@ export function AvatarUpload({
         </span>
       ) : (
         <span className="text-xs text-[var(--faint)]">
-          Square-cropped to 512px and pinned to IPFS. Free to upload; writing it to your
-          name is the Save below.
+          You choose the crop. Stored at 512px on IPFS — free to upload; writing it to
+          your name is the Save below.
         </span>
+      )}
+      </div>
+      {pending && (
+        <AvatarCropper
+          file={pending}
+          onCancel={() => setPending(null)}
+          onDone={(dataUrl) => void handleCropped(dataUrl)}
+        />
       )}
     </div>
   );

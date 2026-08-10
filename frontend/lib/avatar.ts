@@ -9,10 +9,22 @@ import { sha256 } from "viem";
  */
 
 /** Square edge we store. Big enough for any avatar slot, small enough to stay cheap. */
-const EDGE = 512;
+export const AVATAR_EDGE = 512;
 
 /** Refuse absurd input before spending memory decoding it. */
-const MAX_SOURCE_BYTES = 20 * 1024 * 1024;
+export const MAX_SOURCE_BYTES = 20 * 1024 * 1024;
+
+/**
+ * Encodes a finished square canvas as the data URL we upload.
+ *
+ * WebP is asked for first: it keeps alpha, which JPEG would flatten to black inside the
+ * circle every avatar is drawn in, and it lands far smaller than PNG. Browsers that
+ * can't encode it return a PNG from `toDataURL` rather than failing, and the gateway
+ * accepts both, so there is nothing to detect or branch on.
+ */
+export function encodeAvatar(canvas: HTMLCanvasElement): string {
+  return canvas.toDataURL("image/webp", 0.9);
+}
 
 /**
  * The exact text the owner signs.
@@ -34,49 +46,6 @@ export function avatarUploadMessage(
     `Image: ${hash}`,
     `Expires: ${new Date(expiry).toISOString()}`,
   ].join("\n");
-}
-
-/**
- * Re-encodes a picked file as a square 512px data URL.
- *
- * Cover-cropped from the centre rather than squashed, because every surface that reads
- * an avatar renders it in a circle — a letterboxed image would just show background.
- *
- * WebP is asked for first: it keeps alpha, which JPEG would flatten to black inside
- * that circle, and it lands far smaller than PNG. Browsers that can't encode it return
- * a PNG from `toDataURL` instead of failing, and the gateway accepts both, so there is
- * nothing to detect or branch on.
- */
-export async function prepareAvatar(file: File): Promise<string> {
-  if (file.size > MAX_SOURCE_BYTES) {
-    throw new Error("That image is too large — pick one under 20MB.");
-  }
-
-  // `from-image` applies the EXIF rotation phone cameras write, which is otherwise
-  // ignored on canvas and turns portrait photos on their side.
-  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-
-  const canvas = document.createElement("canvas");
-  canvas.width = EDGE;
-  canvas.height = EDGE;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Couldn't read that image.");
-
-  const side = Math.min(bitmap.width, bitmap.height);
-  ctx.drawImage(
-    bitmap,
-    (bitmap.width - side) / 2,
-    (bitmap.height - side) / 2,
-    side,
-    side,
-    0,
-    0,
-    EDGE,
-    EDGE
-  );
-  bitmap.close();
-
-  return canvas.toDataURL("image/webp", 0.9);
 }
 
 /**

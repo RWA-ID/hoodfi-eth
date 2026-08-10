@@ -13,6 +13,7 @@ import { ShortNamesCopy } from "@/components/ShortNamesCopy";
 import { ResolvesEverywhere } from "@/components/ResolvesEverywhere";
 import { PageView } from "@/components/PageView";
 import { TIER_USD } from "@/lib/labels";
+import { STEPS } from "@/lib/steps";
 
 import { ogMetadata } from "@/lib/metadata";
 
@@ -23,25 +24,6 @@ export const metadata: Metadata = ogMetadata({
   path: "/",
   image: "/og/default.png",
 });
-
-const STEPS = [
-  {
-    title: "Find your name",
-    body: "Search any name up to 32 characters. Availability is read live from the registry on Robinhood Chain — no waitlist, no allowlist.",
-  },
-  {
-    title: "Mint it",
-    body: "One transaction, paid in ETH or USDG. From $3 for 4+ characters. The name is an ERC-721 that lands in your wallet immediately.",
-  },
-  {
-    title: "Make it yours",
-    body: "Point it at any address, add an avatar, link your X and website. Every record is written by you, straight to the registry.",
-  },
-  {
-    title: "Keep it forever",
-    body: "No renewals, no expiry, no annual bill. Lifetime means lifetime — the only ongoing cost is ours, keeping hoodfi.eth alive on Ethereum.",
-  },
-];
 
 const TIERS = [
   { chars: "1 character", example: "x", usd: TIER_USD[0], premium: true },
@@ -111,14 +93,6 @@ export default function Home() {
               </li>
             ))}
           </ul>
-          <div className="mt-7 flex flex-col gap-2.5">
-            <Link href="/short-names/" className="btn btn-ghost w-full">
-              Want a 1–3 character name?
-            </Link>
-            <Link href="/faq/" className="btn btn-ghost w-full">
-              How it works
-            </Link>
-          </div>
         </section>
 
         {/* What you actually get, opposite the card that shows it */}

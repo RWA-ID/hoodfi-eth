@@ -21,6 +21,7 @@ const NAV = [
   // hidden below `sm` — a phone lands on a mint screen — so the drawer has to send
   // mobile to the route that carries the same thing, or the link scrolls to nothing.
   { href: "/#extend", mobileHref: "/short-names/", label: "Short names", always: false },
+  { href: "/#how", mobileHref: "/how-it-works/", label: "How it works", always: false },
   { href: "/faq/", label: "FAQ", always: false },
 ];
 

@@ -56,7 +56,15 @@ function StoreBadges() {
   );
 }
 
-function WalletBand() {
+/**
+ * The Robinhood Wallet band.
+ *
+ * Exported because it is hidden below `sm` in the footer — a phone lands on a mint
+ * screen, and 600px of app-store promotion between the mint card and the legal links
+ * is exactly the kind of detail that belongs behind the menu. /how-it-works/ renders
+ * it there instead, so mobile can still reach it.
+ */
+export function WalletBand() {
   return (
     <section className="wallet-band">
       <div className="mx-auto flex max-w-[1600px] flex-col gap-10 px-4 py-14 sm:px-6 lg:px-8 xl:min-h-[600px] xl:flex-row xl:items-center xl:gap-0 xl:py-24 2xl:px-12">
@@ -86,7 +94,10 @@ function WalletBand() {
 export function Footer() {
   return (
     <footer className="hairline-t mt-24">
-      <WalletBand />
+      {/* Desktop only. Mobile reaches this from the menu, on /how-it-works/. */}
+      <div className="hidden sm:block">
+        <WalletBand />
+      </div>
       <div className="hairline-t mx-auto max-w-[1600px] px-4 py-10 sm:px-6 lg:px-8 2xl:px-12">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div>

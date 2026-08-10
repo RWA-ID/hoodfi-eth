@@ -551,15 +551,18 @@ export function MintPanel({
 
       {/* Short names pre-goal: explain the one path that unlocks them. */}
       {shortsLocked && creditsLeft === 0 && (
-        <div className="mt-4 rounded-md border border-[var(--line)] p-4">
+        /* Deliberately terse. This block sits between the input and the mint button,
+           so every line it spends is a line the landing page grows by the moment
+           someone types a short name — on a phone that is the difference between a
+           screen you can act on and one you have to scroll. Long version on
+           /short-names/. */
+        <div className="mt-4 rounded-md border border-[var(--line)] p-3.5">
           <div className="data text-xs warn">
-            {debouncedLabel.length}-character names are premium inventory
+            {debouncedLabel.length}-character names are premium
           </div>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--dim)]">
+          <p className="mt-1.5 text-xs leading-relaxed text-[var(--dim)]">
             {voucherError && address ? `${voucherError} ` : ""}
-            Donate one year to hoodfi.eth&apos;s ENS expiry and you can mint any
-            1–3 character name free. They open to everyone once the 100-year
-            goal is reached.
+            Donate a year to hoodfi.eth and mint any 1–3 character name free.
           </p>
           {/* The donate flow, opened in place.
               This used to be a link to /#extend. That section is hidden below `sm` now
@@ -580,12 +583,6 @@ export function MintPanel({
               Earn a credit
             </button>
           )}
-          <Link
-            href="/short-names/"
-            className="mt-3 block text-center text-[11px] text-[var(--faint)] underline"
-          >
-            How short names work
-          </Link>
         </div>
       )}
 
