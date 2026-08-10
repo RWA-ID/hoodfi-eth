@@ -8,6 +8,7 @@ import { getNameCard } from './handlers/getNameCard'
 import { getSharePage } from './handlers/getSharePage'
 import { getTokenMetadata } from './handlers/getTokenMetadata'
 import { getVoucher } from './handlers/getVoucher'
+import { postAvatar } from './handlers/postAvatar'
 import { postEvent } from './handlers/postEvent'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -48,6 +49,11 @@ app.get('/n/:label', async (c) => getSharePage(c.req.param('label'), c.req.url, 
 
 // The 1200x630 image those tags point at, rendered per name.
 app.get('/card/:label', async (c) => getNameCard(c.req.param('label'), c.env))
+
+// Avatar image hosting. ENS records store a URL, so without somewhere to put a file
+// only people who already host images can set one. Authorised by a signature from the
+// name's owner, never by trusting the caller.
+app.post('/avatar/:label', async (c) => postAvatar(c.req.param('label'), c.req.raw, c.env))
 
 // Donation ledger. Proxied because a wide eth_getLogs needs an archive endpoint, and
 // the browser can only be given one by publishing the key in the bundle.

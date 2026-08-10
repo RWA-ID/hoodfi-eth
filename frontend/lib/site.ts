@@ -51,6 +51,17 @@ export function nameShareUrl(label: string): string {
   return `${CANONICAL_URL}/${encodeURIComponent(label)}/`;
 }
 
+/**
+ * Gateway route that pins an uploaded avatar image.
+ *
+ * Server-side because the pinning credential can't be published: anything the browser
+ * can send, anyone reading the bundle can send too. The worker holds the JWT and only
+ * accepts an upload signed by the name's owner.
+ */
+export const AVATAR_UPLOAD_URL =
+  process.env.NEXT_PUBLIC_AVATAR_UPLOAD_URL ??
+  "https://hoodfi-gateway.dmpay.workers.dev/avatar";
+
 /** Gateway route that signs short-name credit vouchers. */
 export const VOUCHER_URL =
   process.env.NEXT_PUBLIC_VOUCHER_URL ??

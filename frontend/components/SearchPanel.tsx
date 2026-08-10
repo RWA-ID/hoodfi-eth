@@ -506,7 +506,7 @@ export function SearchPanel() {
         )}
 
         {records && (
-          <div className="hf-rise mx-auto mt-8 grid w-full max-w-[1100px] items-start justify-items-center gap-6 lg:grid-cols-[minmax(330px,420px)_minmax(330px,1fr)]">
+          <div className="hf-rise mx-auto mt-8 grid w-full max-w-[1100px] items-start justify-items-center gap-6 lg:grid-cols-[minmax(330px,480px)_minmax(330px,1fr)]">
             <ProfileCard
               name={toCardName(records)}
               l1={l1}

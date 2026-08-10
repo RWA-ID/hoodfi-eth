@@ -27,6 +27,7 @@ import {
   encodeChainAddress,
   normalizeXHandle,
 } from "@/lib/ens";
+import { AvatarUpload } from "./AvatarUpload";
 import { BitcoinLogo, EthereumLogo, SolanaLogo } from "./ChainLogo";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
@@ -351,7 +352,7 @@ function NameEditor({
   const canSave = changeCount > 0 && !blocked && !busy;
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(330px,420px)_minmax(330px,1fr)]">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(330px,480px)_minmax(330px,1fr)]">
       {/* Live preview — driven by the draft, not the chain, so it shows what you are
           about to publish rather than what is already published. */}
       <div className="flex flex-col gap-3">
@@ -458,6 +459,12 @@ function NameEditor({
               />
               {field.help && (
                 <p className="mt-1.5 text-xs text-[var(--faint)]">{field.help}</p>
+              )}
+              {field.key === "avatar" && (
+                <AvatarUpload
+                  label={name.label}
+                  onUploaded={(uri) => set("avatar", uri)}
+                />
               )}
             </div>
           </div>

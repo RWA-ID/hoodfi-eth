@@ -17,6 +17,8 @@ export interface Env {
   REGISTRAR_ADDRESS?: Hex
   /** Public origin the share pages link back to. Defaults to the hosted domain. */
   SITE_URL?: string
+  /** Pinata JWT for avatar uploads. Secret — it must never reach the bundle. */
+  PINATA_JWT?: string
   /** Optional Analytics Engine binding for the cookieless funnel sink. */
   ANALYTICS?: AnalyticsEngineDataset
 }

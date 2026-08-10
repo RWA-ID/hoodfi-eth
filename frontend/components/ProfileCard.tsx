@@ -113,6 +113,30 @@ export function L1Badge({ state }: { state: L1State }) {
   );
 }
 
+const SUFFIX = ".hoodfi.eth";
+
+/**
+ * Font size for the name line, as a share of the card's own width.
+ *
+ * The name is the one piece of card content with no bounded length — labels run to 32
+ * characters — so a fixed size can only ever fit the short ones. `cqi` is a percentage
+ * of the containing block's inline size, which makes this exact at every card width
+ * instead of tuned for one viewport: N glyphs of a monospace face at 0.62em apiece fill
+ * the line when the size is `100 / (0.62 * N)` cqi.
+ *
+ * IBM Plex Mono actually advances 0.6em and the -0.02em tracking claws a little back;
+ * 0.62 is deliberately pessimistic so the fit lands with slack rather than on the edge.
+ *
+ * The 20px floor is what stops a 32-character name from rendering as fine print — past
+ * that the line is allowed to wrap at the <wbr/> instead, which puts `.hoodfi.eth` on
+ * its own line. That is the only break point in the string, so a name can never be
+ * split mid-word the way `break-all` used to split it.
+ */
+function nameLineSize(label: string): string {
+  const cqi = 100 / (0.62 * (label.length + SUFFIX.length));
+  return `max(20px, min(36px, ${cqi.toFixed(2)}cqi))`;
+}
+
 export function ProfileCard({
   name,
   l1,
@@ -134,7 +158,7 @@ export function ProfileCard({
   const token = `#${name.node.slice(2, 6)}…${name.node.slice(-4)}`;
 
   return (
-    <div className="flex w-full max-w-[420px] flex-col gap-3">
+    <div className="flex w-full max-w-[480px] flex-col gap-3">
       <div className="card-frame">
         <div className="card-surface">
           <div className="card-grid pointer-events-none absolute inset-0" />
@@ -169,11 +193,20 @@ export function ProfileCard({
                   textClassName="text-2xl"
                 />
               </div>
-              <div className="data break-all text-[clamp(26px,4.4vw,36px)] font-semibold leading-none tracking-[-0.02em]">
-                {name.label}
-                <span className="text-[color-mix(in_srgb,var(--paper)_32%,transparent)]">
-                  .hoodfi.eth
-                </span>
+              {/* The sizing container. It has to be its own element: `cqi` resolves
+                  against the nearest container ancestor, so the element being sized
+                  can't be the one that establishes it. */}
+              <div className="w-full [container-type:inline-size]">
+                <div
+                  className="data font-semibold leading-[1.08] tracking-[-0.02em]"
+                  style={{ fontSize: nameLineSize(name.label) }}
+                >
+                  {name.label}
+                  <wbr />
+                  <span className="text-[color-mix(in_srgb,var(--paper)_32%,transparent)]">
+                    {SUFFIX}
+                  </span>
+                </div>
               </div>
               <L1Badge state={l1} />
               {name.description && (

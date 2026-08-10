@@ -24,6 +24,7 @@ export type TrackEvent =
   | "short_mint_started"
   | "short_mint_completed"
   | "record_saved"
+  | "avatar_uploaded"
   | "share_clicked"
   | "connect_opened";
 

@@ -70,8 +70,14 @@ cd gateway
 npx wrangler secret put MAINNET_RPC_URL      # any reliable mainnet RPC
 npx wrangler secret put DONATIONS_ADDRESS    # from step 1
 npx wrangler secret put REGISTRAR_ADDRESS    # from step 2
+npx wrangler secret put PINATA_JWT           # avatar uploads — same JWT as pin.sh
 npx wrangler deploy
 ```
+
+`PINATA_JWT` is what lets `/avatar/:label` host an uploaded avatar image. Without it that
+one route answers 503 and the avatar field falls back to accepting a URL you typed —
+nothing else on the gateway cares. It is a secret rather than a `[vars]` entry for the
+usual reason: a plain var of the same name shadows the secret on every deploy.
 
 Optional, for analytics — add to `wrangler.toml`:
 
@@ -101,6 +107,7 @@ NEXT_PUBLIC_L2_DEPLOY_BLOCK=15164296
 NEXT_PUBLIC_VOUCHER_URL=https://hoodfi-gateway.dmpay.workers.dev/voucher
 NEXT_PUBLIC_ANALYTICS_URL=https://hoodfi-gateway.dmpay.workers.dev/e
 NEXT_PUBLIC_DONATIONS_URL=https://hoodfi-gateway.dmpay.workers.dev/donations
+NEXT_PUBLIC_AVATAR_UPLOAD_URL=https://hoodfi-gateway.dmpay.workers.dev/avatar
 NEXT_PUBLIC_CANONICAL_URL=https://hoodfi.name
 NEXT_PUBLIC_ALCHEMY_API_KEY=            # optional — see below
 ```

@@ -20,3 +20,6 @@ node_modules/
 # snapshot exports (regenerate from chain)
 reservations-snapshot.json
 .env.signer.json
+
+# Local wrangler dev state
+.wrangler/
