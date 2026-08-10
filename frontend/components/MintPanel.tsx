@@ -30,6 +30,7 @@ import { formatEth } from "@/lib/format";
 import { VOUCHER_URL, nameShareUrl } from "@/lib/site";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
+import { DonatePanel } from "./DonatePanel";
 import { ShareOnX } from "./ShareOnX";
 import { useMintQuery } from "./MintQuery";
 
@@ -101,6 +102,8 @@ export function MintPanel({
   const tier = debouncedLabel ? tierOf(debouncedLabel) : 3;
 
   const panelRef = useRef<HTMLDivElement>(null);
+  // Opened from the locked-short-name state; never shown unprompted.
+  const [showDonate, setShowDonate] = useState(false);
   const searched = useRef<string>("");
   useEffect(() => {
     if (debouncedLabel && debouncedLabel !== searched.current) {
@@ -558,8 +561,30 @@ export function MintPanel({
             1–3 character name free. They open to everyone once the 100-year
             goal is reached.
           </p>
-          <Link href="/#extend" className="btn btn-ghost mt-3 w-full">
-            Earn a credit
+          {/* The donate flow, opened in place.
+              This used to be a link to /#extend. That section is hidden below `sm` now
+              that a phone lands on a mint screen, so the link would have scrolled to
+              nothing — and even where it worked, sending someone away mid-mint to find
+              the one thing that unlocks the name they just typed is the wrong shape.
+              Collapsed by default so it costs nothing until it's the answer. */}
+          {showDonate ? (
+            <div className="mt-3">
+              <DonatePanel />
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-ghost mt-3 w-full"
+              onClick={() => setShowDonate(true)}
+            >
+              Earn a credit
+            </button>
+          )}
+          <Link
+            href="/short-names/"
+            className="mt-3 block text-center text-[11px] text-[var(--faint)] underline"
+          >
+            How short names work
           </Link>
         </div>
       )}

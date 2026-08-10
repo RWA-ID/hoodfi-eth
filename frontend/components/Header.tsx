@@ -17,7 +17,10 @@ const NAV = [
   { href: "/mint/", label: "Mint", always: true },
   { href: "/search/", label: "Look up", always: false },
   { href: "/manage/", label: "Manage", always: false },
-  { href: "/#extend", label: "Short names", always: false },
+  // On a desktop this scrolls to the section that carries the offer. That section is
+  // hidden below `sm` — a phone lands on a mint screen — so the drawer has to send
+  // mobile to the route that carries the same thing, or the link scrolls to nothing.
+  { href: "/#extend", mobileHref: "/short-names/", label: "Short names", always: false },
   { href: "/faq/", label: "FAQ", always: false },
 ];
 
@@ -182,11 +185,11 @@ export function Header() {
           {NAV.map((item) => (
             <Link
               key={item.href}
-              href={item.href}
-              aria-current={isActive(item.href) ? "page" : undefined}
+              href={item.mobileHref ?? item.href}
+              aria-current={isActive(item.mobileHref ?? item.href) ? "page" : undefined}
               onClick={() => setOpen(false)}
               className={`flex items-center justify-between border-b border-[color-mix(in_srgb,var(--line)_70%,transparent)] py-4 text-[15px] ${
-                isActive(item.href)
+                isActive(item.mobileHref ?? item.href)
                   ? "text-[var(--green)]"
                   : "text-[var(--paper)]"
               }`}

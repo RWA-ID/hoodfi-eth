@@ -4,16 +4,16 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Reveal } from "@/components/Reveal";
 import { HeroIdCard } from "@/components/HeroIdCard";
-import { CenturyRuler } from "@/components/CenturyRuler";
 import { MintPanel } from "@/components/MintPanel";
 import { MintQueryProvider } from "@/components/MintQuery";
 import { ConnectMintButton } from "@/components/ConnectMintButton";
 import { DonatePanel } from "@/components/DonatePanel";
-import { DonationsFeed } from "@/components/DonationsFeed";
+import { Endowment } from "@/components/Endowment";
+import { ShortNamesCopy } from "@/components/ShortNamesCopy";
 import { ResolvesEverywhere } from "@/components/ResolvesEverywhere";
 import { PageView } from "@/components/PageView";
 import { TIER_USD } from "@/lib/labels";
-import { GOAL_YEARS, GOAL_YEAR_LABEL } from "@/lib/site";
+
 import { ogMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = ogMetadata({
@@ -69,7 +69,12 @@ export default function Home() {
               Mint your name.
               <span className="bloom">Own it forever.</span>
             </h1>
-            <p className="mt-5 max-w-[36ch] text-[clamp(16px,1.3vw,19px)] text-[var(--dim)]">
+            {/* Both of these are desktop-only. Most phone traffic arrives from a link
+                on X intending to mint, and on a 390px screen this paragraph and button
+                row are ~180px of preamble between the headline and the only input that
+                matters — while "How it works" points at a section that is itself hidden
+                on mobile. The panel below says the same things in a form you can act on. */}
+            <p className="mt-5 hidden max-w-[36ch] text-[clamp(16px,1.3vw,19px)] text-[var(--dim)] sm:block">
               A lifetime name like{" "}
               <span className="data text-[var(--paper)]">blake.hoodfi.eth</span> on
               Robinhood Chain. One transaction from $3 — no renewals, no expiry, ever.
@@ -77,7 +82,7 @@ export default function Home() {
             {/* No primary CTA here any more — the mint panel opposite *is* the
                 primary action, and a green "Mint a name" button beside it just
                 competes with the thing it points at. */}
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="mt-7 hidden flex-wrap gap-3 sm:flex">
               <ConnectMintButton />
               <Link href="#how" className="btn btn-ghost">
                 How it works
@@ -90,8 +95,34 @@ export default function Home() {
         </section>
         </MintQueryProvider>
 
+        {/* The whole pitch, at the size a phone deserves. Everything that argues for
+            the product is hidden below `sm`, so without this a mobile visitor gets a
+            price and no reason — and the drawer is one tap away for the long version. */}
+        <section className="pb-14 pt-8 sm:hidden">
+          <ul className="flex flex-col gap-3 text-sm text-[var(--dim)]">
+            {[
+              "Lifetime ERC-721 — no renewals, no expiry, nothing to forget.",
+              "Resolves from Ethereum mainnet, so wallets that speak ENS find it.",
+              "You control every record. This site can't edit or reclaim your name.",
+            ].map((line) => (
+              <li key={line} className="flex gap-3">
+                <span className="ok">→</span>
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-7 flex flex-col gap-2.5">
+            <Link href="/short-names/" className="btn btn-ghost w-full">
+              Want a 1–3 character name?
+            </Link>
+            <Link href="/faq/" className="btn btn-ghost w-full">
+              How it works
+            </Link>
+          </div>
+        </section>
+
         {/* What you actually get, opposite the card that shows it */}
-        <section id="mint" className="scroll-mt-24 pt-10 pb-16 sm:pt-14 sm:pb-20">
+        <section id="mint" className="hidden scroll-mt-24 pt-10 pb-16 sm:block sm:pt-14 sm:pb-20">
           <Reveal>
             <div className="grid items-center gap-10 lg:grid-cols-[1fr_minmax(0,480px)]">
               <div>
@@ -133,7 +164,7 @@ export default function Home() {
         </section>
 
         {/* How it works */}
-        <section id="how" className="scroll-mt-24 border-t border-[var(--line)] py-20 sm:py-28">
+        <section id="how" className="hidden scroll-mt-24 border-t border-[var(--line)] py-20 sm:block sm:py-28">
           <Reveal>
             <div className="eyebrow">how it works</div>
             <h2 className="display mt-3 text-[clamp(28px,3.4vw,44px)]">
@@ -161,7 +192,7 @@ export default function Home() {
             has right after "what is it": will anything I use recognise this? */}
         <section
           id="resolves"
-          className="scroll-mt-24 border-t border-[var(--line)] py-20 sm:py-28"
+          className="hidden scroll-mt-24 border-t border-[var(--line)] py-20 sm:block sm:py-28"
         >
           <Reveal>
             <ResolvesEverywhere />
@@ -171,64 +202,22 @@ export default function Home() {
         {/* The perk — donation drive, now clearly secondary */}
         <section
           id="extend"
-          className="scroll-mt-24 border-t border-[var(--line)] py-20 sm:py-28"
+          className="hidden scroll-mt-24 border-t border-[var(--line)] py-20 sm:block sm:py-28"
         >
           <Reveal>
             <div className="grid gap-10 lg:grid-cols-[1fr_minmax(0,420px)]">
-              <div>
-                <div className="eyebrow">the perk</div>
-                <h2 className="display mt-3 text-[clamp(28px,3.4vw,44px)]">
-                  Want <span className="ok">x</span>, <span className="ok">og</span> or{" "}
-                  <span className="ok">gme</span>?
-                </h2>
-                <p className="mt-4 max-w-[48ch] text-[clamp(15px,1.2vw,18px)] text-[var(--dim)]">
-                  One, two and three character names are the scarcest inventory here —
-                  there are only 37 possible single characters in total. They aren&apos;t
-                  on public sale yet.
-                </p>
-                <p className="mt-4 max-w-[48ch] text-sm leading-relaxed text-[var(--dim)]">
-                  The one way to get one today: add a year to hoodfi.eth&apos;s expiry on
-                  Ethereum. Each year donated earns one credit, and a credit mints any
-                  short name free. It costs about the price of a coffee and it&apos;s what
-                  keeps the parent name — and therefore every name minted here — alive.
-                </p>
-                <p className="mt-4 max-w-[48ch] text-sm leading-relaxed text-[var(--dim)]">
-                  At <span className="data text-[var(--paper)]">{GOAL_YEARS} years</span>{" "}
-                  donated, short names open to everyone at the prices above. Credits still
-                  mint free after that, so an early credit never loses its value.
-                </p>
-              </div>
+              <ShortNamesCopy />
               <DonatePanel />
             </div>
           </Reveal>
         </section>
 
         {/* Proof — the live ruler and the ledger */}
-        <section className="border-t border-[var(--line)] py-20 sm:py-28">
-          <Reveal>
-            <div className="eyebrow">the endowment</div>
-            <h2 className="display mt-3 text-[clamp(28px,3.4vw,44px)]">
-              Funding hoodfi.eth to {GOAL_YEAR_LABEL}
-            </h2>
-            <p className="mt-4 max-w-[56ch] text-[clamp(15px,1.2vw,18px)] text-[var(--dim)]">
-              Every name here is a subname of hoodfi.eth, so the parent name has to
-              outlive them all. Donations renew it directly on the official ENS
-              controller — read live below, straight from the .eth registrar.
-            </p>
-          </Reveal>
-          <div className="mt-12">
-            <Reveal>
-              <CenturyRuler />
-            </Reveal>
-          </div>
-          <div className="mt-12">
-            <Reveal>
-              <DonationsFeed />
-            </Reveal>
-          </div>
+        <section className="hidden border-t border-[var(--line)] py-20 sm:block sm:py-28">
+          <Endowment />
         </section>
 
-        <section className="border-t border-[var(--line)] py-20 text-center sm:py-28">
+        <section className="hidden border-t border-[var(--line)] py-20 text-center sm:block sm:py-28">
           <Reveal>
             <h2 className="display text-[clamp(26px,3vw,40px)]">
               Your name is probably still free.
