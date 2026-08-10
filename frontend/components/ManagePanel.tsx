@@ -28,6 +28,7 @@ import {
   normalizeXHandle,
 } from "@/lib/ens";
 import { AvatarUpload } from "./AvatarUpload";
+import { clearStashedAvatar, readStashedAvatar } from "@/lib/avatar";
 import { BitcoinLogo, EthereumLogo, SolanaLogo } from "./ChainLogo";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
@@ -258,6 +259,32 @@ function NameEditor({
     setDraft((d) => ({ ...d, [key]: value }));
     setDirty((d) => new Set(d).add(key));
   }
+
+  /**
+   * Re-apply an avatar that was pinned but never written.
+   *
+   * Uploading returns an ipfs:// URI into this form and nothing else — the record is
+   * only changed by the save below. Anything that resets React state in between loses
+   * it, and on a phone that is the normal path, not an edge case: signing hands off to
+   * the wallet app and coming back can reload the page, so the upload finishes on the
+   * server while the state holding its CID is gone. The image stays pinned and the
+   * owner has no way to find it again.
+   *
+   * Runs off `avatar.data` so it lands after the chain read has seeded the form,
+   * otherwise the seed would immediately overwrite it. Clears itself the moment the
+   * record matches, so it can't keep re-dirtying a form the user already saved.
+   */
+  useEffect(() => {
+    if (avatar.data === undefined) return;
+    const pending = readStashedAvatar(name.label);
+    if (!pending) return;
+    if (pending === avatar.data) {
+      clearStashedAvatar(name.label);
+      return;
+    }
+    set("avatar", pending);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avatar.data, name.label]);
 
   async function ensureChain() {
     if (chainId !== robinhoodChain.id) {

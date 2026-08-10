@@ -79,6 +79,45 @@ export async function prepareAvatar(file: File): Promise<string> {
   return canvas.toDataURL("image/webp", 0.9);
 }
 
+/**
+ * A pinned-but-unsaved avatar, remembered across reloads.
+ *
+ * Uploading is only half the job — the record still has to be written, and until it is,
+ * the returned URI lives nowhere but an unsaved form field. That is fine on a desktop
+ * and lossy on a phone: signing hands off to the wallet app, and coming back can reload
+ * the page, so the upload completes server-side while the state holding its CID is
+ * gone. The image is pinned and the owner has no way to find it again.
+ *
+ * Scoped per name and cleared as soon as the chain agrees, so it can't outlive its
+ * purpose or leak onto a different name.
+ */
+const STASH_PREFIX = "hoodfi.avatar.pending.";
+
+export function stashAvatar(label: string, uri: string): void {
+  try {
+    sessionStorage.setItem(STASH_PREFIX + label, uri);
+  } catch {
+    // Private mode and sandboxed frames throw. Losing the safety net is survivable;
+    // failing the upload that just succeeded is not.
+  }
+}
+
+export function readStashedAvatar(label: string): string | null {
+  try {
+    return sessionStorage.getItem(STASH_PREFIX + label);
+  } catch {
+    return null;
+  }
+}
+
+export function clearStashedAvatar(label: string): void {
+  try {
+    sessionStorage.removeItem(STASH_PREFIX + label);
+  } catch {
+    // Nothing to do — a stale entry clears itself once the record matches.
+  }
+}
+
 /** Raw bytes behind a base64 data URL, for hashing. */
 function dataUrlToBytes(dataUrl: string): Uint8Array {
   const binary = atob(dataUrl.slice(dataUrl.indexOf(",") + 1));

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useSignMessage } from "wagmi";
-import { prepareAvatar, uploadAvatar } from "@/lib/avatar";
+import { prepareAvatar, stashAvatar, uploadAvatar } from "@/lib/avatar";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
 import { AVATAR_UPLOAD_URL } from "@/lib/site";
@@ -39,11 +39,13 @@ export function AvatarUpload({
   const { signMessageAsync } = useSignMessage();
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
   const busy = stage !== "idle";
 
   async function handleFile(file: File) {
     setError(null);
+    setDone(false);
     try {
       setStage("preparing");
       const dataUrl = await prepareAvatar(file);
@@ -63,7 +65,11 @@ export function AvatarUpload({
         },
       });
 
+      // Stash before handing it up: if anything below this line throws, the CID is
+      // still recoverable rather than pinned and lost.
+      stashAvatar(label, uri);
       onUploaded(uri);
+      setDone(true);
       track("avatar_uploaded", { method: "manage" });
     } catch (err) {
       setError(walletErrorMessage(err));
@@ -97,10 +103,19 @@ export function AvatarUpload({
       </button>
       {error ? (
         <span className="data text-xs bad">{error}</span>
+      ) : done ? (
+        // The upload is half the job, and the half that costs nothing. Saying so here
+        // is the whole point of this state: the previous copy ended on "you sign a
+        // message, not a transaction", which reads as "finished" — so an image could be
+        // pinned, the record never written, and nothing on screen disagreed.
+        <span className="text-xs ok">
+          Uploaded ✓ — now press <strong className="font-semibold">Save changes</strong>{" "}
+          to put it on your name.
+        </span>
       ) : (
         <span className="text-xs text-[var(--faint)]">
-          Square-cropped to 512px and pinned to IPFS. No gas — you sign a message, not a
-          transaction.
+          Square-cropped to 512px and pinned to IPFS. Free to upload; writing it to your
+          name is the Save below.
         </span>
       )}
     </div>
