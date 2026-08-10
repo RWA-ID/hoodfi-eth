@@ -40,7 +40,7 @@ export function LegalPage({
         {sections.map((s, i) => (
           <section key={s.heading} className="mt-10">
             <h2 className="display text-lg">
-              <span className="data mr-3 text-xs text-[var(--faint)]">
+              <span className="plain data mr-3 text-xs text-[var(--faint)]">
                 {String(i + 1).padStart(2, "0")}
               </span>
               {s.heading}

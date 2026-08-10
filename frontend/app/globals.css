@@ -56,11 +56,39 @@ body {
 }
 
 /* ── type roles ── */
+/* ── section headings ──
+   Archivo at 600 rather than 800, shaded white-to-grey down the glyph.
+
+   The gradient runs vertically on purpose. `.statement` below rakes its own at
+   150deg, which works there because the text is huge and fills its box; a block
+   heading is as wide as its container, so a diagonal ramp puts a short word like
+   "Pricing" entirely in the near-white first few percent and the shading never
+   shows. Down the y-axis the ramp is bound to the line box instead, so one rule
+   reads the same on a two-word panel title and a clamp(28px,3.4vw,44px) section
+   opener, at any viewport, with no layout change to make it fit. */
 .display {
   font-family: var(--font-display), sans-serif;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  /* 800 could carry -0.02em; at 600 the same tracking reads cramped. */
+  letter-spacing: -0.015em;
   line-height: 1.04;
+  background: linear-gradient(180deg, #ffffff 0%, #e9f2ea 38%, #a9b2af 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Opt a child back out of the clip.
+   `-webkit-text-fill-color` inherits and outranks `color`, so a span inside a
+   shaded heading loses its own colour and is painted by the parent's gradient
+   instead — the green in "Want x, og or gme?" simply stops being green. Setting
+   the fill back to currentColor restores whatever colour the child asked for. */
+.display .plain,
+.display .ok,
+.display .bad,
+.display .warn {
+  -webkit-text-fill-color: currentColor;
 }
 
 .data {

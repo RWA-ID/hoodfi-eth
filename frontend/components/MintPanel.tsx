@@ -379,7 +379,7 @@ export function MintPanel({
         <div className="eyebrow ok">minted</div>
         <h3 className="display mt-3 text-2xl break-all">
           {minted}
-          <span className="text-[var(--dim)]">.hoodfi.eth</span>
+          <span className="plain text-[var(--dim)]">.hoodfi.eth</span>
         </h3>
         <p className="mt-2 text-sm text-[var(--dim)]">
           It&apos;s yours for life — no renewals, no expiry. Add an avatar, an
