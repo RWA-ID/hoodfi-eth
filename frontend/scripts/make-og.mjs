@@ -121,6 +121,14 @@ const CARDS = [
     stat: ["with a credit", "free"],
   },
   {
+    file: "mcp.png",
+    ground: "ink",
+    eyebrow: "07 / for agents",
+    lines: ["An agent can", "mint its own."],
+    sub: 'A remote MCP server that quotes a name and returns unsigned calldata. It holds no keys — the agent signs, the agent owns.',
+    stat: ["keys held", "0"],
+  },
+  {
     file: "faq.png",
     ground: "paper",
     eyebrow: "06 / questions",

@@ -68,6 +68,16 @@ export const VOUCHER_URL =
   "https://hoodfi-gateway.dmpay.workers.dev/voucher";
 
 /**
+ * The MCP endpoint agents connect to.
+ *
+ * Its own worker, not a gateway route: the gateway's URL is baked into
+ * HoodfiL1Resolver on mainnet and answers every CCIP-Read lookup for the domain, so a
+ * publicly listed agent endpoint sharing it could degrade resolution under load.
+ */
+export const MCP_URL =
+  process.env.NEXT_PUBLIC_MCP_URL ?? "https://hoodfi-mcp.dmpay.workers.dev/mcp";
+
+/**
  * Gateway route serving the donation ledger.
  *
  * Read server-side because a wide `eth_getLogs` needs an archive-capable RPC, and any

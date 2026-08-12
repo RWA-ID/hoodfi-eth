@@ -26,6 +26,7 @@ const NAV = [
 const DRAWER_EXTRA = [
   { href: "/how-it-works/", label: "How it works" },
   { href: "/claim/", label: "Claim a credit" },
+  { href: "/mcp/", label: "MCP for agents" },
 ];
 
 function MenuIcon({ open }: { open: boolean }) {

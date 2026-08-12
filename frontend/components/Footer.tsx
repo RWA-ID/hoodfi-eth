@@ -18,6 +18,7 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
     links: [
       { href: "/how-it-works/", label: "How it works" },
       { href: "/faq/", label: "FAQ" },
+      { href: "/mcp/", label: "MCP for agents" },
       { href: "/#verify", label: "Contracts" },
       {
         href: "https://github.com/RWA-ID/hoodfi-eth",
