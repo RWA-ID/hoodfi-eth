@@ -12,6 +12,16 @@ import {
 } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
 import { robinhoodChain } from "@/lib/chains";
+import { PROBE_SIZE, useFitText } from "@/lib/useFitText";
+
+/** The field's design size, held for every name short enough to keep it. */
+const INPUT_MAX_SIZE = 24;
+/**
+ * Low enough that the longest name still shows its own beginning on a phone. 13px left
+ * 42px of a 31-character name scrolled out of sight, which is the whole bug: you cannot
+ * check what you typed if the field only ever shows the end of it.
+ */
+const INPUT_MIN_SIZE = 10;
 import {
   REGISTRAR_ADDRESS,
   USDC_ADDRESS,
@@ -70,6 +80,11 @@ export function MintPanel({
   const [localQuery, setLocalQuery] = useState(initialQuery);
   const query = shared ? shared.query : localQuery;
   const setQuery = shared ? shared.setQuery : setLocalQuery;
+  const {
+    columnRef: inputColumnRef,
+    probeRef: inputProbeRef,
+    fontSize: inputFontSize,
+  } = useFitText<HTMLInputElement>(query || "yourname", () => INPUT_MAX_SIZE, INPUT_MIN_SIZE, INPUT_MAX_SIZE);
   const [method, setMethod] = useState<PayMethod>("eth");
   const [voucher, setVoucher] = useState<Voucher | null>(null);
   const [voucherError, setVoucherError] = useState<string | null>(null);
@@ -515,8 +530,21 @@ export function MintPanel({
       </div>
 
       <div className="mt-[18px] flex h-[60px] items-center gap-1.5 border border-[rgba(241,241,234,0.28)] px-3.5 focus-within:border-[var(--lime)]">
+        {/* An input scrolls its own text rather than shrinking it, so on a phone a long
+            name pushed its own beginning out of sight — you could only ever see the end
+            of what you had typed. Fitting it keeps the whole name visible. */}
+        <span
+          ref={inputProbeRef}
+          aria-hidden
+          className="pointer-events-none absolute -left-[9999px] top-0 whitespace-nowrap font-bold tracking-[-0.02em]"
+          style={{ fontSize: PROBE_SIZE }}
+        >
+          {query || "yourname"}
+        </span>
         <input
-          className="min-w-0 flex-1 border-0 bg-transparent text-[24px] font-bold tracking-[-0.02em] text-[var(--fg)] outline-none placeholder:text-[var(--faint)]"
+          ref={inputColumnRef}
+          className="min-w-0 flex-1 border-0 bg-transparent font-bold tracking-[-0.02em] text-[var(--fg)] outline-none placeholder:text-[var(--faint)]"
+          style={{ fontSize: inputFontSize }}
           placeholder="yourname"
           value={query}
           onChange={(e) => setQuery(e.target.value)}

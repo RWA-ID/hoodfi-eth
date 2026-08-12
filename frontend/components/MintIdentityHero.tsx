@@ -1,11 +1,13 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
 import { checkLabel } from "@/lib/labels";
 import { track } from "@/lib/analytics";
+import { PROBE_SIZE, useFitText } from "@/lib/useFitText";
 import { useMintQuery } from "./MintQuery";
+
+const SUFFIX = ".hoodfi.eth";
 
 /**
  * The /mint hero: the hex string you hand people today, and the name that replaces it,
@@ -15,66 +17,14 @@ import { useMintQuery } from "./MintQuery";
  * pitch, so before connecting the top slot prompts for the wallet rather than dropping
  * back to a plain headline and leaving the page arguing for nothing.
  */
-/** Past this the name can no longer hold 72px in its column, so it stops trying. */
-const LONG_NAME = 16;
 /** The old fixed ceiling, kept so short names render exactly as they did before. */
 const MAX_SIZE = 72;
-/**
- * The floor exists so a long name shrinks instead of wrapping, and 12px is where that
- * stops being worth it: 32 of Archivo's widest lowercase ("m", 0.82em apiece) fit a
- * 390px phone at 13.3px, so every valid name clears this on any phone worth naming.
- * Narrower than that and wrapping reads better than the type would.
- */
-const MIN_SIZE = 12;
-
-/**
- * Fit the name to the column it sits in.
- *
- * A 32-character label set 1328px at the old fixed 72px in a 612px column, so it
- * overflowed by more than its own width and `break-words` chopped it mid-word
- * ("averyveryverylon" / "gnamefortesting"). No fixed size survives a 32-character
- * label; it has to be sized to what it has to fit in.
- *
- * The width is measured rather than computed from the character count. Estimating it
- * from an average advance looked right and wasn't: calibrated on "a" it fits, and the
- * same 32 characters as "m" still ran 948px into a 612px column, because Archivo's
- * widest lowercase is over half again the width of its narrowest. Only the glyphs the
- * owner actually typed know how wide they are.
- */
-function useFittedName(name: string, thin: boolean) {
-  const columnRef = useRef<HTMLDivElement>(null);
-  const probeRef = useRef<HTMLSpanElement>(null);
-  const [fontSize, setFontSize] = useState(MAX_SIZE);
-
-  useLayoutEffect(() => {
-    const column = columnRef.current;
-    const probe = probeRef.current;
-    if (!column || !probe) return;
-
-    const fit = () => {
-      const available = column.clientWidth;
-      // The probe carries the same family, weight and tracking at PROBE_SIZE, so this
-      // ratio is exact for these glyphs rather than an average over the alphabet.
-      const atProbeSize = probe.getBoundingClientRect().width;
-      if (!available || !atProbeSize) return;
-      const ceiling = Math.min(MAX_SIZE, Math.max(32, window.innerWidth * 0.056));
-      const fitted = (available / atProbeSize) * PROBE_SIZE;
-      setFontSize(Math.max(MIN_SIZE, Math.min(ceiling, fitted)));
-    };
-
-    fit();
-    const observer = new ResizeObserver(fit);
-    observer.observe(column);
-    // Measuring before Archivo lands sizes the name to the fallback's metrics.
-    document.fonts?.ready.then(fit).catch(() => {});
-    return () => observer.disconnect();
-  }, [name, thin]);
-
-  return { columnRef, probeRef, fontSize };
-}
-
-/** Large enough that rounding in the ratio is irrelevant. */
-const PROBE_SIZE = 100;
+/** The name is one line at any length, so it may have to get genuinely small. */
+const MIN_SIZE = 10;
+/** The hero's own line-height, and what the reserved height is built from. */
+const LEADING = 0.92;
+/** Matches `clamp(32px, 5.6vw, 72px)` — the ceiling the design already used. */
+const ceilingFor = (viewport: number) => Math.min(MAX_SIZE, Math.max(32, viewport * 0.056));
 
 export function MintIdentityHero() {
   const { address, isConnected } = useAccount();
@@ -83,8 +33,15 @@ export function MintIdentityHero() {
   const check = checkLabel(shared?.query ?? "");
   const label = check.ok ? check.label : "";
   const name = label || "yourname";
-  const thin = name.length > LONG_NAME;
-  const { columnRef, probeRef, fontSize } = useFittedName(name, thin);
+  // The lockup is measured whole: it is one line, so the suffix is part of what has to
+  // fit, not something that can be pushed onto a line of its own.
+  const lockup = `${name}${SUFFIX}`;
+  const { columnRef, probeRef, fontSize } = useFitText<HTMLDivElement>(
+    lockup,
+    () => ceilingFor(window.innerWidth),
+    MIN_SIZE,
+    MAX_SIZE
+  );
 
   return (
     <>
@@ -114,31 +71,38 @@ export function MintIdentityHero() {
       </div>
 
       <div className="eyebrow mt-6">your new wallet address</div>
-      {/* `<wbr>` and break-words, never break-all: the only sensible place for this
-          line to wrap is between the name and the suffix, and break-all happily
-          splits it as "yourname.hoodfi." / "eth". */}
-      <div ref={columnRef}>
-        {/* Off-screen twin of the name at a known size. It is what makes the fit exact:
-            same family, same weight, same tracking, never wrapped. */}
+      {/* One line, always. The name and its suffix are a lockup, so this reserves the
+          height of the tallest it can be and sits the type on the bottom of that box:
+          the size changes as you type, the layout underneath never does. */}
+      {/* `overflow-hidden` is the guarantee, not the mechanism. The fit keeps the name
+          inside this box at every realistic size; below about 320px the floor stops
+          shrinking before a 32-character name of Archivo's widest glyph would fit, and
+          without this that residue pushed the whole page 37px wide. A name clipped on a
+          320px phone is a far smaller fault than every page scrolling sideways — and
+          the field above it shows the name in full either way. */}
+      <div
+        ref={columnRef}
+        className="mt-3 flex items-end overflow-hidden"
+        style={{ height: `calc(clamp(32px, 5.6vw, ${MAX_SIZE}px) * ${LEADING})` }}
+      >
+        {/* Off-screen twin of the lockup at a known size. It is what makes the fit
+            exact: same family, same weight, same tracking, never wrapped. */}
         <span
           ref={probeRef}
           aria-hidden
-          className={`pointer-events-none absolute -left-[9999px] top-0 whitespace-nowrap tracking-[-0.04em] ${
-            thin ? "font-semibold" : "font-extrabold"
-          }`}
+          className="pointer-events-none absolute -left-[9999px] top-0 whitespace-nowrap font-extrabold tracking-[-0.04em]"
           style={{ fontSize: PROBE_SIZE }}
         >
-          {name}
+          {lockup}
         </span>
         <div
-          className={`mt-3 break-words leading-[0.92] tracking-[-0.04em] ${
-            thin ? "font-semibold" : "font-extrabold"
-          } ${label ? "" : "text-[var(--faint)]"}`}
+          className={`whitespace-nowrap font-extrabold leading-[0.92] tracking-[-0.04em] ${
+            label ? "" : "text-[var(--faint)]"
+          }`}
           style={{ fontSize }}
         >
           {name}
-          <wbr />
-          <span className={label ? "text-[var(--dim)]" : ""}>.hoodfi.eth</span>
+          <span className={label ? "text-[var(--dim)]" : ""}>{SUFFIX}</span>
         </div>
       </div>
       <p className="mt-6 max-w-[46ch] text-[17px] font-medium leading-[1.5] text-pretty">
