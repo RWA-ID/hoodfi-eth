@@ -1,3 +1,4 @@
+import { CREDIT_USD } from "@/lib/labels";
 import { GOAL_YEARS } from "@/lib/site";
 
 /**
@@ -21,9 +22,11 @@ export function ShortNamesCopy({ as = "h2" }: { as?: "h1" | "h2" }) {
       </p>
       <p className="mt-4 max-w-[48ch] text-sm leading-relaxed text-[var(--dim)]">
         The one way to get one today: add a year to hoodfi.eth&apos;s expiry on Ethereum.
-        Each year donated earns one credit, and a credit mints any short name free. It
-        costs about the price of a coffee and it&apos;s what keeps the parent name — and
-        therefore every name minted here — alive.
+        Each year donated earns one credit, and a credit mints any short name free. A
+        year is ENS&apos;s own renewal price —{" "}
+        <span className="data text-[var(--fg)]">about ${CREDIT_USD} in ETH</span>, plus
+        Ethereum gas — and it&apos;s what keeps the parent name, and therefore every name
+        minted here, alive.
       </p>
       <p className="mt-4 max-w-[48ch] text-sm leading-relaxed text-[var(--dim)]">
         At <span className="data text-[var(--fg)]">{GOAL_YEARS} years</span> donated,

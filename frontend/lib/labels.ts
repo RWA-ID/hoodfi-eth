@@ -35,7 +35,23 @@ export function isShort(label: string): boolean {
   return label.length > 0 && label.length < PUBLIC_MIN_LENGTH;
 }
 
+/**
+ * Public sale price per tier, in USD. Tiers 0–2 are 1–3 character names, which are not
+ * on public sale until the 100-year goal is reached — so those three figures describe
+ * what a short name *will* cost, not what anyone pays for one today. See CREDIT_USD.
+ */
 export const TIER_USD = [15, 10, 5, 3];
+
+/**
+ * What a short-name credit actually costs today, in USD, plus Ethereum gas.
+ *
+ * A credit is one year added to hoodfi.eth's ENS expiry, and hoodfi.eth is six
+ * characters — so ENS charges its 5-and-over rate of $5/year, paid in ETH at the
+ * oracle rate. That is the only price on the site that isn't a tier price, and it
+ * undercuts all three locked tiers, so anywhere a locked tier shows its number this
+ * has to show beside it.
+ */
+export const CREDIT_USD = 5;
 
 /** Mirrors HoodfiRegistrar.status(). */
 export const MINT_STATUS = {

@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useReadContract } from "wagmi";
 import { robinhoodChain } from "@/lib/chains";
 import { REGISTRAR_ADDRESS, registrarAbi } from "@/lib/contracts";
-import { TIER_USD, checkLabel } from "@/lib/labels";
+import { CREDIT_USD, TIER_USD, checkLabel } from "@/lib/labels";
+import { ArrowNE } from "./ArrowNE";
 import { useMintQuery } from "./MintQuery";
 
 const TIERS = [
@@ -78,12 +79,27 @@ export function TierGrid() {
               <span className="data mt-2 block text-[13px] text-[var(--dim)]">
                 {tier.example}.hoodfi.eth
               </span>
+              {/* The big number is the public price, and for a locked tier that is a
+                  price nobody can pay yet — reading "$15" with nothing under it sent
+                  people to /short-names/ expecting to pay it. So the first line says
+                  which kind of price it is and the second says what the name actually
+                  costs today, which for all three locked tiers is one credit: about
+                  $5, less than every number above it.
+
+                  Every card carries both lines, open or not. They are the last thing
+                  in the card and the card bottoms are aligned, so a card with one line
+                  fewer floats its price 20px above the other three. */}
               <span className="mt-auto block pt-6">
                 <span className="block text-[30px] font-extrabold tracking-[-0.03em]">
                   ${TIER_USD[i]}
                 </span>
                 <span className="label mt-2 block">
-                  {open ? "public · open now" : "credit holders only"}
+                  {open ? "public · open now" : "public price · locked"}
+                </span>
+                <span className="label mt-1 block" style={{ color: "var(--ink)" }}>
+                  {open
+                    ? `today: $${TIER_USD[i]} + gas`
+                    : `today: 1 credit · ~$${CREDIT_USD} + gas`}
                 </span>
               </span>
             </button>
@@ -100,10 +116,10 @@ export function TierGrid() {
           </span>{" "}
           {shortsOpen
             ? "The 100-year goal was reached, so short names now mint publicly at tier prices. Credits still mint them free."
-            : "Until hoodfi.eth's expiry is funded 100 years ahead, they mint only with short-name credits — one credit per year donated to the parent name."}
+            : `Until hoodfi.eth's expiry is funded 100 years ahead, they mint only with short-name credits — one credit per year donated to the parent name. A year costs about $${CREDIT_USD} in ETH plus Ethereum gas, and the credit mints the name free, so a short name today costs less than any of the three prices above.`}
         </p>
         <Link href={shortsOpen ? "/mint/" : "/short-names/"} className="btn btn-lime flex-none h-11">
-          {shortsOpen ? "Mint a short name" : "Earn credits"} ↗
+          {shortsOpen ? "Mint a short name" : "Earn credits"} <ArrowNE />
         </Link>
       </div>
     </>
