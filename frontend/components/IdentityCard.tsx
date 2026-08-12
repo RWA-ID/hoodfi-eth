@@ -25,7 +25,7 @@ export function IdentityCard() {
       <div className="mt-5 flex items-center gap-[18px]">
         {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
         <img
-          src="/avatars/av-blake.jpg"
+          src="/avatars/av-blake.png"
           alt=""
           width={96}
           height={96}
