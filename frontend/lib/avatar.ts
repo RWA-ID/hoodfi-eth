@@ -14,16 +14,35 @@ export const AVATAR_EDGE = 512;
 /** Refuse absurd input before spending memory decoding it. */
 export const MAX_SOURCE_BYTES = 20 * 1024 * 1024;
 
+/** Must match MAX_BYTES in gateway/src/handlers/postAvatar.ts, which rejects above it. */
+const MAX_UPLOAD_BYTES = 512 * 1024;
+
+/** Bytes behind a base64 data URL, without building a Blob to ask. */
+function dataUrlBytes(url: string): number {
+  const b64 = url.slice(url.indexOf(",") + 1);
+  const padding = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
+  return Math.floor((b64.length * 3) / 4) - padding;
+}
+
 /**
  * Encodes a finished square canvas as the data URL we upload.
  *
- * WebP is asked for first: it keeps alpha, which JPEG would flatten to black inside the
- * circle every avatar is drawn in, and it lands far smaller than PNG. Browsers that
- * can't encode it return a PNG from `toDataURL` rather than failing, and the gateway
- * accepts both, so there is nothing to detect or branch on.
+ * This used to ask for WebP, which is the right answer on every axis but the one that
+ * matters: it keeps alpha, it lands far smaller than PNG — and satori cannot decode it.
+ * The share card is rendered by satori, so a WebP avatar produced a card with an empty
+ * box where the picture should be. An avatar nobody can see on a share card is not an
+ * avatar; the format has to be one the card can draw.
+ *
+ * PNG first, because it keeps alpha and every browser encodes it. It is also much
+ * larger, and a photographic 512px square can land over the gateway's 512KB cap, so
+ * anything that big falls back to JPEG. That flattens transparency onto black, which is
+ * the ink the avatar sits on anyway — and it only happens to photographs, which have no
+ * transparency to lose.
  */
 export function encodeAvatar(canvas: HTMLCanvasElement): string {
-  return canvas.toDataURL("image/webp", 0.9);
+  const png = canvas.toDataURL("image/png");
+  if (dataUrlBytes(png) <= MAX_UPLOAD_BYTES) return png;
+  return canvas.toDataURL("image/jpeg", 0.9);
 }
 
 /**
