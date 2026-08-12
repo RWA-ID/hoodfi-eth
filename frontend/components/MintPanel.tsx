@@ -30,6 +30,7 @@ import {
   registrarAbi,
 } from "@/lib/contracts";
 import {
+  CREDIT_USD,
   MINT_STATUS,
   TIER_USD,
   checkLabel,
@@ -40,6 +41,7 @@ import { formatEth } from "@/lib/format";
 import { VOUCHER_URL, nameShareUrl } from "@/lib/site";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
+import { ArrowNE } from "./ArrowNE";
 import { DonatePanel } from "./DonatePanel";
 import { ShareOnX } from "./ShareOnX";
 import { useMintQuery } from "./MintQuery";
@@ -117,7 +119,6 @@ export function MintPanel({
   const short = isShort(debouncedLabel);
   const tier = debouncedLabel ? tierOf(debouncedLabel) : 3;
 
-  const panelRef = useRef<HTMLDivElement>(null);
   // Opened from the locked-short-name state; never shown unprompted.
   const [showDonate, setShowDonate] = useState(false);
   const searched = useRef<string>("");
@@ -210,30 +211,6 @@ export function MintPanel({
 
   const creditsLeft = Number(voucher?.creditsAvailable ?? 0);
 
-  /**
-   * Bring the whole card into view when someone starts typing on a phone.
-   *
-   * The card grows as you type — a verdict line, a price block, the pay-method
-   * buttons — and all of it appears *below* the input. Tap the field near the bottom
-   * of the screen and the mint button is pushed off it, so the flow ends with hunting
-   * for a button that wasn't there a moment ago.
-   *
-   * Pinning the card's top under the header instead means the expansion has somewhere
-   * to go. Deferred because the keyboard animating in moves the viewport under us, and
-   * scrolling before it settles lands in the wrong place.
-   */
-  function revealPanel() {
-    if (typeof window === "undefined" || window.innerWidth >= 640) return;
-    window.setTimeout(() => {
-      const el = panelRef.current;
-      if (!el) return;
-      const HEADER = 76; // the sticky bar, plus a little air
-      const top = el.getBoundingClientRect().top + window.scrollY - HEADER;
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      window.scrollTo({ top, behavior: reduced ? "auto" : "smooth" });
-    }, 300);
-  }
-
   // While the debounce is still catching up, `status` describes the *previous* name.
   // Reading it then flashes that name's whole layout — type "x" after "blake" and the
   // 4+ character price appears for a beat before the locked state replaces it.
@@ -263,30 +240,50 @@ export function MintPanel({
 
   // A locked short name with no credit can't be bought at any price, so the price
   // block, the ETH/USDG toggle and the mint button are all dead weight — and they
-  // push the one thing that *is* actionable, "Earn a credit", off the screen.
-  const lockedNoCredit =
+  // push the one thing that *is* actionable, "Earn a credit", off the screen. Taken
+  // and reserved names keep the paid block, because that is where "Try another" lives.
+  const showCredit =
     shortsLocked &&
     !creditUnknown &&
     creditsLeft === 0 &&
-    settledStatus === MINT_STATUS.LOCKED;
+    settledStatus !== MINT_STATUS.TAKEN &&
+    settledStatus !== MINT_STATUS.BLOCKED;
   const canMint = enabled && (canMintPublic || canMintWithCredit);
+
+  // The currency toggle is inert until there is a price to pay, but it stays on show
+  // and keeps its row: holding the space and drawing nothing in it left a hole in the
+  // middle of the empty card, which is the state most visitors meet it in. It goes
+  // away only when the answer is a credit, where a choice of currency is a lie.
+  const canChooseCurrency =
+    !canMintWithCredit &&
+    Boolean(debouncedLabel) &&
+    check.ok &&
+    settledStatus !== undefined;
 
   /**
    * The status line under the input, in the design's own voice: the name read back
    * with a verdict, never a bare adjective.
+   *
+   * The verdict leads and the name trails, which is a layout decision as much as a
+   * copy one. This line is held to a single row (see the card body), so anything past
+   * the end of it is clipped — and the one thing that must never be clipped is the
+   * answer. The name is already in the field directly above and, on /mint, at headline
+   * scale beside it.
    */
   const verdict = useMemo((): { text: string; color: string } => {
     const LABEL = "var(--label)";
-    if (!query) return { text: "type a name to check availability", color: LABEL };
+    // Short enough to survive beside the character hint on a phone: this line is one
+    // row and truncates, and the empty card is the state most visitors arrive in.
+    if (!query) return { text: "type a name to check", color: LABEL };
     if (!check.ok) return { text: check.reason.toLowerCase(), color: "var(--status-bad)" };
     if (!enabled) return { text: "minting opens soon", color: "var(--status-warn)" };
     if (settledStatus === undefined) return { text: "checking…", color: LABEL };
     const name = `${debouncedLabel}.hoodfi.eth`;
     switch (settledStatus) {
       case MINT_STATUS.AVAILABLE:
-        return { text: `${name} is available`, color: "var(--status-ok)" };
+        return { text: `available · ${name}`, color: "var(--status-ok)" };
       case MINT_STATUS.TAKEN:
-        return { text: `${name} is taken`, color: "var(--status-bad)" };
+        return { text: `taken · ${name}`, color: "var(--status-bad)" };
       case MINT_STATUS.LOCKED:
         return creditsLeft > 0
           ? { text: "unlocked by your credit", color: "var(--status-ok)" }
@@ -510,8 +507,20 @@ export function MintPanel({
     );
   }
 
+  /**
+   * The card is the tallest thing in the lime band, so the card's height *is* the
+   * section's height: every row that comes and goes as you type drags the whole page
+   * with it. Everything below the input therefore holds its space — the status line is
+   * one row at any name length, the chain price and the currency toggle are always in
+   * the layout, and the two offers this card can make (pay, or earn a credit) share
+   * one grid cell so the taller of them sets the height for both.
+   *
+   * That is also why nothing here scrolls the page on focus any more: the card used to
+   * grow under the keyboard on a phone, and the reveal that compensated for it fought
+   * Safari's own scroll-into-view. With the height fixed there is nothing to reveal.
+   */
   return (
-    <div ref={panelRef} className="on-ink shadow-hero scroll-mt-24 p-7">
+    <div className="on-ink shadow-hero scroll-mt-24 p-7">
       <div className="flex items-center justify-between gap-4">
         <span className="label">Check a name</span>
         <span className="flex items-center gap-4">
@@ -548,7 +557,6 @@ export function MintPanel({
           placeholder="yourname"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={revealPanel}
           spellCheck={false}
           autoCapitalize="none"
           autoComplete="off"
@@ -557,11 +565,14 @@ export function MintPanel({
         <span className="data shrink-0 text-[15px] text-[var(--faint)]">.hoodfi.eth</span>
       </div>
 
-      {/* Wraps rather than truncates: the status is the card's answer, and on a phone
-          the character note beside it is enough to clip "…is available" off the end. */}
-      <div className="mt-3.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      {/* One row, at every width and every name length. Left to wrap, this line went
+          from one line to three as the name grew — 44px of the lime section appearing
+          and disappearing under the cursor, mid-word. It truncates instead, and the
+          verdict is written to put the answer first so the ellipsis only ever eats the
+          echo of a name that is already in the field above. */}
+      <div className="mt-3.5 flex items-baseline justify-between gap-4">
         <span
-          className="data min-w-0 break-words text-[12.5px] tracking-[0.06em]"
+          className="data min-w-0 flex-1 truncate text-[12.5px] tracking-[0.06em]"
           style={{ color: verdict.color }}
         >
           {verdict.text}
@@ -569,19 +580,27 @@ export function MintPanel({
         <span className="data shrink-0 text-[12.5px] text-[var(--label)]">{lengthNote}</span>
       </div>
 
-      {!lockedNoCredit && (
-        <>
-          <div className="mt-5 flex items-end justify-between gap-4 border-t border-[rgba(241,241,234,0.18)] pt-[18px]">
+      {/* Both offers in one grid cell. Crossing four characters swaps which one is
+          live, and before this that swap moved the section by ~90px in the middle of a
+          word. Hidden with `visibility`, so the inert branch keeps its space and stays
+          out of both the tab order and the accessibility tree. */}
+      <div className="mt-5 grid">
+        <div
+          className={`col-start-1 row-start-1 flex flex-col ${showCredit ? "invisible" : ""}`}
+          aria-hidden={showCredit}
+        >
+          <div className="flex items-end justify-between gap-4 border-t border-[rgba(241,241,234,0.18)] pt-[18px]">
             <div className="min-w-0">
               <div className="label">Price</div>
               <div className="mt-1.5 text-[38px] font-extrabold leading-none tracking-[-0.03em] text-[var(--fg)]">
                 {priceLabel}
               </div>
-              {chainPrice && (
-                <div className="data mt-2 truncate text-[11.5px] text-[var(--label)]">
-                  {chainPrice}
-                </div>
-              )}
+              {/* Held open even with nothing to say: this line arrives the moment a
+                  name resolves, and letting it in and out resized the card on the
+                  first keystroke of every search. */}
+              <div className="data mt-2 truncate text-[11.5px] text-[var(--label)]">
+                {chainPrice ?? "\u00A0"}
+              </div>
             </div>
             <div className="data shrink-0 text-right text-[11.5px] leading-[1.5] text-[var(--label)]">
               one time
@@ -590,26 +609,29 @@ export function MintPanel({
             </div>
           </div>
 
-          {/* The currency choice, only once there is something to buy. */}
-          {!canMintWithCredit && debouncedLabel && check.ok && settledStatus !== undefined && (
-            <div className="mt-5 flex">
-              {(["eth", "usdg"] as PayMethod[]).map((m) => (
-                <button
-                  key={m}
-                  className={`data flex-1 border py-2.5 text-[11px] uppercase tracking-[0.16em] transition-colors ${
-                    method === m
-                      ? "border-[var(--lime)] bg-[var(--lime)] text-[var(--ink)]"
-                      : "border-[rgba(241,241,234,0.28)] text-[var(--label)] hover:text-[var(--fg)]"
-                  } ${m === "eth" ? "border-r-0" : ""}`}
-                  onClick={() => setMethod(m)}
-                  type="button"
-                  disabled={m === "usdg" && !USDC_ADDRESS}
-                >
-                  Pay in {m === "eth" ? "ETH" : "USDG"}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* The currency choice. Inert until there is a price, but never hidden while
+              there is one to make — the design's own rule is that a disabled control
+              goes inert, not faint. */}
+          <div
+            className={`mt-5 flex ${canMintWithCredit ? "invisible" : ""}`}
+            aria-hidden={canMintWithCredit}
+          >
+            {(["eth", "usdg"] as PayMethod[]).map((m) => (
+              <button
+                key={m}
+                className={`data flex-1 border py-2.5 text-[11px] uppercase tracking-[0.16em] transition-colors ${
+                  method === m
+                    ? "border-[var(--lime)] bg-[var(--lime)] text-[var(--ink)]"
+                    : "border-[rgba(241,241,234,0.28)] text-[var(--label)] enabled:hover:text-[var(--fg)]"
+                } ${m === "eth" ? "border-r-0" : ""}`}
+                onClick={() => setMethod(m)}
+                type="button"
+                disabled={(m === "usdg" && !USDC_ADDRESS) || !canChooseCurrency}
+              >
+                Pay in {m === "eth" ? "ETH" : "USDG"}
+              </button>
+            ))}
+          </div>
 
           <button
             className="btn btn-lime btn-lg mt-5 w-full"
@@ -619,44 +641,47 @@ export function MintPanel({
             }
             type="button"
           >
-            {ctaLabel} ↗
+            {ctaLabel} <ArrowNE />
           </button>
-        </>
-      )}
-
-      {/* Short names pre-goal: explain the one path that unlocks them. */}
-      {shortsLocked && creditsLeft === 0 && (
-        /* Deliberately terse. This block sits between the input and the mint button,
-           so every line it spends is a line the landing page grows by the moment
-           someone types a short name — on a phone that is the difference between a
-           screen you can act on and one you have to scroll. Long version on
-           /short-names/. */
-        <div className="mt-5 border border-[var(--line)] p-4">
-          <div className="data text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--status-warn)" }}>
-            {debouncedLabel.length}-character names are premium
-          </div>
-          <p className="mt-2 text-[13px] leading-relaxed text-[var(--dim)]">
-            {voucherError && address ? `${voucherError} ` : ""}
-            Donate a year to hoodfi.eth and mint any 1–3 character name free.
-          </p>
-          {/* The donate flow, opened in place. Sending someone away mid-mint to find
-              the one thing that unlocks the name they just typed is the wrong shape,
-              and it stays collapsed so it costs nothing until it is the answer. */}
-          {showDonate ? (
-            <div className="mt-4">
-              <DonatePanel embedded />
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-lime mt-4 w-full"
-              onClick={() => setShowDonate(true)}
-            >
-              Earn a credit ↗
-            </button>
-          )}
         </div>
-      )}
+
+        {/* Short names pre-goal: explain the one path that unlocks them.
+
+            Deliberately terse. Long version on /short-names/. */}
+        <div
+          className={`col-start-1 row-start-1 flex flex-col ${showCredit ? "" : "invisible"}`}
+          aria-hidden={!showCredit}
+        >
+          <div className="flex flex-1 flex-col border border-[var(--line)] p-4">
+            <div className="data text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--status-warn)" }}>
+              {debouncedLabel.length || 3}-character names are premium
+            </div>
+            <p className="mt-2 text-[13px] leading-relaxed text-[var(--dim)]">
+              {voucherError && address ? `${voucherError} ` : ""}
+              Donate a year to hoodfi.eth — about ${CREDIT_USD} in ETH plus gas — and
+              mint any 1–3 character name free.
+            </p>
+            {/* The donate flow, opened in place. Sending someone away mid-mint to find
+                the one thing that unlocks the name they just typed is the wrong shape,
+                and it stays collapsed so it costs nothing until it is the answer. */}
+            {showDonate ? (
+              <div className="mt-4">
+                <DonatePanel embedded />
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-1 items-end">
+                <button
+                  type="button"
+                  className="btn btn-lime w-full"
+                  onClick={() => setShowDonate(true)}
+                >
+                  Earn a credit <ArrowNE />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {(actionError || writeError) && (
         <div
