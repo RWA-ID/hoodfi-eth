@@ -41,6 +41,54 @@ function loadFonts() {
 }
 
 /**
+ * The formats satori can actually decode. WebP and AVIF are not among them, and the
+ * site's own uploader emits WebP, so this is the common case rather than the edge.
+ */
+const RENDERABLE = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'])
+
+/** Matches the uploader's own cap in postAvatar.ts. */
+const MAX_AVATAR_BYTES = 512 * 1024
+
+/** Workers have btoa but not Buffer, and spreading a 512KB array blows the stack. */
+function toBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  }
+  return btoa(binary)
+}
+
+/**
+ * Resolve the avatar to something satori will draw, or to nothing at all.
+ *
+ * Handing satori a remote URL looks like it works and doesn't: it fetches the image
+ * itself, and when it can't decode the bytes it neither throws nor draws — it returns a
+ * perfectly valid PNG with a hole where the avatar was. No try/catch around the render
+ * can see that, which is why the mark fallback below it never fired for a WebP avatar.
+ *
+ * Fetching here moves the failure somewhere it can be observed. The format is knowable
+ * only before the markup is built, so that is where the decision gets made: anything
+ * satori can decode is inlined, and anything else — an unsupported format, a dead host,
+ * a slow one, an oversized file — returns empty and the card draws the house mark.
+ */
+async function inlineAvatar(url: string): Promise<string> {
+  if (!url) return ''
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) })
+    if (!res.ok) return ''
+    const type = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase()
+    if (!RENDERABLE.has(type)) return ''
+    const buf = await res.arrayBuffer()
+    if (buf.byteLength === 0 || buf.byteLength > MAX_AVATAR_BYTES) return ''
+    return `data:${type};base64,${toBase64(buf)}`
+  } catch {
+    return ''
+  }
+}
+
+/**
  * 1200x630 share card for a single name.
  *
  * Rendered per request because the set of names is open-ended — there is nothing to
@@ -62,29 +110,21 @@ export async function getNameCard(rawLabel: string, env: Env): Promise<Response>
   const token = `#${node.slice(2, 6)}…${node.slice(-4)}`
   const fonts = await loadFonts().catch(() => undefined)
 
-  const render = (avatar: string) =>
-    new ImageResponse(
-      cardHtml({
-        label: profile.label,
-        avatar,
-        owner: profile.owner,
-        description: profile.description,
-        token,
-      }),
-      { width: WIDTH, height: HEIGHT, format: 'png', fonts }
-    )
+  // Already resolved to inline bytes or to nothing, so the render itself has no
+  // network left to fail on and needs no fallback path of its own.
+  const avatar = await inlineAvatar(avatarToUrl(profile.avatar))
 
-  let response: Response
-  try {
-    response = render(avatarToUrl(profile.avatar))
-    // Touch the body here so a failing avatar fetch throws inside this try, not
-    // halfway through streaming a response we've already committed to.
-    response = new Response(await response.arrayBuffer(), response)
-  } catch {
-    // A dead or slow avatar host must not cost the whole card — fall back to the mark.
-    const fallback = render('')
-    response = new Response(await fallback.arrayBuffer(), fallback)
-  }
+  const rendered = new ImageResponse(
+    cardHtml({
+      label: profile.label,
+      avatar,
+      owner: profile.owner,
+      description: profile.description,
+      token,
+    }),
+    { width: WIDTH, height: HEIGHT, format: 'png', fonts }
+  )
+  const response = new Response(await rendered.arrayBuffer(), rendered)
 
   const headers = new Headers(response.headers)
   headers.set('Content-Type', 'image/png')
