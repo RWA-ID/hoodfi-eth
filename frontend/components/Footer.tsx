@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowNE } from "./ArrowNE";
 
 type FooterLink = { href: string; label: string; external?: boolean };
 
@@ -20,7 +21,7 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { href: "/#verify", label: "Contracts" },
       {
         href: "https://github.com/RWA-ID/hoodfi-eth",
-        label: "GitHub ↗",
+        label: "GitHub",
         external: true,
       },
     ],
@@ -31,16 +32,21 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { href: "/privacy/", label: "Privacy" },
       { href: "/terms/", label: "Terms" },
       { href: "/disclaimer/", label: "Disclaimer" },
-      { href: "https://x.com/hoodfieth", label: "X ↗", external: true },
+      { href: "https://x.com/hoodfieth", label: "X", external: true },
     ],
   },
 ];
 
 function FooterLinkItem({ href, label, external }: FooterLink) {
-  const className = "text-sm text-[rgba(241,241,234,0.8)] transition-colors hover:text-[var(--lime)]";
+  // The arrow marks the link as leaving the site, so it belongs to `external` rather
+  // than to the label — a label that carried its own arrow was a label that could
+  // disagree with the flag.
+  const className =
+    "inline-flex w-fit items-center gap-1.5 text-sm text-[rgba(241,241,234,0.8)] transition-colors hover:text-[var(--lime)]";
   return external ? (
     <a href={href} target="_blank" rel="noreferrer" className={className}>
       {label}
+      <ArrowNE />
     </a>
   ) : (
     <Link href={href} className={className}>

@@ -8,6 +8,7 @@ import {
   L2_REGISTRY_ADDRESS,
   REGISTRAR_ADDRESS,
 } from "@/lib/contracts";
+import { ArrowNE } from "./ArrowNE";
 
 type Row = { name: string; address?: string; explorer: "l2" | "l1" };
 
@@ -80,11 +81,11 @@ export function ContractsTable() {
                 aria-label={`${row.name} on the block explorer`}
                 className="grid h-[58px] place-items-center border-l border-[var(--line-soft)] text-sm transition-colors hover:bg-[var(--lime)]"
               >
-                ↗
+                <ArrowNE />
               </a>
             ) : (
               <span className="grid h-[58px] place-items-center border-l border-[var(--line-soft)] text-sm text-[var(--faint)]">
-                ↗
+                <ArrowNE />
               </span>
             )}
           </div>

@@ -20,6 +20,7 @@ import {
 } from "@/lib/ens";
 import { MINT_STATUS, checkLabel, normalizeLabel } from "@/lib/labels";
 import { track } from "@/lib/analytics";
+import { ArrowNE } from "./ArrowNE";
 import { ProfileCard, useCopy, type CardName } from "./ProfileCard";
 import { readMintDate, resolveOnL1, type L1State } from "@/lib/resolution";
 
@@ -253,7 +254,7 @@ function RecordsLedger({ records }: { records: Records }) {
           target="_blank"
           rel="noreferrer noopener"
         >
-          View NFT ↗
+          View NFT <ArrowNE />
         </a>
         <Link className="btn btn-ghost btn-sm" href="/mint/">
           Mint your own
@@ -287,7 +288,7 @@ function UnregisteredState({ label, status }: { label: string; status: number })
           href={locked ? "/short-names/" : `/mint/?q=${encodeURIComponent(label)}`}
           className="btn btn-ink mt-7"
         >
-          {locked ? "Earn a credit ↗" : "Mint this name ↗"}
+          {locked ? "Earn a credit" : "Mint this name"} <ArrowNE />
         </Link>
       )}
     </div>

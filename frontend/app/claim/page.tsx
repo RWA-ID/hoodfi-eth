@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowNE } from "@/components/ArrowNE";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ClaimRedirect } from "@/components/ClaimRedirect";
@@ -32,7 +33,7 @@ export default function ClaimPage() {
         </p>
         <div className="mt-9 flex flex-wrap justify-center gap-2.5">
           <Link href="/mint/" className="btn btn-ink">
-            Mint a name ↗
+            Mint a name <ArrowNE />
           </Link>
           <Link href="/manage/" className="btn btn-ghost">
             Manage your names

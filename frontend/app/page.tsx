@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowNE } from "@/components/ArrowNE";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { MintPanel } from "@/components/MintPanel";
@@ -108,7 +109,7 @@ export default function Home() {
                 </p>
                 <div className="mt-[34px] flex flex-wrap gap-2.5">
                   <Link href="/mint/" className="btn btn-ink">
-                    Mint a name ↗
+                    Mint a name <ArrowNE />
                   </Link>
                   <Link href="/how-it-works/" className="btn btn-ghost">
                     How it works
@@ -251,7 +252,7 @@ export default function Home() {
               </h2>
               <div className="mt-10 flex flex-wrap justify-center gap-2.5">
                 <Link href="/mint/" className="btn btn-ink btn-lg">
-                  Mint a name ↗
+                  Mint a name <ArrowNE />
                 </Link>
                 <Link href="/faq/" className="btn btn-ghost btn-lg">
                   Read the FAQ

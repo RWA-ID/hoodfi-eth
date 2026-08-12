@@ -5,6 +5,7 @@ import { useReadContract } from "wagmi";
 import { mainnet } from "wagmi/chains";
 import { DONATIONS_ADDRESS, donationsAbi } from "@/lib/contracts";
 import { GOAL_YEARS } from "@/lib/site";
+import { ArrowNE } from "./ArrowNE";
 import { CenturyRuler } from "./CenturyRuler";
 
 const STEPS = [
@@ -51,7 +52,7 @@ export function FundTheCentury() {
           </p>
           <div className="mt-9 flex flex-wrap gap-2.5">
             <Link href="/short-names/" className="btn btn-lime">
-              Donate a year ↗
+              Donate a year <ArrowNE />
             </Link>
             <Link href="/#verify" className="btn btn-ghost">
               Read the contract

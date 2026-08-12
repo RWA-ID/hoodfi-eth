@@ -16,6 +16,7 @@ import { formatEth } from "@/lib/format";
 import { GOAL_YEARS } from "@/lib/site";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
+import { ArrowNE } from "./ArrowNE";
 import { ShareOnX } from "./ShareOnX";
 
 /**
@@ -191,7 +192,11 @@ export function DonatePanel({ embedded = false }: { embedded?: boolean }) {
           ? "Confirm in wallet…"
           : receipt.isLoading
           ? "Extending hoodfi.eth…"
-          : `Donate ${years} year${years === 1 ? "" : "s"} ↗`}
+          : (
+            <>
+              Donate {years} year{years === 1 ? "" : "s"} <ArrowNE />
+            </>
+          )}
       </button>
 
       {receipt.isSuccess && txHash && (
