@@ -2,19 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { Reveal } from "@/components/Reveal";
-import { HeroIdCard } from "@/components/HeroIdCard";
 import { MintPanel } from "@/components/MintPanel";
 import { MintQueryProvider } from "@/components/MintQuery";
-import { ConnectMintButton } from "@/components/ConnectMintButton";
-import { DonatePanel } from "@/components/DonatePanel";
-import { Endowment } from "@/components/Endowment";
-import { ShortNamesCopy } from "@/components/ShortNamesCopy";
-import { ResolvesEverywhere } from "@/components/ResolvesEverywhere";
+import { StatBar } from "@/components/StatBar";
+import { Ticker } from "@/components/Ticker";
+import { TierGrid } from "@/components/TierGrid";
+import { IdentityCard } from "@/components/IdentityCard";
+import { FundTheCentury } from "@/components/FundTheCentury";
+import { ResolutionGrids } from "@/components/ResolutionGrids";
+import { ContractsTable } from "@/components/ContractsTable";
+import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
 import { PageView } from "@/components/PageView";
-import { TIER_USD } from "@/lib/labels";
-import { STEPS } from "@/lib/steps";
-
+import { ROBINHOOD_CHAIN_ID } from "@/lib/chains";
 import { ogMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = ogMetadata({
@@ -25,11 +24,55 @@ export const metadata: Metadata = ogMetadata({
   image: "/og/default.png",
 });
 
-const TIERS = [
-  { chars: "1 character", example: "x", usd: TIER_USD[0], premium: true },
-  { chars: "2 characters", example: "og", usd: TIER_USD[1], premium: true },
-  { chars: "3 characters", example: "gme", usd: TIER_USD[2], premium: true },
-  { chars: "4+ characters", example: "blake", usd: TIER_USD[3], premium: false },
+/** What a name is, as a ledger. Six rows, six claims, each one checkable. */
+const FACTS: [string, string][] = [
+  ["token", "A lifetime ERC-721 in your wallet the moment the transaction confirms."],
+  ["renewals", "None. There is no expiry, no grace period and nothing to forget."],
+  ["records", "Address, avatar, X handle, website and bio — saved in a single signature."],
+  ["control", "Owner only. The registrar has no authority over a name once it is minted."],
+  ["resolution", "Ethereum mainnet plus every EVM chain from one addr record."],
+  ["transfer", "Freely tradable. No admin burn, no reclaim, no seizure path exists."],
+];
+
+const LEDGER: [string, string][] = [
+  ["network", `Robinhood Chain · ${ROBINHOOD_CHAIN_ID}`],
+  ["standard", "ERC-721 · ENS subname"],
+  ["payment", "ETH or USDG"],
+  ["audit", "No external audit yet"],
+];
+
+const GUARANTEES = [
+  "The donation contract has no withdraw function and never holds funds.",
+  "No admin burn or transfer exists — a minted name cannot be seized.",
+  "Owners set their own records directly on the registry.",
+  "Every ledger row carries its transaction hash, so nothing needs our word.",
+];
+
+const FAQ: FaqItem[] = [
+  {
+    q: "What does $3 actually buy?",
+    a: "A lifetime ERC-721 for a name of four characters or more, minted in one transaction. There is no second payment — no renewal, no expiry, no grace period.",
+  },
+  {
+    q: "Why are 1–3 character names locked?",
+    a: "They are premium inventory reserved to fund the parent name. Until hoodfi.eth's expiry is funded 100 years ahead, they can only be minted with short-name credits earned by donating a year. At the goal they open to everyone at tier prices, and credits still mint them free.",
+  },
+  {
+    q: "Can you take my name back?",
+    a: "No. There is no admin burn, transfer or reclaim function in the registrar, and re-minting an existing name reverts. Once it is in your wallet the site has no authority over it.",
+  },
+  {
+    q: "Will my wallet recognise it?",
+    a: "If it speaks ENS, yes. Names resolve from Ethereum mainnet through the ENS Universal Resolver using wildcard resolution and CCIP-Read, so no client needs to know about Robinhood Chain.",
+  },
+  {
+    q: "What can I put on a name?",
+    a: "An address for Ethereum and every EVM chain, separate Bitcoin and Solana records, an avatar, an X handle, a website and a bio. Every change in the form saves as one multicall, so it costs a single signature however many records moved.",
+  },
+  {
+    q: "Is this affiliated with Robinhood?",
+    a: "No. This is an independent project, not affiliated with, endorsed by or connected to Robinhood Markets, Inc. It is built on Robinhood Chain because that is where the chain is.",
+  },
 ];
 
 export default function Home() {
@@ -37,176 +80,187 @@ export default function Home() {
     <>
       <PageView />
       <Header />
-      <main className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 2xl:px-12">
-        {/* Hero — the offer, opposite a claimed identity */}
-        {/* No min-h/centering here: forcing the row to a full viewport pushed the
-            headline into the middle of the screen and left a dead band above it. */}
-        <MintQueryProvider>
-        <section className="hero-glow grid items-start gap-8 pt-8 sm:pt-10 lg:grid-cols-[1.2fr_0.8fr] lg:gap-12 lg:pt-12">
-          <Reveal>
-            <div className="eyebrow">ens names · robinhood chain · chain id 4663</div>
-            {/* `.bloom` is display:block, keeping the second line on its own row:
-                relying on natural wrapping lets the prod minifier eat the space. */}
-            <h1 className="statement mt-4 max-w-[14ch] text-[clamp(44px,6.4vw,88px)]">
-              Mint your name.
-              <span className="bloom">Own it forever.</span>
-            </h1>
-            {/* Both of these are desktop-only. Most phone traffic arrives from a link
-                on X intending to mint, and on a 390px screen this paragraph and button
-                row are ~180px of preamble between the headline and the only input that
-                matters — while "How it works" points at a section that is itself hidden
-                on mobile. The panel below says the same things in a form you can act on. */}
-            <p className="mt-5 hidden max-w-[36ch] text-[clamp(16px,1.3vw,19px)] text-[var(--dim)] sm:block">
-              A lifetime name like{" "}
-              <span className="data text-[var(--paper)]">blake.hoodfi.eth</span> on
-              Robinhood Chain. One transaction from $3 — no renewals, no expiry, ever.
-            </p>
-            {/* No primary CTA here any more — the mint panel opposite *is* the
-                primary action, and a green "Mint a name" button beside it just
-                competes with the thing it points at. */}
-            <div className="mt-7 hidden flex-wrap gap-3 sm:flex">
-              <ConnectMintButton />
-              <Link href="#how" className="btn btn-ghost">
-                How it works
-              </Link>
-            </div>
-          </Reveal>
-          <Reveal>
-            <MintPanel handoffOnConnect />
-          </Reveal>
-        </section>
-        </MintQueryProvider>
-
-        {/* The whole pitch, at the size a phone deserves. Everything that argues for
-            the product is hidden below `sm`, so without this a mobile visitor gets a
-            price and no reason — and the drawer is one tap away for the long version. */}
-        <section className="pb-14 pt-8 sm:hidden">
-          <ul className="flex flex-col gap-3 text-sm text-[var(--dim)]">
-            {[
-              "Lifetime ERC-721 — no renewals, no expiry, nothing to forget.",
-              "Resolves from Ethereum mainnet, so wallets that speak ENS find it.",
-              "You control every record. This site can't edit or reclaim your name.",
-            ].map((line) => (
-              <li key={line} className="flex gap-3">
-                <span className="ok">→</span>
-                <span>{line}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        {/* What you actually get, opposite the card that shows it */}
-        <section id="mint" className="hidden scroll-mt-24 pt-10 pb-16 sm:block sm:pt-14 sm:pb-20">
-          <Reveal>
-            <div className="grid items-center gap-10 lg:grid-cols-[1fr_minmax(0,480px)]">
-              <div>
-                <div className="eyebrow">what you get</div>
-                <h2 className="display mt-3 text-[clamp(28px,3.4vw,44px)]">
-                  An identity, not a subscription
-                </h2>
-                <p className="mt-4 max-w-[46ch] text-[clamp(15px,1.2vw,18px)] text-[var(--dim)]">
-                  Names are lifetime ERC-721s. You control the records, the resolution
-                  and the transfer — this site can&apos;t edit or reclaim anything once
-                  it&apos;s yours.
-                </p>
-                <div className="mt-8">
-                  {TIERS.map((tier) => (
-                    <div key={tier.chars} className="ledger-row">
-                      <span className="text-sm text-[var(--dim)]">
-                        {tier.chars}{" "}
-                        <span className="data text-[var(--faint)]">
-                          {tier.example}.hoodfi.eth
-                        </span>
-                      </span>
-                      <span className="data text-sm">
-                        ${tier.usd}
-                        {tier.premium && (
-                          <span className="ml-2 text-[var(--faint)]">premium</span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
+      <MintQueryProvider>
+        <main id="top">
+          {/* ── Hero. The only lime field above the fold: the page opens on the
+              product's one colour, and the mint card is the one dark object in it. */}
+          <section className="on-lime border-b border-[var(--ink)]">
+            <div className="shell grid items-start gap-14 pb-[68px] pt-[clamp(48px,6vw,76px)] [grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr))]">
+              {/* The size container the hero headline is measured against. It has to
+                  be this element rather than the <h1>: `cqi` resolves against the
+                  nearest container *ancestor*, so the box being sized can't be the
+                  one that establishes it. */}
+              <div className="[container-type:inline-size]">
+                <div className="eyebrow">
+                  ENS names · Robinhood Chain · id {ROBINHOOD_CHAIN_ID}
                 </div>
-                <p className="mt-4 text-xs leading-relaxed text-[var(--faint)]">
-                  One-time, for life. 1–3 character names are premium inventory — see
-                  below.
+                {/* An explicit <br>, not natural wrapping: the prod minifier eats the
+                    space around a line break and the two words fuse. */}
+                <h1 className="h-hero mt-[22px]">
+                  Your name
+                  <br />
+                  forever
+                </h1>
+                <p className="mt-[30px] max-w-[40ch] text-[19px] font-medium leading-[1.5] text-pretty">
+                  Mint a lifetime <span className="data text-[17px]">*.hoodfi.eth</span>{" "}
+                  name on Robinhood Chain. One transaction from $3 — no renewals, no
+                  expiry, no landlord.
                 </p>
+                <div className="mt-[34px] flex flex-wrap gap-2.5">
+                  <Link href="/mint/" className="btn btn-ink">
+                    Mint a name ↗
+                  </Link>
+                  <Link href="/how-it-works/" className="btn btn-ghost">
+                    How it works
+                  </Link>
+                </div>
               </div>
-              <HeroIdCard />
-            </div>
-          </Reveal>
-        </section>
 
-        {/* How it works */}
-        <section id="how" className="hidden scroll-mt-24 border-t border-[var(--line)] py-20 sm:block sm:py-28">
-          <Reveal>
-            <div className="eyebrow">how it works</div>
-            <h2 className="display mt-3 text-[clamp(28px,3.4vw,44px)]">
-              Four steps, one transaction
+              <MintPanel handoffOnConnect />
+            </div>
+          </section>
+
+          <StatBar />
+          <Ticker />
+
+          {/* ── 01 — the price ladder, driven by whatever is typed above. */}
+          <section id="names" className="shell section">
+            <div className="eyebrow">01 / pick a name</div>
+            <div className="duo mt-[18px] items-end">
+              <h2 className="h-section m-0">Choose your name.</h2>
+              <p className="lede m-0 mb-2.5 max-w-[44ch]">
+                Price is set by length and paid once. Nothing renews, nothing expires,
+                and no one can take it back. Type above and the matching tier lights up.
+              </p>
+            </div>
+            <TierGrid />
+          </section>
+
+          {/* ── 02 — what the thing actually is, beside a picture of one. */}
+          <section id="own" className="shell section">
+            <div className="eyebrow">02 / what you get</div>
+            <h2 className="h-section mt-[18px] max-w-[15ch]">
+              An identity, not a subscription.
             </h2>
-          </Reveal>
-          <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map((step, i) => (
-              <Reveal key={step.title}>
-                <div>
-                  <div className="data text-sm text-[var(--faint)]">
-                    {String(i + 1).padStart(2, "0")}
+            <div className="duo mt-[52px] items-start">
+              <div className="min-w-0 border-t border-[var(--line)]">
+                {FACTS.map(([key, value]) => (
+                  <div key={key} className="ledger-row">
+                    <span className="data text-[11px] uppercase tracking-[0.16em] text-[var(--label)]">
+                      {key}
+                    </span>
+                    <span className="text-[17px] font-medium leading-[1.5] text-pretty">
+                      {value}
+                    </span>
                   </div>
-                  <h3 className="display mt-3 text-lg">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--dim)]">
-                    {step.body}
-                  </p>
+                ))}
+              </div>
+              <IdentityCard />
+            </div>
+          </section>
+
+          {/* ── 03 — the drive that keeps the parent name alive. */}
+          <section id="short" className="shell section">
+            <div className="eyebrow">03 / short names</div>
+            <FundTheCentury />
+          </section>
+
+          {/* ── 04 — the answer to "will anything I use recognise this?" */}
+          <section id="resolves" className="shell section">
+            <div className="eyebrow">04 / resolution</div>
+            <div className="duo mt-[18px] items-end">
+              <h2 className="h-section m-0">Works where you already are.</h2>
+              <p className="lede m-0 mb-2.5 max-w-[44ch]">
+                Names resolve from Ethereum mainnet through the ENS Universal Resolver,
+                so anything that speaks ENS finds yours — no plugin, no allowlist.
+              </p>
+            </div>
+            <ResolutionGrids />
+            <p className="data mt-5 max-w-[88ch] text-[11.5px] leading-[1.7] text-[var(--faint)]">
+              One addr record covers Ethereum and every EVM chain. Bitcoin and Solana are
+              stored as separate ENSIP-9 records in each chain&apos;s own encoding.
+            </p>
+          </section>
+
+          {/* ── 05 — every address, every guarantee, nothing taken on trust. */}
+          <section id="verify" className="shell section">
+            <div className="eyebrow">05 / transparency</div>
+            <div className="duo mt-[18px] items-end">
+              <h2 className="h-section m-0">Verify everything.</h2>
+              <p className="lede m-0 mb-2.5 max-w-[44ch]">
+                Nothing here asks for trust. Every contract is public, every mint is your
+                own signature, and the donation contract has no withdraw function at all.
+              </p>
+            </div>
+
+            <ContractsTable />
+
+            <div className="cells mt-3.5 border border-[var(--line-card)]">
+              {LEDGER.map(([key, value]) => (
+                <div
+                  key={key}
+                  className="flex-[1_1_190px] border-l border-[var(--line-soft)] px-[22px] py-5"
+                >
+                  <div className="label" style={{ letterSpacing: "0.16em" }}>
+                    {key}
+                  </div>
+                  <div className="mt-2.5 text-[19px] font-bold tracking-[-0.02em]">
+                    {value}
+                  </div>
                 </div>
-              </Reveal>
-            ))}
-          </div>
-        </section>
-
-        {/* Where the name actually reaches — answers the question every new visitor
-            has right after "what is it": will anything I use recognise this? */}
-        <section
-          id="resolves"
-          className="hidden scroll-mt-24 border-t border-[var(--line)] py-20 sm:block sm:py-28"
-        >
-          <Reveal>
-            <ResolvesEverywhere />
-          </Reveal>
-        </section>
-
-        {/* The perk — donation drive, now clearly secondary */}
-        <section
-          id="extend"
-          className="hidden scroll-mt-24 border-t border-[var(--line)] py-20 sm:block sm:py-28"
-        >
-          <Reveal>
-            <div className="grid gap-10 lg:grid-cols-[1fr_minmax(0,420px)]">
-              <ShortNamesCopy />
-              <DonatePanel />
+              ))}
             </div>
-          </Reveal>
-        </section>
 
-        {/* Proof — the live ruler and the ledger */}
-        <section className="hidden border-t border-[var(--line)] py-20 sm:block sm:py-28">
-          <Endowment />
-        </section>
-
-        <section className="hidden border-t border-[var(--line)] py-20 text-center sm:block sm:py-28">
-          <Reveal>
-            <h2 className="display text-[clamp(26px,3vw,40px)]">
-              Your name is probably still free.
-            </h2>
-            <div className="mt-7 flex flex-wrap justify-center gap-3">
-              <Link href="/mint/" className="btn btn-primary">
-                Mint a name
-              </Link>
-              <Link href="/faq/" className="btn btn-ghost">
-                Read the FAQ
-              </Link>
+            <div className="on-ink cells mt-3.5">
+              {GUARANTEES.map((text) => (
+                <div
+                  key={text}
+                  className="flex flex-[1_1_320px] items-baseline gap-3 border-b border-[var(--line-soft)] px-6 py-[18px]"
+                >
+                  <span className="chip-square" aria-hidden />
+                  <span className="text-[14.5px] leading-[1.5] text-[rgba(241,241,234,0.85)]">
+                    {text}
+                  </span>
+                </div>
+              ))}
             </div>
-          </Reveal>
-        </section>
-      </main>
+          </section>
+
+          {/* ── 06 — the six questions people actually arrive with. */}
+          <section id="faq" className="shell section">
+            <div className="eyebrow">06 / questions</div>
+            <h2 className="h-section mt-[18px]">Answered plainly.</h2>
+            <div className="mt-11">
+              <FaqAccordion items={FAQ} />
+            </div>
+            <p className="mt-8 text-sm text-[var(--dim)]">
+              More detail on{" "}
+              <Link href="/faq/" className="link">
+                the full FAQ
+              </Link>
+              .
+            </p>
+          </section>
+
+          <section className="on-lime mt-28 border-y border-[var(--ink)]">
+            <div className="shell py-[clamp(64px,8vw,96px)] text-center">
+              <h2 className="h-cta m-0">
+                Your name is
+                <br />
+                probably still free
+              </h2>
+              <div className="mt-10 flex flex-wrap justify-center gap-2.5">
+                <Link href="/mint/" className="btn btn-ink btn-lg">
+                  Mint a name ↗
+                </Link>
+                <Link href="/faq/" className="btn btn-ghost btn-lg">
+                  Read the FAQ
+                </Link>
+              </div>
+            </div>
+          </section>
+        </main>
+      </MintQueryProvider>
       <Footer />
     </>
   );

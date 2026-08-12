@@ -1,42 +1,21 @@
 import type { Metadata } from "next";
-import {
-  Archivo,
-  Inter,
-  IBM_Plex_Mono,
-  IBM_Plex_Serif,
-  Space_Grotesk,
-} from "next/font/google";
+import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
+/* Two families, and only two. Archivo carries every piece of structure from the
+   152px hero down to a 13px button; Plex Mono carries anything that is data. */
 const archivo = Archivo({
   subsets: ["latin"],
   variable: "--font-archivo",
-  weight: ["500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
   weight: ["400", "500", "600"],
-});
-
-/* Hero headline: the chrome-gradient statement line. */
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-statement",
-  weight: ["500", "600", "700"],
-});
-
-/* Hero accent: same superfamily as the mono, so the serif reads in-brand. */
-const plexSerif = IBM_Plex_Serif({
-  subsets: ["latin"],
-  variable: "--font-serif",
-  weight: ["400"],
-  style: ["italic"],
 });
 
 export const metadata: Metadata = {
@@ -52,9 +31,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body
-        className={`${archivo.variable} ${inter.variable} ${plexMono.variable} ${spaceGrotesk.variable} ${plexSerif.variable} antialiased`}
-      >
+      <body className={`${archivo.variable} ${plexMono.variable} antialiased`}>
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -1,9 +1,8 @@
 /**
  * The four steps, written once.
  *
- * Rendered by the landing page's `#how` section and by `/how-it-works/`, which is
- * where the menu sends mobile now that the section is hidden below `sm`. Copy that
- * explains the product should not exist twice.
+ * Rendered by `/mint/` and by `/how-it-works/`. Copy that explains the product should
+ * not exist twice.
  */
 export const STEPS = [
   {

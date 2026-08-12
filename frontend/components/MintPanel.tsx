@@ -63,8 +63,9 @@ export function MintPanel({
   /** Home page only: after connecting, carry the typed name over to /mint. */
   handoffOnConnect?: boolean;
 }) {
-  // Inside the /mint provider the hero owns the query so the oversized line tracks
-  // this field; everywhere else the card keeps its own state.
+  // Inside a MintQueryProvider the page owns the query so other blocks — the tier
+  // grid, the /mint hero line — track this field; everywhere else the card keeps
+  // its own state.
   const shared = useMintQuery();
   const [localQuery, setLocalQuery] = useState(initialQuery);
   const query = shared ? shared.query : localQuery;
@@ -197,10 +198,10 @@ export function MintPanel({
   /**
    * Bring the whole card into view when someone starts typing on a phone.
    *
-   * The card grows as you type — a verdict line, three ledger rows, the pay-method
-   * buttons — and all of it appears *below* the input. Tap the field near the bottom of
-   * the screen and the Mint button is pushed off it, so the flow ends with hunting for
-   * a button that wasn't there a moment ago.
+   * The card grows as you type — a verdict line, a price block, the pay-method
+   * buttons — and all of it appears *below* the input. Tap the field near the bottom
+   * of the screen and the mint button is pushed off it, so the flow ends with hunting
+   * for a button that wasn't there a moment ago.
    *
    * Pinning the card's top under the header instead means the expansion has somewhere
    * to go. Deferred because the keyboard animating in moves the viewport under us, and
@@ -211,7 +212,7 @@ export function MintPanel({
     window.setTimeout(() => {
       const el = panelRef.current;
       if (!el) return;
-      const HEADER = 72; // the sticky bar, plus a little air
+      const HEADER = 76; // the sticky bar, plus a little air
       const top = el.getBoundingClientRect().top + window.scrollY - HEADER;
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       window.scrollTo({ top, behavior: reduced ? "auto" : "smooth" });
@@ -220,35 +221,10 @@ export function MintPanel({
 
   // While the debounce is still catching up, `status` describes the *previous* name.
   // Reading it then flashes that name's whole layout — type "x" after "blake" and the
-  // 4+ character price ledger appears for a beat before the locked state replaces it.
+  // 4+ character price appears for a beat before the locked state replaces it.
   // Treating it as unknown until the read matches what was typed removes the flash.
   const settledStatus =
     label !== debouncedLabel || statusFetching ? undefined : status;
-
-  const verdict = useMemo(() => {
-    if (!query) return null;
-    if (!check.ok) return { text: check.reason, cls: "warn" };
-    if (!enabled) return { text: "minting opens soon", cls: "warn" };
-    if (settledStatus === undefined) return { text: "checking…", cls: "warn" };
-    switch (settledStatus) {
-      case MINT_STATUS.AVAILABLE:
-        return { text: "available", cls: "ok" };
-      case MINT_STATUS.TAKEN:
-        return { text: "already taken", cls: "bad" };
-      case MINT_STATUS.LOCKED:
-        return {
-          text:
-            creditsLeft > 0
-              ? "unlocked by your credit"
-              : "premium — needs a credit",
-          cls: creditsLeft > 0 ? "ok" : "warn",
-        };
-      case MINT_STATUS.BLOCKED:
-        return { text: "reserved by the registry", cls: "bad" };
-      default:
-        return { text: "invalid", cls: "bad" };
-    }
-  }, [query, check, enabled, settledStatus, creditsLeft]);
 
   // A credit beats paying whenever the name is short and one is available.
   const canMintWithCredit =
@@ -271,7 +247,7 @@ export function MintPanel({
     !creditUnknown;
 
   // A locked short name with no credit can't be bought at any price, so the price
-  // ledger, the ETH/USDG toggle and the mint button are all dead weight — and they
+  // block, the ETH/USDG toggle and the mint button are all dead weight — and they
   // push the one thing that *is* actionable, "Earn a credit", off the screen.
   const lockedNoCredit =
     shortsLocked &&
@@ -279,6 +255,85 @@ export function MintPanel({
     creditsLeft === 0 &&
     settledStatus === MINT_STATUS.LOCKED;
   const canMint = enabled && (canMintPublic || canMintWithCredit);
+
+  /**
+   * The status line under the input, in the design's own voice: the name read back
+   * with a verdict, never a bare adjective.
+   */
+  const verdict = useMemo((): { text: string; color: string } => {
+    const LABEL = "var(--label)";
+    if (!query) return { text: "type a name to check availability", color: LABEL };
+    if (!check.ok) return { text: check.reason.toLowerCase(), color: "var(--status-bad)" };
+    if (!enabled) return { text: "minting opens soon", color: "var(--status-warn)" };
+    if (settledStatus === undefined) return { text: "checking…", color: LABEL };
+    const name = `${debouncedLabel}.hoodfi.eth`;
+    switch (settledStatus) {
+      case MINT_STATUS.AVAILABLE:
+        return { text: `${name} is available`, color: "var(--status-ok)" };
+      case MINT_STATUS.TAKEN:
+        return { text: `${name} is taken`, color: "var(--status-bad)" };
+      case MINT_STATUS.LOCKED:
+        return creditsLeft > 0
+          ? { text: "unlocked by your credit", color: "var(--status-ok)" }
+          : { text: "premium · credit holders only", color: "var(--status-warn)" };
+      case MINT_STATUS.BLOCKED:
+        return { text: "reserved by the registry", color: "var(--status-bad)" };
+      default:
+        return { text: "invalid · not a mintable label", color: "var(--status-bad)" };
+    }
+  }, [query, check, enabled, settledStatus, creditsLeft, debouncedLabel]);
+
+  /** The big figure in the price block: what this name costs, once, for life. */
+  const priceLabel = !debouncedLabel
+    ? "—"
+    : canMintWithCredit
+    ? "FREE"
+    : `$${TIER_USD[tier]}`;
+
+  /** The same figure in the currency actually leaving the wallet. */
+  const chainPrice = !debouncedLabel
+    ? null
+    : canMintWithCredit
+    ? "one short-name credit"
+    : creditUnknown
+    ? "checking credits…"
+    : method === "usdg"
+    ? usdgPrice !== undefined
+      ? `${(Number(usdgPrice) / 1e6).toFixed(2)} USDG`
+      : "…"
+    : weiPrice !== undefined
+    ? `${formatEth(weiPrice)} ETH`
+    : null;
+
+  const lengthNote = debouncedLabel
+    ? `${debouncedLabel.length} character${debouncedLabel.length === 1 ? "" : "s"}`
+    : "a–z, 0–9, hyphens";
+
+  const ctaLabel = !enabled
+    ? "Minting opens soon"
+    : isPending
+    ? "Confirm in wallet…"
+    : receipt.isLoading
+    ? "Minting…"
+    : !query
+    ? isConnected
+      ? "Type a name"
+      : "Connect Wallet"
+    : !check.ok
+    ? "Fix the name"
+    : settledStatus === undefined
+    ? "Checking…"
+    : settledStatus === MINT_STATUS.TAKEN || settledStatus === MINT_STATUS.BLOCKED
+    ? "Try another"
+    : creditUnknown
+    ? "Checking your credits…"
+    : canMintWithCredit
+    ? `Claim ${debouncedLabel}.hoodfi.eth free`
+    : !isConnected
+    ? "Connect & mint"
+    : canMintPublic
+    ? `Mint for $${TIER_USD[tier]}`
+    : "Mint";
 
   // On the home page, connecting is a commitment to mint — so once the wallet is in,
   // carry the typed name to /mint rather than leaving them on the marketing page to
@@ -304,6 +359,15 @@ export function MintPanel({
   }
 
   async function mint() {
+    // Connecting is the first half of minting, so the button does it even with an
+    // empty field — that is the state most visitors meet the card in, and a control
+    // labelled "Connect Wallet" that does nothing is worse than no control.
+    if (!isConnected) {
+      track("connect_opened");
+      awaitingConnect.current = true;
+      open();
+      return;
+    }
     if (!REGISTRAR_ADDRESS || !debouncedLabel) return;
     setActionError(null);
 
@@ -378,34 +442,36 @@ export function MintPanel({
 
   if (receipt.isSuccess && minted) {
     return (
-      <div className="panel p-6 sm:p-8">
-        <div className="eyebrow ok">minted</div>
-        <h3 className="display mt-3 text-2xl break-all">
+      <div className="on-ink shadow-hero p-7">
+        <div className="label" style={{ color: "var(--lime)" }}>
+          minted
+        </div>
+        <h3 className="mt-4 break-words text-[clamp(28px,4vw,40px)] font-extrabold leading-[1.02] tracking-[-0.035em] text-[var(--fg)]">
           {minted}
-          <span className="plain text-[var(--dim)]">.hoodfi.eth</span>
+          <span className="text-[var(--faint)]">.hoodfi.eth</span>
         </h3>
-        <p className="mt-2 text-sm text-[var(--dim)]">
-          It&apos;s yours for life — no renewals, no expiry. Add an avatar, an
-          address and your links next.
+        <p className="mt-3 max-w-[38ch] text-sm leading-relaxed text-[var(--dim)]">
+          It&apos;s yours for life — no renewals, no expiry. Add an avatar, an address
+          and your links next.
         </p>
 
-        <div className="mt-5 flex flex-col gap-3">
+        <div className="mt-6 flex flex-col gap-2.5">
           <ShareOnX
             text={`I just minted ${minted}.hoodfi.eth on Robinhood Chain.\n\nLifetime ENS name, one transaction, no renewals ever. Get yours:`}
             url={nameShareUrl(minted)}
-            className="btn btn-primary w-full"
+            className="btn btn-lime btn-lg w-full"
             eventLabel="mint_success"
           >
             Share on X
           </ShareOnX>
-          <Link href="/manage/" className="btn btn-ghost w-full">
+          <Link href="/manage/" className="btn btn-ghost btn-lg w-full">
             Set up your name
           </Link>
         </div>
 
         {txHash && (
           <a
-            className="data mt-4 block text-center text-xs text-[var(--faint)] underline"
+            className="data link mt-5 block text-center text-[11px] text-[var(--faint)]"
             href={`${robinhoodChain.blockExplorers.default.url}/tx/${txHash}`}
             target="_blank"
             rel="noreferrer"
@@ -415,7 +481,7 @@ export function MintPanel({
         )}
 
         <button
-          className="data mt-4 w-full text-xs text-[var(--dim)] hover:text-[var(--paper)]"
+          className="data mt-4 w-full text-[11px] uppercase tracking-[0.14em] text-[var(--label)] transition-colors hover:text-[var(--fg)]"
           onClick={() => {
             setMinted(null);
             setQuery("");
@@ -430,22 +496,27 @@ export function MintPanel({
   }
 
   return (
-    <div ref={panelRef} className="panel scroll-mt-20 p-6 sm:p-8">
-      <div className="flex items-baseline justify-between gap-4">
-        <h3 className="display text-xl">Find your name</h3>
-        {needsVoucher && address && (
-          <div className="data text-xs text-[var(--dim)]">
-            credits:{" "}
-            <span className={creditsLeft > 0 ? "ok" : ""}>
-              {voucherLoading ? "…" : creditsLeft}
+    <div ref={panelRef} className="on-ink shadow-hero scroll-mt-24 p-7">
+      <div className="flex items-center justify-between gap-4">
+        <span className="label">Check a name</span>
+        <span className="flex items-center gap-4">
+          {needsVoucher && address && (
+            <span className="data text-[11px] uppercase tracking-[0.14em] text-[var(--label)]">
+              credits{" "}
+              <span style={{ color: creditsLeft > 0 ? "var(--lime)" : undefined }}>
+                {voucherLoading ? "…" : creditsLeft}
+              </span>
             </span>
-          </div>
-        )}
+          )}
+          <span className="data text-[11px] uppercase tracking-[0.18em]" style={{ color: "var(--lime)" }}>
+            ● live
+          </span>
+        </span>
       </div>
 
-      <div className="relative mt-5">
+      <div className="mt-[18px] flex h-[60px] items-center gap-1.5 border border-[rgba(241,241,234,0.28)] px-3.5 focus-within:border-[var(--lime)]">
         <input
-          className="input pr-28 text-lg"
+          className="min-w-0 flex-1 border-0 bg-transparent text-[24px] font-bold tracking-[-0.02em] text-[var(--fg)] outline-none placeholder:text-[var(--faint)]"
           placeholder="yourname"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -455,98 +526,74 @@ export function MintPanel({
           autoComplete="off"
           aria-label="Name to mint"
         />
-        <span className="data pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--faint)]">
-          .hoodfi.eth
-        </span>
+        <span className="data shrink-0 text-[15px] text-[var(--faint)]">.hoodfi.eth</span>
       </div>
-      {verdict && (
-        <div className={`data mt-2 text-xs ${verdict.cls}`}>{verdict.text}</div>
-      )}
 
-      {debouncedLabel &&
-        check.ok &&
-        !lockedNoCredit &&
-        settledStatus !== undefined && (
-          <div className="mt-5">
-            <div className="ledger-row">
-              <span className="text-sm text-[var(--dim)]">Length</span>
-              <span className="data text-sm">
-                {debouncedLabel.length} character
-                {debouncedLabel.length === 1 ? "" : "s"}
-              </span>
-            </div>
-            <div className="ledger-row">
-              <span className="text-sm text-[var(--dim)]">Price</span>
-              <span className="data text-sm">
-                {canMintWithCredit ? (
-                  <span className="ok">free — 1 credit</span>
-                ) : creditUnknown ? (
-                  "checking credits…"
-                ) : method === "usdg" ? (
-                  usdgPrice !== undefined ? (
-                    `${(Number(usdgPrice) / 1e6).toFixed(2)} USDG`
-                  ) : (
-                    "…"
-                  )
-                ) : weiPrice !== undefined ? (
-                  `${formatEth(weiPrice)} ETH`
-                ) : (
-                  `$${TIER_USD[tier]}`
-                )}
-              </span>
-            </div>
-            <div className="ledger-row">
-              <span className="text-sm text-[var(--dim)]">Renewals</span>
-              <span className="data text-sm ok">never — lifetime</span>
-            </div>
-          </div>
-        )}
-
-      {!canMintWithCredit &&
-        !lockedNoCredit &&
-        debouncedLabel &&
-        check.ok &&
-        settledStatus !== undefined && (
-          <div className="mt-5 flex gap-2">
-            {(["eth", "usdg"] as PayMethod[]).map((m) => (
-              <button
-                key={m}
-                className={`btn flex-1 ${
-                  method === m ? "btn-primary" : "btn-ghost"
-                }`}
-                onClick={() => setMethod(m)}
-                type="button"
-                disabled={m === "usdg" && !USDC_ADDRESS}
-              >
-                Pay in {m === "eth" ? "ETH" : "USDG"}
-              </button>
-            ))}
-          </div>
-        )}
+      {/* Wraps rather than truncates: the status is the card's answer, and on a phone
+          the character note beside it is enough to clip "…is available" off the end. */}
+      <div className="mt-3.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <span
+          className="data min-w-0 break-words text-[12.5px] tracking-[0.06em]"
+          style={{ color: verdict.color }}
+        >
+          {verdict.text}
+        </span>
+        <span className="data shrink-0 text-[12.5px] text-[var(--label)]">{lengthNote}</span>
+      </div>
 
       {!lockedNoCredit && (
-        <button
-          className="btn btn-primary mt-5 w-full"
-          onClick={mint}
-          disabled={!canMint || isPending || receipt.isLoading}
-          type="button"
-        >
-          {!enabled
-            ? "Minting opens soon"
-            : !isConnected
-            ? "Connect to mint"
-            : isPending
-            ? "Confirm in wallet…"
-            : receipt.isLoading
-            ? "Minting…"
-            : creditUnknown
-            ? "Checking your credits…"
-            : canMintWithCredit
-            ? `Claim ${debouncedLabel}.hoodfi.eth free`
-            : canMintPublic
-            ? `Mint ${debouncedLabel}.hoodfi.eth`
-            : "Mint"}
-        </button>
+        <>
+          <div className="mt-5 flex items-end justify-between gap-4 border-t border-[rgba(241,241,234,0.18)] pt-[18px]">
+            <div className="min-w-0">
+              <div className="label">Price</div>
+              <div className="mt-1.5 text-[38px] font-extrabold leading-none tracking-[-0.03em] text-[var(--fg)]">
+                {priceLabel}
+              </div>
+              {chainPrice && (
+                <div className="data mt-2 truncate text-[11.5px] text-[var(--label)]">
+                  {chainPrice}
+                </div>
+              )}
+            </div>
+            <div className="data shrink-0 text-right text-[11.5px] leading-[1.5] text-[var(--label)]">
+              one time
+              <br />
+              for life
+            </div>
+          </div>
+
+          {/* The currency choice, only once there is something to buy. */}
+          {!canMintWithCredit && debouncedLabel && check.ok && settledStatus !== undefined && (
+            <div className="mt-5 flex">
+              {(["eth", "usdg"] as PayMethod[]).map((m) => (
+                <button
+                  key={m}
+                  className={`data flex-1 border py-2.5 text-[11px] uppercase tracking-[0.16em] transition-colors ${
+                    method === m
+                      ? "border-[var(--lime)] bg-[var(--lime)] text-[var(--ink)]"
+                      : "border-[rgba(241,241,234,0.28)] text-[var(--label)] hover:text-[var(--fg)]"
+                  } ${m === "eth" ? "border-r-0" : ""}`}
+                  onClick={() => setMethod(m)}
+                  type="button"
+                  disabled={m === "usdg" && !USDC_ADDRESS}
+                >
+                  Pay in {m === "eth" ? "ETH" : "USDG"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <button
+            className="btn btn-lime btn-lg mt-5 w-full"
+            onClick={mint}
+            disabled={
+              !enabled || isPending || receipt.isLoading || (isConnected && !canMint)
+            }
+            type="button"
+          >
+            {ctaLabel} ↗
+          </button>
+        </>
       )}
 
       {/* Short names pre-goal: explain the one path that unlocks them. */}
@@ -556,46 +603,46 @@ export function MintPanel({
            someone types a short name — on a phone that is the difference between a
            screen you can act on and one you have to scroll. Long version on
            /short-names/. */
-        <div className="mt-4 rounded-md border border-[var(--line)] p-3.5">
-          <div className="data text-xs warn">
+        <div className="mt-5 border border-[var(--line)] p-4">
+          <div className="data text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--status-warn)" }}>
             {debouncedLabel.length}-character names are premium
           </div>
-          <p className="mt-1.5 text-xs leading-relaxed text-[var(--dim)]">
+          <p className="mt-2 text-[13px] leading-relaxed text-[var(--dim)]">
             {voucherError && address ? `${voucherError} ` : ""}
             Donate a year to hoodfi.eth and mint any 1–3 character name free.
           </p>
-          {/* The donate flow, opened in place.
-              This used to be a link to /#extend. That section is hidden below `sm` now
-              that a phone lands on a mint screen, so the link would have scrolled to
-              nothing — and even where it worked, sending someone away mid-mint to find
-              the one thing that unlocks the name they just typed is the wrong shape.
-              Collapsed by default so it costs nothing until it's the answer. */}
+          {/* The donate flow, opened in place. Sending someone away mid-mint to find
+              the one thing that unlocks the name they just typed is the wrong shape,
+              and it stays collapsed so it costs nothing until it is the answer. */}
           {showDonate ? (
-            <div className="mt-3">
-              <DonatePanel />
+            <div className="mt-4">
+              <DonatePanel embedded />
             </div>
           ) : (
             <button
               type="button"
-              className="btn btn-ghost mt-3 w-full"
+              className="btn btn-lime mt-4 w-full"
               onClick={() => setShowDonate(true)}
             >
-              Earn a credit
+              Earn a credit ↗
             </button>
           )}
         </div>
       )}
 
       {(actionError || writeError) && (
-        <div className="data mt-3 break-words text-xs bad">
+        <div
+          className="data mt-4 break-words text-[12px] leading-relaxed"
+          style={{ color: "var(--status-bad)" }}
+        >
           {actionError ?? walletErrorMessage(writeError)}
         </div>
       )}
 
-      <p className="data mt-4 text-[11px] leading-relaxed text-[var(--faint)]">
-        Names are lifetime ERC-721s on Robinhood Chain. You control every record
-        — this site can&apos;t edit or reclaim your name.
-      </p>
+      <div className="label mt-3.5 flex items-center gap-2">
+        <span className="chip-square" aria-hidden />
+        Robinhood Chain
+      </div>
     </div>
   );
 }

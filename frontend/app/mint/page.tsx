@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { Reveal } from "@/components/Reveal";
 import { MintPanel } from "@/components/MintPanel";
 import { MintIdentityHero } from "@/components/MintIdentityHero";
 import { MintQueryProvider } from "@/components/MintQuery";
+import { TierGrid } from "@/components/TierGrid";
 import { PageView } from "@/components/PageView";
-import { TIER_USD } from "@/lib/labels";
+import { STEPS } from "@/lib/steps";
 import { ogMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = ogMetadata({
@@ -18,11 +18,11 @@ export const metadata: Metadata = ogMetadata({
   image: "/og/mint.png",
 });
 
-const TIERS = [
-  { chars: "1 character", example: "x", usd: TIER_USD[0], premium: true },
-  { chars: "2 characters", example: "og", usd: TIER_USD[1], premium: true },
-  { chars: "3 characters", example: "gme", usd: TIER_USD[2], premium: true },
-  { chars: "4+ characters", example: "blake", usd: TIER_USD[3], premium: false },
+const GETS = [
+  ["token", "A lifetime ERC-721. No renewal, no expiry date, nothing to forget."],
+  ["records", "Address, avatar, X handle, website and bio — all set by you."],
+  ["resolution", "Answers from Ethereum mainnet, so anything that speaks ENS finds it."],
+  ["payment", "ETH or USDG, whichever you already hold."],
 ];
 
 export default function MintPage() {
@@ -30,93 +30,88 @@ export default function MintPage() {
     <>
       <PageView />
       <Header />
-      <main className="mx-auto max-w-[1600px] px-4 pb-24 sm:px-6 lg:px-8 2xl:px-12">
-       <MintQueryProvider>
-        <section className="hero-glow pt-10 sm:pt-14">
-          <Reveal>
-            <MintIdentityHero />
-          </Reveal>
-        </section>
-
-        {/* The panel is the page's job; "What you get" and "Pricing" are support. On a
-            phone the stack is the reading order, so the panel goes first — it used to
-            sit last, roughly 2000px down behind the hero and both info panels, which
-            put the only name input on the page below two screens of scrolling. The
-            desktop two-column arrangement is unchanged. */}
-        <section className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
-          <Reveal className="order-2 lg:order-none">
-            <div className="flex flex-col gap-6">
-              <div className="panel p-6 sm:p-8">
-                <h2 className="display text-lg">What you get</h2>
-                <ul className="mt-4 flex flex-col gap-3 text-sm text-[var(--dim)]">
-                  <li className="flex gap-3">
-                    <span className="ok">→</span>
-                    <span>
-                      A <span className="text-[var(--paper)]">lifetime</span> ERC-721.
-                      No renewal, no expiry date, nothing to forget.
-                    </span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="ok">→</span>
-                    <span>
-                      Full control of your records — address, avatar, X, website, bio.
-                    </span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="ok">→</span>
-                    <span>
-                      Resolves from Ethereum mainnet through CCIP-Read, so wallets that
-                      speak ENS find it.
-                    </span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="ok">→</span>
-                    <span>Pay in ETH or USDG, whichever you already hold.</span>
-                  </li>
-                </ul>
+      <MintQueryProvider>
+        <main>
+          {/* Same lime field as the homepage hero, and the same ink card in it: this
+              is the instrument the landing page was pointing at, so it should be the
+              object someone recognises when they arrive. */}
+          <section className="on-lime border-b border-[var(--ink)]">
+            <div className="shell grid items-start gap-14 pb-[68px] pt-[clamp(40px,5vw,64px)] [grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr))]">
+              <div className="min-w-0 [container-type:inline-size]">
+                <MintIdentityHero />
               </div>
-
-              <div className="panel p-6 sm:p-8">
-                <h2 className="display text-lg">Pricing</h2>
-                <div className="mt-4">
-                  {TIERS.map((tier) => (
-                    <div key={tier.chars} className="ledger-row">
-                      <span className="text-sm text-[var(--dim)]">
-                        {tier.chars}{" "}
-                        <span className="data text-[var(--faint)]">
-                          {tier.example}.hoodfi.eth
-                        </span>
-                      </span>
-                      <span className="data text-sm">
-                        ${tier.usd}
-                        {tier.premium && (
-                          <span className="ml-2 text-[var(--faint)]">premium</span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-4 text-xs leading-relaxed text-[var(--faint)]">
-                  One-time, for life. 1–3 character names are premium inventory: they
-                  unlock for everyone once hoodfi.eth&apos;s expiry reaches the 100-year
-                  goal, and donors can mint them free before then.{" "}
-                  <Link href="/#extend" className="underline">
-                    Earn a credit
-                  </Link>
-                  .
-                </p>
-              </div>
-            </div>
-          </Reveal>
-
-          <Reveal className="order-1 lg:order-none">
-            <div className="lg:sticky lg:top-24">
               <MintPanel />
             </div>
-          </Reveal>
-        </section>
-       </MintQueryProvider>
-      </main>
+          </section>
+
+          <section className="shell section">
+            <div className="eyebrow">01 / pick a name</div>
+            <div className="duo mt-[18px] items-end">
+              <h2 className="h-page m-0">Price is length.</h2>
+              <p className="lede m-0 mb-2.5 max-w-[44ch]">
+                Paid once, in ETH or USDG. Nothing renews and nothing expires — the tier
+                below tracks whatever you type above.
+              </p>
+            </div>
+            <TierGrid />
+          </section>
+
+          <section className="shell section">
+            <div className="eyebrow">02 / what you get</div>
+            <div className="duo mt-[18px] items-start">
+              <div className="min-w-0">
+                <h2 className="h-page m-0">Yours, then out of our hands.</h2>
+                <p className="lede mt-5 max-w-[46ch]">
+                  The name lands in your wallet as an ERC-721 the moment the transaction
+                  confirms. From that point the registrar has no authority over it — no
+                  burn, no reclaim, no renewal to miss.
+                </p>
+                <div className="mt-8 flex flex-wrap gap-2.5">
+                  <Link href="/manage/" className="btn btn-ghost">
+                    Manage records
+                  </Link>
+                  <Link href="/faq/" className="btn btn-ghost">
+                    Read the FAQ
+                  </Link>
+                </div>
+              </div>
+              <div className="min-w-0 border-t border-[var(--line)]">
+                {GETS.map(([key, value]) => (
+                  <div key={key} className="ledger-row">
+                    <span className="data text-[11px] uppercase tracking-[0.16em] text-[var(--label)]">
+                      {key}
+                    </span>
+                    <span className="text-[17px] font-medium leading-[1.5] text-pretty">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="shell section pb-24">
+            <div className="eyebrow">03 / the whole flow</div>
+            <h2 className="h-page mt-[18px]">Four steps, one transaction.</h2>
+            <div className="cells mt-11 border-t border-l border-[var(--line)]">
+              {STEPS.map((step, i) => (
+                <div
+                  key={step.title}
+                  className="flex-[1_1_260px] border-b border-r border-[var(--line)] p-6"
+                >
+                  <div className="data text-[11px] tracking-[0.16em] text-[var(--faint)]">
+                    0{i + 1}
+                  </div>
+                  <h3 className="h-sub mt-4">{step.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[var(--dim)]">
+                    {step.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </main>
+      </MintQueryProvider>
       <Footer />
     </>
   );

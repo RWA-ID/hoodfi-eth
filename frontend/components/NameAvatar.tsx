@@ -33,7 +33,9 @@ export function NameAvatar({
   const showOwner = Boolean(src) && !ownerFailed;
   const showMark = !showOwner && !markFailed;
 
-  const shell = `shrink-0 rounded-full border border-[var(--line)] ${className}`;
+  // Square, like everything else here — the only circle in this design is the tier
+  // radio on the homepage.
+  const shell = `shrink-0 border border-[var(--line-card)] ${className}`;
 
   if (showOwner) {
     return (
@@ -49,7 +51,7 @@ export function NameAvatar({
 
   if (showMark) {
     return (
-      <div className={`${shell} grid place-items-center bg-[var(--panel-2)]`}>
+      <div className={`${shell} grid place-items-center bg-[var(--paper-alt)]`}>
         {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
         <img
           src={FALLBACK_SRC}

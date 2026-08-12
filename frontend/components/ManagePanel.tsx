@@ -416,28 +416,24 @@ function NameEditor({
       </div>
 
       {/* Editor, laid out as the same ledger the lookup page renders read-only. */}
-      <div className="w-full rounded-xl border border-[var(--line)] bg-[color-mix(in_srgb,var(--panel)_85%,transparent)]">
-        <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3.5 sm:px-5">
-          <span className="data text-[11px] uppercase tracking-[0.2em] text-[var(--dim)]">
-            Onchain records
-          </span>
-          <span className="data flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-[var(--faint)]">
-            editing {name.label}
-          </span>
+      <div className="w-full border border-[var(--line-card)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3.5 sm:px-5">
+          <span className="label">Onchain records</span>
+          <span className="label">editing {name.label}</span>
         </div>
 
         {/* Addresses first — they're what make the name actually resolve. */}
         {ADDRESS_FIELDS.map((field) => (
           <div
             key={field.key}
-            className="flex flex-col gap-2 border-b border-[color-mix(in_srgb,var(--line)_70%,transparent)] px-4 py-4 sm:grid sm:grid-cols-[170px_minmax(0,1fr)] sm:items-start sm:gap-3 sm:px-5"
+            className="flex flex-col gap-2 border-b border-[var(--line-soft)] px-4 py-4 sm:grid sm:grid-cols-[170px_minmax(0,1fr)] sm:items-start sm:gap-3 sm:px-5"
           >
             <label
               className="flex items-center gap-2 pt-2"
               htmlFor={`${field.key}-${name.label}`}
             >
               <field.Logo className="h-4 w-4 shrink-0" />
-              <span className="data text-[10.5px] uppercase leading-[1.35] tracking-[0.16em] text-[var(--dim)]">
+              <span className="label" style={{ letterSpacing: "0.16em" }}>
                 {field.label}
               </span>
             </label>
@@ -452,7 +448,7 @@ function NameEditor({
                 autoCapitalize="none"
               />
               {addrInvalid(field) ? (
-                <div className="data mt-1.5 text-xs bad">
+                <div className="data mt-1.5 text-xs" style={{ color: "var(--bad)" }}>
                   That isn&apos;t a valid {field.label.split(" ")[0]} address
                 </div>
               ) : (
@@ -470,7 +466,7 @@ function NameEditor({
             className="flex flex-col gap-2 border-b border-[color-mix(in_srgb,var(--line)_70%,transparent)] px-4 py-4 sm:grid sm:grid-cols-[170px_minmax(0,1fr)] sm:items-start sm:gap-3 sm:px-5"
           >
             <label className="pt-2" htmlFor={`${field.key}-${name.label}`}>
-              <span className="data text-[10.5px] uppercase leading-[1.35] tracking-[0.16em] text-[var(--dim)]">
+              <span className="label" style={{ letterSpacing: "0.16em" }}>
                 {field.label}
               </span>
             </label>
@@ -499,7 +495,7 @@ function NameEditor({
 
         <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-5">
           <button
-            className="btn btn-primary sm:w-48"
+            className="btn btn-ink sm:w-48"
             onClick={saveAll}
             disabled={!canSave}
             type="button"
@@ -515,12 +511,12 @@ function NameEditor({
 
         <div className="px-4 pb-5 sm:px-5">
           {(actionError || error) && (
-            <div className="data break-words text-xs bad">
+            <div className="data break-words text-xs" style={{ color: "var(--bad)" }}>
               {actionError ?? walletErrorMessage(error)}
             </div>
           )}
           {receipt.isSuccess && !saving && (
-            <div className="data text-xs ok">✓ Records saved onchain.</div>
+            <div className="data text-xs" style={{ color: "var(--olive)" }}>✓ Records saved onchain.</div>
           )}
           <p className="data mt-3 text-[11px] leading-relaxed text-[var(--faint)]">
             Every change saves in a single transaction on Robinhood Chain. You&apos;re
@@ -553,19 +549,19 @@ function NameCard({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      // --panel-2, not --panel: against --ink the latter is a three-value difference
-      // and the card disappears into the page, which is exactly how these read as one
-      // long bar rather than as separate, clickable things.
-      className={`group relative flex w-[168px] shrink-0 cursor-pointer flex-col items-center gap-2.5 overflow-hidden rounded-xl border p-4 text-center transition ${
+      // The selected card fills lime, the same way the selected tier does on the
+      // homepage — one selection idiom for the whole site rather than a second one
+      // invented here.
+      className={`group relative flex w-[168px] shrink-0 cursor-pointer flex-col items-center gap-2.5 border p-4 text-center transition-colors ${
         selected
-          ? "border-[var(--green)] bg-[color-mix(in_srgb,var(--green)_10%,var(--panel))] shadow-[0_0_0_1px_var(--green),0_18px_40px_-24px_color-mix(in_srgb,var(--green)_70%,transparent)]"
-          : "border-[var(--line-strong)] bg-[var(--panel-2)] hover:-translate-y-0.5 hover:border-[var(--green)] hover:bg-[color-mix(in_srgb,var(--green)_8%,var(--panel-2))]"
+          ? "border-[var(--ink)] bg-[var(--lime)]"
+          : "border-[var(--line-card)] bg-[var(--paper-alt)] hover:bg-[var(--hover-fill)]"
       }`}
     >
       {/* Says which one you're editing without relying on colour alone. */}
       <span
         className={`data absolute right-2 top-2 text-[9px] uppercase tracking-[0.16em] ${
-          selected ? "text-[var(--green)]" : "text-transparent group-hover:text-[var(--faint)]"
+          selected ? "text-[var(--ink)]" : "text-transparent group-hover:text-[var(--faint)]"
         }`}
       >
         {selected ? "editing" : "edit"}
@@ -605,13 +601,13 @@ export function ManagePanel() {
 
   if (!isConnected) {
     return (
-      <div className="panel p-8 text-center">
-        <h3 className="display text-xl">Connect to manage your names</h3>
+      <div className="border border-[var(--line-card)] bg-[var(--paper-alt)] p-10 text-center">
+        <h3 className="h-sub">Connect to manage your names</h3>
         <p className="mt-2 text-sm text-[var(--dim)]">
           We&apos;ll list every *.hoodfi.eth name held by your wallet.
         </p>
         <button
-          className="btn btn-primary mt-5"
+          className="btn btn-ink mt-6"
           onClick={() => {
             track("connect_opened");
             open();
@@ -632,18 +628,16 @@ export function ManagePanel() {
   // editor should be invisible.
   if (loading && names.length === 0) {
     return (
-      <div className="panel p-8 text-center">
-        <div className="data text-sm text-[var(--dim)]">
-          Loading your names…
-        </div>
+      <div className="border border-[var(--line-card)] p-10 text-center">
+        <div className="data text-sm text-[var(--dim)]">Loading your names…</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="panel p-8 text-center">
-        <div className="data text-sm bad">{error}</div>
+      <div className="border border-[var(--line-card)] p-10 text-center">
+        <div className="data text-sm" style={{ color: "var(--bad)" }}>{error}</div>
         <button className="btn btn-ghost mt-4" onClick={reload} type="button">
           Try again
         </button>
@@ -653,12 +647,12 @@ export function ManagePanel() {
 
   if (names.length === 0) {
     return (
-      <div className="panel p-8 text-center">
-        <h3 className="display text-xl">No names yet</h3>
+      <div className="border border-[var(--line-card)] bg-[var(--paper-alt)] p-10 text-center">
+        <h3 className="h-sub">No names yet</h3>
         <p className="mt-2 text-sm text-[var(--dim)]">
           Mint one and it shows up here, ready to point at your wallet.
         </p>
-        <Link href="/mint/" className="btn btn-primary mt-5">
+        <Link href="/mint/" className="btn btn-ink mt-6">
           Mint a name
         </Link>
       </div>

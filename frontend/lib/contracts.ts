@@ -16,6 +16,15 @@ export const REGISTRAR_ADDRESS = addressEnv(process.env.NEXT_PUBLIC_REGISTRAR_AD
 export const L2_REGISTRY_ADDRESS = addressEnv(process.env.NEXT_PUBLIC_L2_REGISTRY_ADDRESS);
 export const USDC_ADDRESS = addressEnv(process.env.NEXT_PUBLIC_USDC_ADDRESS);
 
+/**
+ * The mainnet resolver hoodfi.eth points at — the contract that answers every
+ * lookup through CCIP-Read. A fixed, verified deployment rather than an env var:
+ * it is listed on the site as something to go and check, and a contracts table
+ * that silently empties when a variable is unset would defeat the point.
+ */
+export const L1_RESOLVER_ADDRESS =
+  "0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2" as const;
+
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
 export const donationsAbi = [
@@ -197,6 +206,15 @@ export const registrarAbi = [
  * manage page talks to this contract with no intermediary.
  */
 export const registryAbi = [
+  {
+    // Public counter on L2Registry, incremented on every mint — the honest source
+    // for "names minted", read from the chain rather than an indexer.
+    type: "function",
+    name: "totalSupply",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
   {
     type: "function",
     name: "baseNode",

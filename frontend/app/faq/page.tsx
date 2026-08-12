@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
 import { PageView } from "@/components/PageView";
 import { ogMetadata } from "@/lib/metadata";
 
@@ -12,7 +13,7 @@ export const metadata: Metadata = ogMetadata({
   image: "/og/faq.png",
 });
 
-const GROUPS: { heading: string; items: { q: string; a: string }[] }[] = [
+const GROUPS: { heading: string; items: FaqItem[] }[] = [
   {
     heading: "Minting",
     items: [
@@ -124,33 +125,30 @@ export default function FaqPage() {
     <>
       <PageView />
       <Header />
-      <main className="mx-auto max-w-3xl px-4 sm:px-6">
-        <section className="pt-16 sm:pt-20">
-          <div className="eyebrow">questions, answered plainly</div>
-          <h1 className="display mt-4 text-3xl sm:text-5xl">FAQ</h1>
+      <main className="shell pb-24 pt-[clamp(40px,5vw,64px)]">
+        <section className="duo items-end">
+          <div>
+            <div className="eyebrow">questions, answered plainly</div>
+            <h1 className="h-page mt-[18px]">Everything, in order.</h1>
+          </div>
+          <p className="lede m-0 mb-2.5 max-w-[44ch]">
+            The short version lives on the homepage. This is the whole of it — minting,
+            credits, records, ownership and how resolution actually reaches your wallet.
+          </p>
         </section>
-        {GROUPS.map((g) => (
-          <section key={g.heading} className="mt-12">
-            <h2 className="eyebrow">{g.heading}</h2>
-            <div className="mt-4">
-              {g.items.map((item) => (
-                <details
-                  key={item.q}
-                  className="group border-b border-[var(--line)] py-4"
-                >
-                  <summary className="cursor-pointer list-none text-base font-medium marker:content-none">
-                    <span className="flex items-baseline justify-between gap-4">
-                      {item.q}
-                      <span className="data text-[var(--faint)] transition-transform group-open:rotate-45">
-                        +
-                      </span>
-                    </span>
-                  </summary>
-                  <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-[var(--dim)]">
-                    {item.a}
-                  </p>
-                </details>
-              ))}
+
+        {/* The numbering runs through the page rather than restarting per group, so
+            two rows never carry the same index. */}
+        {GROUPS.map((g, gi) => (
+          <section key={g.heading} className="mt-16">
+            <h2 className="eyebrow">
+              0{gi + 1} / {g.heading}
+            </h2>
+            <div className="mt-6">
+              <FaqAccordion
+                items={g.items}
+                startIndex={GROUPS.slice(0, gi).reduce((n, x) => n + x.items.length, 0)}
+              />
             </div>
           </section>
         ))}

@@ -73,13 +73,13 @@ export function DonationsFeed() {
   }, []);
 
   return (
-    <div className="panel overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
-        <span className="eyebrow flex items-center gap-2">
-          <span className="live-dot" aria-hidden />
+    <div className="border border-[var(--line-card)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-5 py-3.5">
+        <span className="label flex items-center gap-2">
+          <span className="chip-square" aria-hidden />
           donation ledger
         </span>
-        <span className="data text-xs text-[var(--faint)]">read from Ethereum logs</span>
+        <span className="label">read from Ethereum logs</span>
       </div>
       <div className="max-h-[380px] overflow-y-auto">
         {state.kind === "loading" ? (
@@ -88,7 +88,7 @@ export function DonationsFeed() {
           </div>
         ) : state.kind === "error" ? (
           <div className="px-5 py-10 text-center">
-            <div className="data text-sm warn">Couldn&apos;t reach Ethereum.</div>
+            <div className="data text-sm" style={{ color: "var(--warn)" }}>Couldn&apos;t reach Ethereum.</div>
             <div className="mt-1 text-xs text-[var(--faint)]">
               The ledger is unavailable right now — this doesn&apos;t mean there are no
               donations.
@@ -108,7 +108,7 @@ export function DonationsFeed() {
               href={`https://etherscan.io/tx/${e.txHash}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-baseline justify-between gap-4 border-b border-[var(--line)] px-5 py-3 last:border-b-0 hover:bg-[var(--panel-2)]"
+              className="flex items-baseline justify-between gap-4 border-b border-[var(--line-soft)] px-5 py-3.5 transition-colors last:border-b-0 hover:bg-[var(--paper-alt)]"
             >
               <div className="min-w-0">
                 <span className="data text-sm">{formatAddress(e.donor)}</span>
@@ -117,7 +117,7 @@ export function DonationsFeed() {
                 </span>
               </div>
               <div className="data shrink-0 text-right text-sm">
-                <span className="ok">+{e.years}y</span>
+                <span style={{ color: "var(--olive)" }}>+{e.years}y</span>
                 <span className="ml-3 text-[var(--faint)]">{formatEth(e.ethPaid, 4)} ETH</span>
               </div>
             </a>

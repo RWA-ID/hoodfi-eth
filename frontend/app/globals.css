@@ -1,36 +1,98 @@
 @import "tailwindcss";
 
-/* ── hoodfi.eth — terminal-ledger theme ─────────────────────────────────────
-   Deep market-screen ink with a green undertone (not pure black), hairlines
-   instead of shadows, tabular mono for every number, hood green reserved for
-   live data and primary actions only. */
+/* ── hoodfi.eth — paper-ledger theme ────────────────────────────────────────
+   Off-white paper ground, near-black ink panels, one acid-lime accent.
+   Hairlines instead of shadows, zero radius everywhere, oversized tight-set
+   Archivo for structure and IBM Plex Mono for anything that is data. */
 
 :root {
-  --ink: #0a0f0c;
-  --panel: #0d1310;
-  --panel-2: #101812;
-  --line: rgba(148, 210, 165, 0.13);
-  --line-strong: rgba(148, 210, 165, 0.28);
-  --paper: #e9f2ea;
-  --dim: rgba(233, 242, 234, 0.58);
-  --faint: rgba(233, 242, 234, 0.36);
-  --green: #00c805;
-  --green-soft: rgba(0, 200, 5, 0.14);
-  --amber: #e0b34c;
-  --red: #ff5a52;
+  /* grounds */
+  --paper: #f1f1ea;
+  --paper-alt: #e9eae1; /* card fill, hover fill on grid cells */
+  --mark-tile: #f0efe8; /* matches the mark PNGs' own ground */
+  --ink: #0b0e08;
+  --ink-hover: #2a3318;
+
+  /* accents */
+  --lime: #c6f702;
+  --lime-hover: #d6ff3a;
+  --olive: #4a5a18; /* lime is unreadable as text on paper — this is its stand-in */
+  --resolving: #7a9b0e;
+
+  /* status — same three states the registrar reports */
+  --status-ok: #c6f702;
+  --status-bad: #ff8a6b;
+  --status-warn: #f2d14b;
+
+  /* ── role tokens ──
+     Everything in the markup reads these, never the raw palette above, so a
+     block can be moved onto an ink panel by wrapping it in `.on-ink` and
+     nothing inside has to change. */
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --dim: rgba(11, 14, 8, 0.66);
+  --label: rgba(11, 14, 8, 0.55);
+  --faint: rgba(11, 14, 8, 0.45);
+  --line: rgba(11, 14, 8, 0.18);
+  --line-soft: rgba(11, 14, 8, 0.14);
+  --line-card: rgba(11, 14, 8, 0.2);
+  --hover-fill: rgba(11, 14, 8, 0.06);
+  /* Accent as *text*: olive on paper, lime on ink. Both clear AA on their ground. */
+  --accent: var(--olive);
+  /* Accent as a *fill*: lime on both grounds, because ink text sits on it. */
+  --accent-fill: var(--lime);
+  --accent-fill-hover: var(--lime-hover);
+  --ok: var(--olive);
+  --warn: #8a6a04;
+  --bad: #b03a1a;
+}
+
+/* Dark panels. Sets the ground *and* re-points every role token at the
+   on-ink alpha ramp from the design tokens. */
+.on-ink {
+  --bg: var(--ink);
+  --fg: #f1f1ea;
+  --dim: rgba(241, 241, 234, 0.68);
+  --label: rgba(241, 241, 234, 0.5);
+  --faint: rgba(241, 241, 234, 0.42);
+  --line: rgba(241, 241, 234, 0.16);
+  --line-soft: rgba(241, 241, 234, 0.12);
+  --line-card: rgba(241, 241, 234, 0.2);
+  --hover-fill: rgba(241, 241, 234, 0.08);
+  --accent: var(--lime);
+  --ok: var(--lime);
+  --warn: var(--status-warn);
+  --bad: var(--status-bad);
+
+  background: var(--ink);
+  color: rgba(241, 241, 234, 0.85);
+}
+
+/* Lime panels are ink-on-lime: text roles stay dark, but a lime "accent" would
+   vanish, so the accent inverts to ink. */
+.on-lime {
+  --bg: var(--lime);
+  --fg: var(--ink);
+  --dim: rgba(11, 14, 8, 0.72);
+  --label: rgba(11, 14, 8, 0.66);
+  --faint: rgba(11, 14, 8, 0.5);
+  --line: rgba(11, 14, 8, 0.24);
+  --line-soft: rgba(11, 14, 8, 0.16);
+  --line-card: var(--ink);
+  --hover-fill: rgba(11, 14, 8, 0.07);
+  --accent: var(--ink);
+
+  background: var(--lime);
+  color: var(--ink);
 }
 
 /* Type roles must be declared on <body>, not :root — next/font puts
-   --font-archivo/--font-inter/--font-mono on the body element, and a var()
-   inside a custom property resolves against the element it's declared on.
-   At :root those lookups come back empty (or, for --font-mono, hit Tailwind's
-   default theme value) and every role silently falls back to a system face. */
+   --font-archivo/--font-mono on the body element, and a var() inside a custom
+   property resolves against the element it's declared on. At :root those
+   lookups come back empty and every role silently falls back to a system face. */
 body {
   --font-display: var(--font-archivo);
-  --font-body: var(--font-inter);
   --font-data: var(--font-mono);
-  --font-statement-display: var(--font-statement);
-  --font-accent: var(--font-serif);
 }
 
 * {
@@ -42,66 +104,110 @@ html {
 }
 
 body {
-  background: var(--ink);
-  color: var(--paper);
-  font-family: var(--font-body), system-ui, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-display), Helvetica, sans-serif;
   font-size: 16px;
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
   overflow-x: clip; /* kills sideways scroll on phones */
 }
 
 ::selection {
-  background: var(--green);
+  background: var(--lime);
   color: var(--ink);
 }
 
-/* ── type roles ── */
-/* ── section headings ──
-   Archivo at 600 rather than 800, shaded white-to-grey down the glyph.
+/* ── layout ── */
+/* One content measure for the whole site. The design's 1360px, with the same
+   clamp()ed gutter, so every section's left edge lines up down the page. */
+.shell {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding-left: clamp(20px, 4vw, 40px);
+  padding-right: clamp(20px, 4vw, 40px);
+}
 
-   The gradient runs vertically on purpose. `.statement` below rakes its own at
-   150deg, which works there because the text is huge and fills its box; a block
-   heading is as wide as its container, so a diagonal ramp puts a short word like
-   "Pricing" entirely in the near-white first few percent and the shading never
-   shows. Down the y-axis the ramp is bound to the line box instead, so one rule
-   reads the same on a two-word panel title and a clamp(28px,3.4vw,44px) section
-   opener, at any viewport, with no layout change to make it fit. */
-.display {
+/* Section vertical rhythm. */
+.section {
+  padding-top: clamp(72px, 9vw, 112px);
+  scroll-margin-top: 80px;
+}
+
+/* Full-bleed out of a centered container, without 100vw — which includes the
+   scrollbar and so overflows by ~15px on desktop Windows/Linux. */
+.bleed {
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding-left: calc(50vw - 50%);
+  padding-right: calc(50vw - 50%);
+}
+
+/* ── type roles ── */
+/* Hero. Uppercase, set tight enough that two words read as one block.
+   Sized in `cqi` — a percentage of the hero column, not of the viewport — because
+   the headline breaks where the markup says (`Your name` / `forever`) and nowhere
+   else. Off a viewport unit the type outgrows its column somewhere between phone
+   and desktop and "YOUR NAME" wraps to a line of its own, which turns a two-line
+   headline into three and costs the design its shape.
+
+   16.5cqi is measured, not guessed: "YOUR NAME" in Archivo 600 advances 6.04em,
+   less 0.035em of tracking per character, so it fills a line at 17.5% of the column
+   width — this sits under that with enough slack to survive a font swap. The
+   container is declared on the column itself in the markup. */
+.h-hero {
   font-family: var(--font-display), sans-serif;
   font-weight: 600;
-  /* 800 could carry -0.02em; at 600 the same tracking reads cramped. */
-  letter-spacing: -0.015em;
-  line-height: 1.04;
-  background: linear-gradient(180deg, #ffffff 0%, #e9f2ea 38%, #a9b2af 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+  font-size: clamp(44px, 16.5cqi, 152px);
+  line-height: 0.86;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
 }
 
-/* Opt a whole heading out of the shading, back to solid weight.
-   The lighter grey-shaded setting is right for a section heading introducing copy;
-   it is wrong on a feature banner that has to hold its own against a full-bleed
-   render beside it. The Robinhood Wallet band is the case: at 600 with the ramp,
-   the wordmark stopped reading as a title and started reading as a caption. */
-.display-solid {
+/* Section heading — sentence case with a period, always. */
+.h-section {
+  font-family: var(--font-display), sans-serif;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  background: none;
-  color: var(--paper);
-  -webkit-text-fill-color: currentColor;
+  font-size: clamp(38px, 5.4vw, 80px);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
 }
 
-/* Opt a child back out of the clip.
-   `-webkit-text-fill-color` inherits and outranks `color`, so a span inside a
-   shaded heading loses its own colour and is painted by the parent's gradient
-   instead — the green in "Want x, og or gme?" simply stops being green. Setting
-   the fill back to currentColor restores whatever colour the child asked for. */
-.display .plain,
-.display .ok,
-.display .bad,
-.display .warn {
-  -webkit-text-fill-color: currentColor;
+/* The same voice inside a dark panel, one step down so it doesn't outshout the
+   section heading that introduced it. */
+.h-panel {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-size: clamp(36px, 4.6vw, 66px);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+}
+
+.h-cta {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 900;
+  font-size: clamp(40px, 6.6vw, 110px);
+  line-height: 0.88;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+}
+
+/* Page titles on the inner routes: the section voice, one size smaller, so a
+   route that is mostly reading doesn't open at homepage scale. */
+.h-page {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-size: clamp(34px, 4.6vw, 62px);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+}
+
+.h-sub {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: clamp(20px, 2.2vw, 26px);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
 }
 
 .data {
@@ -110,223 +216,148 @@ body {
   letter-spacing: 0;
 }
 
+/* Numbered section opener — `01 / PICK A NAME`. */
 .eyebrow {
   font-family: var(--font-data), monospace;
-  font-size: 11px;
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+/* Smaller cousin, for labelling a cell rather than a section. */
+.label {
+  font-family: var(--font-data), monospace;
+  font-size: 10.5px;
+  font-weight: 400;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: var(--label);
+  line-height: 1.5;
 }
 
-/* ── hero headline ──
-   Two fonts in one sentence: a tight Space Grotesk statement filled with a
-   silver-chrome gradient, and an IBM Plex Serif italic accent in hood green.
-   The serif shares a superfamily with the site's mono, so it reads in-brand. */
-.statement {
-  font-family: var(--font-statement-display), sans-serif;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+/* A number that is the point of its cell. */
+.stat {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-size: 30px;
   line-height: 1;
-  background: linear-gradient(
-    150deg,
-    #ffffff 0%,
-    #e9f2ea 32%,
-    #9aa3a0 62%,
-    #d7dedb 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-}
-/* Second statement line, lit from behind in hood green.
-   Carries its own gradient + clip rather than inheriting the parent's: `filter`
-   creates a stacking context, and a child relying on the parent's background-clip
-   would render as transparent text with nothing painted into it. */
-.statement .bloom {
-  display: block;
-  background: linear-gradient(
-    150deg,
-    #ffffff 0%,
-    #e9f2ea 32%,
-    #9aa3a0 62%,
-    #d7dedb 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--green) 50%, transparent))
-    drop-shadow(0 0 44px color-mix(in srgb, var(--green) 28%, transparent));
+  letter-spacing: -0.03em;
 }
 
-/* Opt back out of the gradient clip — the accent is solid green. */
-.statement .accent {
-  font-family: var(--font-accent), Georgia, serif;
-  font-style: italic;
-  font-weight: 400;
-  font-size: 1.12em;
-  letter-spacing: 0.005em;
-  line-height: 0.95;
-  color: var(--green);
-  -webkit-text-fill-color: var(--green);
+.lede {
+  font-size: 16.5px;
+  line-height: 1.6;
+  color: var(--dim);
+  text-wrap: pretty;
 }
 
-/* ── hero 3D stage ── */
-.stage {
-  position: relative;
-  width: 100%;
-  height: min(78vh, 720px);
-  min-height: 440px;
-}
-/* Blurred green pool behind the card — the canvas is transparent, so this
-   reads as the card's own bloom. */
-.stage::before {
-  content: "";
-  position: absolute;
-  inset: 8% 4%;
-  background: radial-gradient(
-    closest-side,
-    rgba(0, 200, 5, 0.16),
-    transparent 72%
-  );
-  filter: blur(10px);
-  pointer-events: none;
-}
-.stage canvas {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-/* Matches Tailwind's lg breakpoint, where the hero grid collapses to one
-   column — below it the card sits under the copy and wants to be shorter. */
-@media (max-width: 1023px) {
-  .stage {
-    height: 60vh;
-    min-height: 380px;
-  }
+/* ── links ── */
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
-/* ── hero glow ── */
-/* Full-bleed: the section lives inside the centered container, so a plain
-   background clips at the container edge on wide screens. The ::before spans
-   the whole viewport (100vw re-centered) and reaches up behind the header. */
-.hero-glow {
-  position: relative;
+.link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--line-card);
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
-.hero-glow::before {
-  content: "";
-  position: absolute;
-  top: -4rem; /* behind the 64px sticky header */
-  bottom: 0;
-  left: 50%;
-  width: 100vw;
-  transform: translateX(-50%);
-  background: radial-gradient(
-    1100px 480px at 8% -5%,
-    rgba(0, 200, 5, 0.09),
-    transparent 70%
-  );
-  pointer-events: none;
-  z-index: -1;
+.link:hover {
+  color: var(--accent);
+  text-decoration-color: currentColor;
 }
 
 /* ── surfaces ── */
+/* Every bordered group in this design is flex-wrap with grown children, never
+   auto-fit columns: with a fixed item count auto-fit resolves to a column count
+   that doesn't divide evenly at intermediate widths, leaving the bordered
+   rectangle open on its last row. Flex children grow to fill their row, so the
+   rectangle always closes. */
+.cells {
+  display: flex;
+  flex-wrap: wrap;
+}
+.cells > * {
+  min-width: 0;
+}
+
+/* Two-column section body: two items, so no ragged-row problem to solve. */
+.duo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 56px;
+}
+
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--line-card);
+  background: var(--paper-alt);
+}
+
+.panel-ink {
+  background: var(--ink);
+}
+
+/* The only two shadows in the design: hard offsets, no blur. */
+.shadow-hero {
+  box-shadow: 16px 16px 0 rgba(11, 14, 8, 0.18);
+}
+.shadow-card {
+  box-shadow: 14px 14px 0 rgba(11, 14, 8, 0.1);
 }
 
 .hairline-t {
   border-top: 1px solid var(--line);
 }
 
-/* ── Robinhood Wallet band ──────────────────────────────────────────────────
-   Full-bleed, deliberately unframed: the render carries its own light, so a
-   panel border would read as a picture hung on the page instead of the page
-   opening onto it. The art's alpha is keyed off its own luminance, so the
-   black it was rendered on is genuinely absent — the glow lands straight on
-   the page ink and there is no rectangle to hide at any viewport width. */
-.wallet-band {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  background: radial-gradient(
-      900px 560px at 78% 60%,
-      rgba(0, 200, 5, 0.07),
-      transparent 70%
-    ),
-    var(--ink);
-}
-
-.wallet-band .eyebrow {
-  color: var(--green);
-}
-
-.wallet-art {
-  background: url("/robinhood/robinhood-wallet-render.webp") no-repeat;
-  pointer-events: none;
-}
-
-/* Wide: pinned to the right edge and sized off the band's height, so the phone
-   fills the band and the light runs off the page rather than stopping in it. */
-.wallet-art-wide {
-  position: absolute;
-  top: 2rem; /* the render fills its own frame — buy the phone some headroom */
-  right: 0;
-  bottom: 0;
-  width: min(52%, 860px);
-  background-size: auto 100%;
-  background-position: right center;
-}
-
-/* Narrow: the art stacks under the copy. */
-.wallet-art-stacked {
-  height: clamp(260px, 76vw, 420px);
-  background-size: contain;
-  background-position: center bottom;
-}
-
-/* Store badges are Apple's and Google's official art — never restyled. The
-   ring is a separate frame held off the badge by its own clear space. */
-.store-badge {
-  display: block;
-  padding: 7px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  background: rgba(10, 15, 12, 0.72);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.store-badge:hover {
-  border-color: rgba(0, 200, 5, 0.55);
-  box-shadow: 0 0 24px rgba(0, 200, 5, 0.16);
-}
-
+/* Key/value rows down a hairline-divided list. */
 .ledger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: baseline;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Compact variant for inside a panel, where the key is short and the value is
+   a figure rather than a sentence. */
+.ledger-line {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft);
 }
-.ledger-row:last-child {
+.ledger-line:last-child {
   border-bottom: none;
 }
 
 /* ── controls ── */
 /* Kill native button chrome — macOS paints white ButtonFace over transparent
-   backgrounds when appearance isn't reset, so <button> and <a> diverge. */
-button {
-  appearance: none;
-  -webkit-appearance: none;
-  background: none;
-  border: none;
-  font: inherit;
-  color: inherit;
+   backgrounds when appearance isn't reset, so <button> and <a> diverge.
+ *
+ * `@layer base` is load-bearing, not tidiness. Tailwind's utilities live in
+ * `@layer utilities`, and an UNLAYERED rule beats every layered one whatever the
+ * specificity — so this reset written at the top level silently defeated
+ * `bg-…`/`border-…` on every <button> in the app: the pay-method toggle lost its
+ * border and its selected lime fill, the name picker lost its selected state, and
+ * each read as a styling mistake rather than as a dead rule. Inside `base` it
+ * ranks below utilities, which is where a reset belongs. */
+@layer base {
+  button {
+    appearance: none;
+    -webkit-appearance: none;
+    background: none;
+    border: none;
+    border-radius: 0;
+    font: inherit;
+    color: inherit;
+  }
 }
 
 .btn {
@@ -334,263 +365,227 @@ button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-family: var(--font-data), monospace;
+  height: 46px;
+  padding: 0 22px;
+  border-radius: 0;
+  font-family: var(--font-display), sans-serif;
   font-size: 14px;
   font-weight: 600;
-  border-radius: 4px;
-  padding: 12px 20px;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  white-space: nowrap;
 }
 .btn:focus-visible {
-  outline: 2px solid var(--green);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
+.on-ink .btn:focus-visible {
+  outline-color: var(--lime);
+}
+/* A disabled control goes inert, it does not go faint. Fading a lime button to 45%
+   over ink lands on a muddy olive that reads as a rendering fault rather than as a
+   button waiting for input — and the empty state of the mint card is the first thing
+   anyone sees. */
 .btn:disabled {
-  opacity: 0.45;
   cursor: not-allowed;
 }
-
-.btn-primary {
-  background: var(--green);
-  color: #04270a;
+.btn-lime:disabled {
+  background: rgba(241, 241, 234, 0.12);
+  color: rgba(241, 241, 234, 0.55);
 }
-.btn-primary:hover:not(:disabled) {
-  background: #2fe25a;
+.btn-ink:disabled {
+  background: rgba(11, 14, 8, 0.28);
+}
+.btn-ghost:disabled {
+  color: var(--faint);
+  border-color: var(--line);
+}
+
+/* Primary on paper: ink fill. */
+.btn-ink {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn-ink:hover:not(:disabled) {
+  background: var(--ink-hover);
+}
+
+/* Primary on ink: lime fill. Always ink text — lime is a ground, never a label. */
+.btn-lime {
+  background: var(--lime);
+  color: var(--ink);
+  font-weight: 700;
+}
+.btn-lime:hover:not(:disabled) {
+  background: var(--lime-hover);
 }
 
 .btn-ghost {
-  background: transparent;
-  color: var(--paper);
-  border: 1px solid var(--line-strong);
+  border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
+  color: var(--fg);
 }
 .btn-ghost:hover:not(:disabled) {
-  border-color: var(--paper);
+  border-color: var(--fg);
+  background: var(--hover-fill);
+}
+/* On ink the ghost lights up lime rather than filling — a fill this size would
+   read as a second primary. */
+.on-ink .btn-ghost:hover:not(:disabled) {
+  border-color: var(--lime);
+  color: var(--lime);
+  background: transparent;
 }
 
-/* Header nav: outlined pills so the whole bar reads as one control cluster
-   rather than loose text. Border sits at 40% green — full strength on five
-   items side by side turns the header into a christmas tree. */
-/* Deliberately sets no `display`: a bare `.nav-pill { display: inline-flex }` beats
-   Tailwind's `hidden` (both are one class), so items meant to hide on mobile stayed
-   visible and overflowed the bar. Display comes from utilities in the markup. */
-.nav-pill {
-  border: 1px solid color-mix(in srgb, var(--green) 40%, transparent);
-  border-radius: 4px;
-  padding: 8px 14px;
-  font-size: 14px;
-  color: var(--dim);
-  cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-  white-space: nowrap;
+.btn-sm {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
 }
-.nav-pill:hover {
-  border-color: var(--green);
-  background: var(--green-soft);
-  color: var(--paper);
+.btn-lg {
+  height: 52px;
+  padding: 0 26px;
+  font-size: 15px;
 }
 
 .input {
   width: 100%;
-  background: var(--ink);
-  border: 1px solid var(--line-strong);
-  border-radius: 4px;
-  color: var(--paper);
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line-card);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
   font-family: var(--font-data), monospace;
   font-size: 16px; /* ≥16px kills iOS focus-zoom */
-  padding: 11px 14px;
   transition: border-color 0.15s ease;
 }
 .input:focus {
   outline: none;
-  border-color: var(--green);
+  border-color: var(--fg);
 }
 .input::placeholder {
   color: var(--faint);
 }
+.on-ink .input:focus {
+  border-color: var(--lime);
+}
 
 /* ── status colors ── */
 .ok {
-  color: var(--green);
+  color: var(--ok);
 }
 .warn {
-  color: var(--amber);
+  color: var(--warn);
 }
 .bad {
-  color: var(--red);
+  color: var(--bad);
 }
 
-/* ── live dot ── */
-.live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--green);
-  animation: pulse 2.2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
+/* The 8×8 square that marks a live or guaranteed thing. Squares, not dots —
+   the only circle in this design is the tier-select control. */
+.chip-square {
+  display: block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: var(--lime);
 }
 
-/* ── the century ruler ── */
-.ruler-track {
-  position: relative;
-  height: 64px;
-  border-top: 1px solid var(--line-strong);
-}
-.ruler-tick {
-  position: absolute;
-  top: 0;
-  width: 1px;
-  height: 14px;
-  background: var(--line-strong);
-}
-.ruler-tick.minor {
-  height: 7px;
-  background: var(--line);
-}
-.ruler-tick-label {
-  position: absolute;
-  top: 20px;
-  transform: translateX(-50%);
-  font-family: var(--font-data), monospace;
-  font-size: 11px;
-  color: var(--faint);
-  white-space: nowrap;
-}
-@media (max-width: 640px) {
-  .ruler-tick-label.mobile-hide {
-    display: none;
-  }
-}
-.ruler-progress {
-  position: absolute;
-  top: -1px;
-  left: 0;
-  height: 3px;
-  background: linear-gradient(90deg, rgba(0, 200, 5, 0.35), var(--green));
-  transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.ruler-marker {
-  position: absolute;
-  top: -6px;
-  transform: translateX(-50%);
-  transition: left 1.2s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.ruler-marker-line {
-  width: 2px;
-  height: 26px;
-  background: var(--green);
-  margin: 0 auto;
-  box-shadow: 0 0 12px rgba(0, 200, 5, 0.65);
-}
-
-/* ── reveal on scroll (no framer-motion; IntersectionObserver adds .in) ── */
-.reveal {
-  opacity: 0;
-  transform: translateY(14px);
-  transition: opacity 0.55s ease, transform 0.55s ease;
-}
-.reveal.in {
-  opacity: 1;
-  transform: none;
-}
-/* Current route. Sets colours only — `.nav-pill` deliberately owns no `display`,
-   and neither does this, so Tailwind's `hidden` still wins on mobile. */
-.nav-pill-active {
-  background: color-mix(in srgb, var(--green) 92%, transparent);
-  border-color: var(--green);
-  color: #04270a;
-  font-weight: 600;
-}
-.nav-pill-active:hover {
-  background: var(--green);
-  color: #04270a;
-}
-
-/* ── name lookup ──
-   The card is one object: a gradient hairline frame, a faint plotting grid, and a
-   slow sheen. Everything here is decoration over a real record read, so all of it
-   is switched off under reduced motion. */
-
-/* 1px gradient border. A real border can't carry a gradient, so the frame is a
-   padded element whose background shows through around its child. */
-.card-frame {
-  padding: 1px;
-  border-radius: 16px;
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, var(--green) 75%, transparent),
-    rgba(148, 210, 165, 0.14) 40%,
-    color-mix(in srgb, var(--green) 35%, transparent)
-  );
-  box-shadow: 0 40px 90px -40px color-mix(in srgb, var(--green) 55%, transparent);
-}
-.card-surface {
-  border-radius: 15px;
-  background: linear-gradient(165deg, var(--panel-2), var(--ink) 60%);
+/* ── ticker ── */
+.ticker {
   overflow: hidden;
-  position: relative;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
 }
-/* Plotting grid, faded so it reads as texture rather than lines. */
-.card-grid {
-  background-image:
-    linear-gradient(rgba(148, 210, 165, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 210, 165, 0.05) 1px, transparent 1px);
-  background-size: 26px 26px;
-  opacity: 0.55;
+.ticker-row {
+  display: flex;
+  width: max-content;
+  animation: ticker 42s linear infinite;
 }
-.card-sheen {
-  width: 220%;
-  height: 220%;
-  background: linear-gradient(
-    115deg,
-    transparent 38%,
-    color-mix(in srgb, var(--green) 16%, transparent) 48%,
-    rgba(233, 242, 234, 0.1) 52%,
-    transparent 62%
-  );
-  animation: hf-sheen 7s linear infinite;
-}
-@keyframes hf-sheen {
+/* The list is rendered twice, so -50% lands exactly on the second copy's start
+   and the loop has no seam. */
+@keyframes ticker {
   from {
-    transform: translate(-60%, -60%) rotate(18deg);
+    transform: translateX(0);
   }
   to {
-    transform: translate(60%, 60%) rotate(18deg);
+    transform: translateX(-50%);
   }
 }
 
-/* Avatar ring — a conic gradient behind a disc, so the ring is the padding. */
-.avatar-ring {
-  padding: 2px;
-  border-radius: 999px;
-  background: conic-gradient(
-    from 210deg,
-    var(--green),
-    color-mix(in srgb, var(--green) 15%, transparent),
-    var(--green)
-  );
+/* ── century ruler ── */
+.ruler-box {
+  position: relative;
+  height: 26px;
+  border: 1px solid var(--line-card);
+}
+.ruler-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--lime);
+  transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ruler-decade {
+  font-family: var(--font-data), monospace;
+  font-size: 9.5px;
+  color: var(--faint);
+  border-left: 1px solid var(--line-card);
+  padding-left: 5px;
+  line-height: 1.4;
 }
 
-/* Indeterminate sweep for the in-flight lookup. */
+/* ── grids of marks ── */
+/* Border-top + border-left on the container, right + bottom on each cell: the
+   only combination that leaves no doubled hairline at any wrap point. */
+.mark-grid {
+  display: flex;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+/* Basis 300px, not the 210px a cell actually needs: eight cells at 210px fit six to
+   a 1360px row and leave the last two stretched to double width. At 300px the row
+   count steps 4 → 2 → 1 as the page narrows, so both groups always wrap into even
+   rows — which is the point of there being eight of them. */
+.mark-cell {
+  flex: 1 1 300px;
+  min-width: 0;
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transition: background 0.15s ease;
+}
+.mark-cell:hover {
+  background: var(--paper-alt);
+}
+.mark-tile {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border: 1px solid var(--line-soft);
+  background-color: var(--mark-tile);
+  background-size: cover;
+  background-position: center;
+}
+
+/* ── in-flight read ──
+   An indeterminate sweep, because a name lookup has no measurable progress: it is one
+   round trip to the registry and it either lands or it doesn't. */
 .hf-track {
   height: 2px;
-  background: color-mix(in srgb, var(--green) 12%, transparent);
   overflow: hidden;
+  background: var(--line);
 }
 .hf-track > span {
   display: block;
   height: 100%;
   width: 30%;
-  background: linear-gradient(90deg, transparent, var(--green), transparent);
+  background: var(--lime);
   animation: hf-bar 1s linear infinite;
 }
 @keyframes hf-bar {
@@ -602,40 +597,15 @@ button {
   }
 }
 
-.hf-rise {
-  animation: hf-rise 0.45s ease both;
-}
-@keyframes hf-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .reveal {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-  .live-dot {
-    animation: none;
-  }
-  .card-sheen,
   .hf-track > span {
     animation: none;
+    width: 100%;
   }
-  .hf-rise {
+  .ticker-row {
     animation: none;
-    opacity: 1;
-    transform: none;
   }
-  .ruler-progress,
-  .ruler-marker {
+  .ruler-fill {
     transition: none;
   }
   html {

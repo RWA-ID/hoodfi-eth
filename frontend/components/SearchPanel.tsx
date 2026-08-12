@@ -189,14 +189,13 @@ function RecordsLedger({ records }: { records: Records }) {
   ].filter((r) => r.value !== "");
 
   return (
-    <div className="w-full rounded-xl border border-[var(--line)] bg-[color-mix(in_srgb,var(--panel)_85%,transparent)]">
+    <div className="w-full border border-[var(--line-card)]">
       <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3.5 sm:px-5">
-        <span className="data text-[11px] uppercase tracking-[0.2em] text-[var(--dim)]">
-          Onchain records
-        </span>
+        <span className="label">Onchain records</span>
         <button
           type="button"
-          className="data rounded border border-[color-mix(in_srgb,var(--green)_35%,transparent)] px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] text-[color-mix(in_srgb,var(--green)_90%,transparent)] transition hover:bg-[color-mix(in_srgb,var(--green)_12%,transparent)]"
+          className="data border border-[var(--line-card)] px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] transition-colors hover:bg-[var(--paper-alt)]"
+          style={{ color: copied === "all" ? "var(--olive)" : "var(--dim)" }}
           onClick={() =>
             copy("all", rows.map((r) => `${r.label.toUpperCase()}: ${r.value}`).join("\n"))
           }
@@ -208,34 +207,28 @@ function RecordsLedger({ records }: { records: Records }) {
       {rows.map((row) => (
         <div
           key={row.key}
-          className="flex flex-col gap-2 border-b border-[color-mix(in_srgb,var(--line)_70%,transparent)] px-4 py-4 sm:grid sm:grid-cols-[170px_minmax(0,1fr)_64px] sm:items-start sm:gap-3 sm:px-5"
+          className="flex flex-col gap-2 border-b border-[var(--line-soft)] px-4 py-4 sm:grid sm:grid-cols-[170px_minmax(0,1fr)_64px] sm:items-start sm:gap-3 sm:px-5"
         >
           <div className="flex items-center gap-2">
             {row.mark && (
-              // eslint-disable-next-line @next/next/no-img-element -- static export
-              <img
-                src={`/marks/${row.mark}.png`}
-                alt=""
-                className="h-[22px] w-[22px] shrink-0 rounded-md object-contain"
+              <span
+                className="mark-tile h-[26px] w-[26px]"
+                style={{ backgroundImage: `url('/marks/${row.mark}.png')` }}
+                aria-hidden
               />
             )}
-            <span className="data text-[10.5px] uppercase leading-[1.35] tracking-[0.16em] text-[var(--dim)]">
+            <span className="label" style={{ letterSpacing: "0.16em" }}>
               {row.label}
             </span>
           </div>
 
           <div
             className={`min-w-0 break-all text-sm leading-relaxed ${
-              row.prose ? "text-[color-mix(in_srgb,var(--paper)_85%,transparent)]" : "data"
+              row.prose ? "text-[var(--fg)]" : "data"
             }`}
           >
             {row.href ? (
-              <a
-                className="border-b border-[color-mix(in_srgb,var(--green)_35%,transparent)] text-[var(--green)]"
-                href={row.href}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
+              <a className="link" href={row.href} target="_blank" rel="noreferrer noopener">
                 {row.value}
               </a>
             ) : (
@@ -245,7 +238,7 @@ function RecordsLedger({ records }: { records: Records }) {
 
           <button
             type="button"
-            className="data w-fit justify-self-start rounded border border-[var(--line-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-[var(--faint)] transition hover:border-[color-mix(in_srgb,var(--green)_50%,transparent)] hover:text-[var(--green)] sm:justify-self-end"
+            className="data w-fit justify-self-start border border-[var(--line)] px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-[var(--faint)] transition-colors hover:bg-[var(--paper-alt)] hover:text-[var(--fg)] sm:justify-self-end"
             onClick={() => copy(row.key, row.value)}
           >
             {copied === row.key ? "Copied" : "Copy"}
@@ -255,14 +248,14 @@ function RecordsLedger({ records }: { records: Records }) {
 
       <div className="flex flex-wrap gap-2.5 px-4 py-4 sm:px-5">
         <a
-          className="btn btn-ghost"
+          className="btn btn-ghost btn-sm"
           href={`${robinhoodChain.blockExplorers.default.url}/token/${L2_REGISTRY_ADDRESS}/instance/${records.tokenId}`}
           target="_blank"
           rel="noreferrer noopener"
         >
-          View NFT
+          View NFT ↗
         </a>
-        <Link className="btn btn-ghost" href="/mint/">
+        <Link className="btn btn-ghost btn-sm" href="/mint/">
           Mint your own
         </Link>
       </div>
@@ -276,15 +269,13 @@ function UnregisteredState({ label, status }: { label: string; status: number })
   const locked = status === MINT_STATUS.LOCKED;
 
   return (
-    <div className="hf-rise mx-auto w-full max-w-[760px] rounded-[10px] border border-dashed border-[color-mix(in_srgb,var(--green)_40%,transparent)] bg-[color-mix(in_srgb,var(--green)_5%,transparent)] px-7 py-10 text-center">
-      <div className="data text-[11px] uppercase tracking-[0.2em] text-[color-mix(in_srgb,var(--green)_80%,transparent)]">
-        {blocked ? "Reserved" : locked ? "Premium" : "Unregistered"}
-      </div>
-      <div className="data mt-3 break-all text-[clamp(22px,3.6vw,32px)] font-semibold">
+    <div className="w-full max-w-[760px] border border-[var(--line-card)] bg-[var(--paper-alt)] px-7 py-10 text-center">
+      <div className="label">{blocked ? "Reserved" : locked ? "Premium" : "Unregistered"}</div>
+      <div className="mt-3 break-all text-[clamp(26px,4.6vw,44px)] font-extrabold leading-[1.02] tracking-[-0.035em]">
         {label}
         <span className="text-[var(--faint)]">.hoodfi.eth</span>
       </div>
-      <p className="mx-auto mt-3 max-w-[40ch] text-[15px] text-[var(--dim)]">
+      <p className="mx-auto mt-4 max-w-[44ch] text-[15px] leading-relaxed text-[var(--dim)]">
         {blocked
           ? "This label is reserved as infrastructure and can't be minted by anyone."
           : locked
@@ -293,10 +284,10 @@ function UnregisteredState({ label, status }: { label: string; status: number })
       </p>
       {!blocked && (
         <Link
-          href={locked ? "/#extend" : `/mint/?q=${encodeURIComponent(label)}`}
-          className="btn btn-primary mt-6"
+          href={locked ? "/short-names/" : `/mint/?q=${encodeURIComponent(label)}`}
+          className="btn btn-ink mt-7"
         >
-          {locked ? "Earn a credit" : "Mint this name"}
+          {locked ? "Earn a credit ↗" : "Mint this name ↗"}
         </Link>
       )}
     </div>
@@ -309,18 +300,26 @@ const STRIP_WALLETS = ["metamask", "rainbow", "phantom", "trust", "uniswap"];
 function ChainWalletStrip() {
   return (
     <div className="mt-16 flex flex-col gap-6 border-t border-[var(--line)] pt-7 sm:flex-row sm:items-center sm:justify-between">
-      <p className="data max-w-[26ch] text-[11px] uppercase leading-[1.7] tracking-[0.2em] text-[var(--faint)]">
+      <p className="label max-w-[26ch]" style={{ letterSpacing: "0.2em", lineHeight: 1.7 }}>
         One name. Every wallet, every chain.
       </p>
-      <div className="flex flex-wrap items-center gap-3.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         {STRIP_CHAINS.map((m) => (
-          // eslint-disable-next-line @next/next/no-img-element -- static export
-          <img key={m} src={`/marks/${m}.png`} alt={m} title={m} className="h-[38px] w-[38px] rounded-[10px] object-contain opacity-85 transition hover:opacity-100" />
+          <span
+            key={m}
+            title={m}
+            className="mark-tile h-[38px] w-[38px]"
+            style={{ backgroundImage: `url('/marks/${m}.png')` }}
+          />
         ))}
-        <span className="h-[26px] w-px bg-[var(--line-strong)]" />
+        <span className="h-[26px] w-px bg-[var(--line-card)]" />
         {STRIP_WALLETS.map((m) => (
-          // eslint-disable-next-line @next/next/no-img-element -- static export
-          <img key={m} src={`/marks/${m}.png`} alt={m} title={m} className="h-[38px] w-[38px] rounded-[10px] object-contain opacity-85 transition hover:opacity-100" />
+          <span
+            key={m}
+            title={m}
+            className="mark-tile h-[38px] w-[38px]"
+            style={{ backgroundImage: `url('/marks/${m}.png')` }}
+          />
         ))}
       </div>
     </div>
@@ -406,15 +405,13 @@ export function SearchPanel() {
 
   return (
     <div className="flex flex-col">
-      {/* Search console */}
-      <div className="mx-auto w-full max-w-[760px] overflow-hidden rounded-[10px] border border-[color-mix(in_srgb,var(--line-strong)_80%,transparent)] bg-gradient-to-b from-[var(--panel-2)] to-[var(--panel)] shadow-[0_28px_70px_-30px_color-mix(in_srgb,var(--green)_35%,transparent)]">
-        <div className="flex items-center justify-between border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--ink)_60%,transparent)] px-3.5 py-2.5">
-          <span className="data text-[11px] uppercase tracking-[0.14em] text-[var(--faint)]">
-            resolver · l2registry
-          </span>
-          <span className="data flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-[color-mix(in_srgb,var(--green)_85%,transparent)]">
-            <span className="live-dot" />
-            connected
+      {/* The search console: the one ink object on this page, so the field you type
+          into is the thing the page is obviously *for*. */}
+      <div className="on-ink shadow-hero w-full max-w-[760px]">
+        <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
+          <span className="label">resolver · l2registry</span>
+          <span className="data text-[11px] uppercase tracking-[0.18em]" style={{ color: "var(--lime)" }}>
+            ● connected
           </span>
         </div>
 
@@ -423,13 +420,10 @@ export function SearchPanel() {
             e.preventDefault();
             void lookup(query, { scroll: true });
           }}
-          className="flex items-center gap-2.5 px-4 py-3.5"
+          className="flex items-center gap-2.5 px-4 py-4"
         >
-          <span className="data shrink-0 text-xl text-[color-mix(in_srgb,var(--green)_85%,transparent)]">
-            &gt;
-          </span>
           <input
-            className="data min-w-0 flex-1 border-0 bg-transparent py-1.5 text-[clamp(20px,3.2vw,30px)] font-medium tracking-[-0.01em] text-[var(--paper)] outline-none placeholder:text-[var(--faint)]"
+            className="min-w-0 flex-1 border-0 bg-transparent py-1 text-[clamp(20px,3.2vw,28px)] font-bold tracking-[-0.02em] text-[var(--fg)] outline-none placeholder:text-[var(--faint)]"
             placeholder="a friend, or yourself"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -438,11 +432,11 @@ export function SearchPanel() {
             autoComplete="off"
             aria-label="HoodFi name to look up"
           />
-          <span className="data hidden shrink-0 text-[clamp(15px,2.2vw,22px)] text-[color-mix(in_srgb,var(--paper)_30%,transparent)] sm:block">
+          <span className="data hidden shrink-0 text-[15px] text-[var(--faint)] sm:block">
             .hoodfi.eth
           </span>
           <button
-            className="btn btn-primary shrink-0"
+            className="btn btn-lime shrink-0"
             type="submit"
             disabled={state === "loading" || query.trim() === ""}
           >
@@ -451,15 +445,13 @@ export function SearchPanel() {
         </form>
       </div>
 
-      <div className="mx-auto mt-3.5 flex w-full max-w-[760px] flex-wrap items-center gap-2">
-        <span className="data text-[11px] uppercase tracking-[0.18em] text-[var(--faint)]">
-          Try
-        </span>
+      <div className="mt-3.5 flex w-full max-w-[760px] flex-wrap items-center gap-2">
+        <span className="label">Try</span>
         {TRY.map((t) => (
           <button
             key={t}
             type="button"
-            className="data rounded-full border border-[var(--line)] bg-[color-mix(in_srgb,var(--panel-2)_80%,transparent)] px-3 py-1.5 text-xs text-[var(--dim)] transition hover:border-[color-mix(in_srgb,var(--green)_55%,transparent)] hover:bg-[color-mix(in_srgb,var(--green)_10%,transparent)] hover:text-[var(--paper)]"
+            className="data border border-[var(--line)] px-3 py-1.5 text-xs text-[var(--dim)] transition-colors hover:bg-[var(--paper-alt)] hover:text-[var(--fg)]"
             onClick={() => {
               setQuery(t);
               void lookup(t, { scroll: true });
@@ -471,14 +463,17 @@ export function SearchPanel() {
       </div>
 
       {error && (
-        <div className="data mx-auto mt-3 w-full max-w-[760px] text-xs text-[var(--red)]">
+        <div
+          className="data mt-3 w-full max-w-[760px] text-xs"
+          style={{ color: "var(--bad)" }}
+        >
           {error}
         </div>
       )}
 
       <div ref={resultRef} className="scroll-mt-[88px]">
         {state === "loading" && (
-          <div className="mx-auto mt-8 w-full max-w-[760px] overflow-hidden rounded-[10px] border border-[var(--line)] bg-[color-mix(in_srgb,var(--panel)_80%,transparent)]">
+          <div className="mt-8 w-full max-w-[760px] border border-[var(--line-card)]">
             <div className="hf-track">
               <span />
             </div>
@@ -490,7 +485,8 @@ export function SearchPanel() {
               ].map((line, i) => (
                 <div
                   key={line}
-                  className={`data text-[12.5px] ${i === 2 ? "text-[color-mix(in_srgb,var(--green)_80%,transparent)]" : "text-[var(--dim)]"}`}
+                  className="data text-[12.5px]"
+                  style={{ color: i === 2 ? "var(--olive)" : "var(--dim)" }}
                 >
                   {line}
                 </div>
@@ -506,7 +502,7 @@ export function SearchPanel() {
         )}
 
         {records && (
-          <div className="hf-rise mx-auto mt-8 grid w-full max-w-[1100px] items-start justify-items-center gap-6 lg:grid-cols-[minmax(330px,480px)_minmax(330px,1fr)]">
+          <div className="mt-8 grid w-full items-start gap-6 lg:grid-cols-[minmax(330px,480px)_minmax(330px,1fr)]">
             <ProfileCard
               name={toCardName(records)}
               l1={l1}

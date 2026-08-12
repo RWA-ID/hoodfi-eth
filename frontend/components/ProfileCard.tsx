@@ -63,39 +63,24 @@ export function L1Badge({ state }: { state: L1State }) {
   if (state.status === "idle") return null;
 
   const view = {
-    checking: {
-      text: "Checking resolution…",
-      cls: "border-[var(--line)] text-[var(--faint)]",
-      dot: "bg-[var(--faint)]",
-    },
-    ok: {
-      text: "Resolving across EVM chains",
-      cls: "border-[color-mix(in_srgb,var(--green)_35%,transparent)] bg-[color-mix(in_srgb,var(--green)_8%,transparent)] text-[var(--green)]",
-      dot: "bg-[var(--green)]",
-    },
-    mismatch: {
-      text: "Mainnet returns a different address",
-      cls: "border-[color-mix(in_srgb,var(--amber)_45%,transparent)] bg-[color-mix(in_srgb,var(--amber)_8%,transparent)] text-[var(--amber)]",
-      dot: "bg-[var(--amber)]",
-    },
-    empty: {
-      text: "Not resolving — wallets can't see this",
-      cls: "border-[color-mix(in_srgb,var(--red)_45%,transparent)] bg-[color-mix(in_srgb,var(--red)_8%,transparent)] text-[var(--red)]",
-      dot: "bg-[var(--red)]",
-    },
-    error: {
-      text: "Couldn't check resolution",
-      cls: "border-[var(--line)] text-[var(--faint)]",
-      dot: "bg-[var(--faint)]",
-    },
+    checking: { text: "Checking resolution…", color: "var(--faint)" },
+    ok: { text: "Resolving across EVM chains", color: "var(--lime)" },
+    mismatch: { text: "Mainnet returns a different address", color: "var(--status-warn)" },
+    empty: { text: "Not resolving — wallets can't see this", color: "var(--status-bad)" },
+    error: { text: "Couldn't check resolution", color: "var(--faint)" },
   }[state.status];
 
   return (
     <div className="flex flex-col items-center gap-2">
       <span
-        className={`data inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.1em] ${view.cls}`}
+        className="data inline-flex items-center gap-2 text-[10.5px] uppercase tracking-[0.14em]"
+        style={{ color: view.color }}
       >
-        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${view.dot}`} />
+        <span
+          className="h-2 w-2 shrink-0"
+          style={{ background: view.color }}
+          aria-hidden
+        />
         {view.text}
       </span>
       {state.status === "empty" && (
@@ -159,101 +144,90 @@ export function ProfileCard({
 
   return (
     <div className="flex w-full max-w-[480px] flex-col gap-3">
-      <div className="card-frame">
-        <div className="card-surface">
-          <div className="card-grid pointer-events-none absolute inset-0" />
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="card-sheen absolute -left-1/2 -top-1/2" />
+      {/* The one object on the site meant to leave it: an ink card with a lime
+          footer carrying the address it was shared from. */}
+      <div className="on-ink shadow-card">
+        <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static export */}
+            <img src="/hoodfi-h.png" alt="" className="h-[18px] w-[18px] object-contain" />
+            <span className="data text-[10px] uppercase tracking-[0.22em] text-[var(--faint)]">
+              HoodFi Names
+            </span>
           </div>
+          <span
+            className="data border px-2.5 py-1 text-[9.5px] uppercase tracking-[0.2em]"
+            style={{ borderColor: "var(--lime)", color: "var(--lime)" }}
+          >
+            {eyebrow ?? "Lifetime"}
+          </span>
+        </div>
 
-          <div className="relative">
-            <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
-              <div className="flex items-center gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element -- static export */}
-                <img
-                  src="/hoodfi-h.png"
-                  alt=""
-                  className="h-[18px] w-[18px] object-contain"
-                />
-                <span className="data text-[10px] uppercase tracking-[0.22em] text-[var(--faint)]">
-                  HoodFi Names
-                </span>
-              </div>
-              <span className="data rounded-full border border-[color-mix(in_srgb,var(--green)_45%,transparent)] bg-[color-mix(in_srgb,var(--green)_9%,transparent)] px-2.5 py-1 text-[9.5px] uppercase tracking-[0.2em] text-[var(--green)]">
-                {eyebrow ?? "Lifetime"}
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center gap-3.5 px-6 pb-6 pt-8 text-center">
-              <div className="avatar-ring">
-                <NameAvatar
-                  label={name.label}
-                  avatar={name.avatar}
-                  className="h-[104px] w-[104px] !border-0"
-                  textClassName="text-2xl"
-                />
-              </div>
-              {/* The sizing container. It has to be its own element: `cqi` resolves
-                  against the nearest container ancestor, so the element being sized
-                  can't be the one that establishes it. */}
-              <div className="w-full [container-type:inline-size]">
-                <div
-                  className="data font-semibold leading-[1.08] tracking-[-0.02em]"
-                  style={{ fontSize: nameLineSize(name.label) }}
-                >
-                  {name.label}
-                  <wbr />
-                  <span className="text-[color-mix(in_srgb,var(--paper)_32%,transparent)]">
-                    {SUFFIX}
-                  </span>
-                </div>
-              </div>
-              <L1Badge state={l1} />
-              {name.description && (
-                <p className="max-w-[34ch] text-[13.5px] leading-relaxed text-[var(--dim)]">
-                  {name.description}
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-3 border-t border-[var(--line)]">
-              {[
-                { label: "Token", value: token, green: false },
-                { label: "Minted", value: mintedOn ?? "—", green: false },
-                { label: "Expires", value: "Never", green: true },
-              ].map((s, i) => (
-                <div
-                  key={s.label}
-                  className={`px-4 py-3.5 ${i > 0 ? "border-l border-[var(--line)]" : ""}`}
-                >
-                  <div className="data text-[9.5px] uppercase tracking-[0.18em] text-[var(--faint)]">
-                    {s.label}
-                  </div>
-                  <div
-                    className={`data mt-1 truncate text-[13px] ${s.green ? "text-[var(--green)]" : ""}`}
-                  >
-                    {s.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--green)_90%,transparent)] px-4 py-2.5">
-              <span className="data truncate text-[10.5px] font-semibold tracking-[0.12em] text-[#04270a]">
-                hoodfi.name/{name.label}
-              </span>
-              <span className="data shrink-0 text-[10.5px] font-semibold tracking-[0.12em] text-[rgba(4,39,10,0.7)]">
-                ROBINHOOD CHAIN
-              </span>
+        <div className="flex flex-col items-center gap-3.5 px-6 pb-6 pt-8 text-center">
+          <NameAvatar
+            label={name.label}
+            avatar={name.avatar}
+            className="h-[104px] w-[104px]"
+            textClassName="text-2xl"
+          />
+          {/* The sizing container. It has to be its own element: `cqi` resolves
+              against the nearest container ancestor, so the element being sized
+              can't be the one that establishes it. */}
+          <div className="w-full [container-type:inline-size]">
+            <div
+              className="data font-semibold leading-[1.08] tracking-[-0.02em] text-[var(--fg)]"
+              style={{ fontSize: nameLineSize(name.label) }}
+            >
+              {name.label}
+              <wbr />
+              <span className="text-[var(--faint)]">{SUFFIX}</span>
             </div>
           </div>
+          <L1Badge state={l1} />
+          {name.description && (
+            <p className="max-w-[34ch] text-[13.5px] leading-relaxed text-[var(--dim)]">
+              {name.description}
+            </p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 border-t border-[var(--line)]">
+          {[
+            { label: "Token", value: token, lime: false },
+            { label: "Minted", value: mintedOn ?? "—", lime: false },
+            { label: "Expires", value: "Never", lime: true },
+          ].map((s, i) => (
+            <div
+              key={s.label}
+              className={`px-4 py-3.5 ${i > 0 ? "border-l border-[var(--line)]" : ""}`}
+            >
+              <div className="data text-[9.5px] uppercase tracking-[0.18em] text-[var(--faint)]">
+                {s.label}
+              </div>
+              <div
+                className="data mt-1 truncate text-[13px]"
+                style={s.lime ? { color: "var(--lime)" } : undefined}
+              >
+                {s.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between bg-[var(--lime)] px-4 py-2.5">
+          <span className="data truncate text-[10.5px] font-semibold tracking-[0.12em] text-[var(--ink)]">
+            hoodfi.name/{name.label}
+          </span>
+          <span className="data shrink-0 text-[10.5px] font-semibold tracking-[0.12em] text-[rgba(11,14,8,0.65)]">
+            ROBINHOOD CHAIN
+          </span>
         </div>
       </div>
 
       {actions && (
         <div className="flex flex-wrap gap-2.5">
           <a
-            className="btn btn-primary min-w-[150px] flex-1"
+            className="btn btn-ink min-w-[150px] flex-1"
             href={`https://x.com/intent/post?text=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`}
             target="_blank"
             rel="noreferrer"

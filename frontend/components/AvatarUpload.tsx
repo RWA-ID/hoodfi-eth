@@ -117,13 +117,13 @@ export function AvatarUpload({
         {busy ? STAGE_LABEL[stage] : "Upload an image"}
       </button>
       {error ? (
-        <span className="data text-xs bad">{error}</span>
+        <span className="data text-xs" style={{ color: "var(--bad)" }}>{error}</span>
       ) : done ? (
         // The upload is half the job, and the half that costs nothing. Saying so here
         // is the whole point of this state: the previous copy ended on "you sign a
         // message, not a transaction", which reads as "finished" — so an image could be
         // pinned, the record never written, and nothing on screen disagreed.
-        <span className="text-xs ok">
+        <span className="text-xs" style={{ color: "var(--olive)" }}>
           Uploaded ✓ — now press <strong className="font-semibold">Save changes</strong>{" "}
           to put it on your name.
         </span>

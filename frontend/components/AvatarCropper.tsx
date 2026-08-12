@@ -21,9 +21,9 @@ type Placement = { zoom: number; x: number; y: number };
  * the bottom. No automatic rule fixes that in general: only the person looking at it
  * knows which part is the subject.
  *
- * Pan with a finger or the mouse, zoom with the slider. The circle is a mask over a
- * square viewport, because the avatar is round everywhere on this site but the record
- * stores a square and other clients crop it their own way.
+ * Pan with a finger or the mouse, zoom with the slider. The viewport is square and so
+ * is the export — avatars render square everywhere on this site now — but other clients
+ * crop the same record their own way, including round.
  */
 export function AvatarCropper({
   file,
@@ -157,17 +157,17 @@ export function AvatarCropper({
   }
 
   return (
-    <div className="mt-3 rounded-md border border-[var(--line)] p-4">
-      <div className="data text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">
+    <div className="mt-3 border border-[var(--line-card)] p-4">
+      <div className="label" style={{ letterSpacing: "0.16em" }}>
         Drag to position · pinch or slide to zoom
       </div>
 
       {error ? (
-        <div className="data mt-3 text-xs bad">{error}</div>
+        <div className="data mt-3 text-xs" style={{ color: "var(--bad)" }}>{error}</div>
       ) : (
         <>
           <div
-            className="relative mx-auto mt-3 touch-none overflow-hidden rounded-md bg-[var(--ink)]"
+            className="relative mx-auto mt-3 touch-none overflow-hidden bg-[var(--ink)]"
             style={{ width: BOX, height: BOX }}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}
@@ -188,14 +188,10 @@ export function AvatarCropper({
                 }}
               />
             )}
-            {/* The circle is a ring of backdrop punched by a huge inset shadow, so the
-                area outside the avatar dims without covering the image with an element
-                that would swallow the drag. */}
-            <div
-              className="pointer-events-none absolute inset-0 rounded-full"
-              style={{ boxShadow: "0 0 0 9999px rgba(4,8,5,0.66)" }}
-            />
-            <div className="pointer-events-none absolute inset-0 rounded-full border border-[color-mix(in_srgb,var(--green)_60%,transparent)]" />
+            {/* The crop is the whole box and avatars render square, so the frame is a
+                plain hairline — a round mask here would preview a shape the site never
+                actually draws. Pointer-events off, or it would swallow the drag. */}
+            <div className="pointer-events-none absolute inset-0 border border-[var(--lime)]" />
           </div>
 
           <input
@@ -206,13 +202,13 @@ export function AvatarCropper({
             value={place.zoom}
             onChange={(e) => onZoom(Number(e.target.value))}
             aria-label="Zoom"
-            className="mt-4 w-full accent-[var(--green)]"
+            className="mt-4 w-full accent-[var(--olive)]"
           />
 
           <div className="mt-3 flex gap-2.5">
             <button
               type="button"
-              className="btn btn-primary flex-1"
+              className="btn btn-ink flex-1"
               onClick={confirm}
               disabled={!bitmap}
             >

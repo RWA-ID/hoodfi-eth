@@ -19,11 +19,16 @@ import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
 
 /**
- * The donation drive, reframed as a perk rather than the main event: donating a year
- * to hoodfi.eth's ENS expiry earns one credit, and a credit mints any 1-3 character
- * name free — the inventory that isn't otherwise for sale yet.
+ * The donation drive, as a panel: donating a year to hoodfi.eth's ENS expiry earns one
+ * credit, and a credit mints any 1–3 character name free — the inventory that isn't
+ * otherwise for sale yet.
+ *
+ * `embedded` drops the ink ground and the padding, for the one place this renders
+ * inside another ink card (the mint panel's locked-short-name branch). Nesting an
+ * `.on-ink` block inside an `.on-ink` block would be harmless for colour but would
+ * stack two lots of padding and read as a card inside a card.
  */
-export function DonatePanel() {
+export function DonatePanel({ embedded = false }: { embedded?: boolean }) {
   const [years, setYears] = useState(1);
   // Snapshot of what was submitted, so the share text can't drift while confirming.
   const [actionError, setActionError] = useState<string | null>(null);
@@ -104,25 +109,26 @@ export function DonatePanel() {
   }
 
   return (
-    <div className="panel p-6 sm:p-8">
-      <div className="flex items-baseline justify-between gap-4">
-        <h3 className="display text-xl">Earn a short name</h3>
+    <div className={embedded ? "" : "on-ink p-7"}>
+      <div className="flex items-center justify-between gap-4">
+        <span className="label">Earn a short name</span>
         {address && myCredits !== undefined && (
-          <div className="data text-xs text-[var(--dim)]">
-            your credits: <span className="ok">{myCredits.toString()}</span>
-          </div>
+          <span className="data text-[11px] uppercase tracking-[0.14em] text-[var(--label)]">
+            your credits{" "}
+            <span style={{ color: "var(--lime)" }}>{myCredits.toString()}</span>
+          </span>
         )}
       </div>
 
-      <p className="mt-3 text-sm leading-relaxed text-[var(--dim)]">
-        Add a year to hoodfi.eth&apos;s expiry on Ethereum and earn one credit.
-        Each credit mints any 1, 2 or 3 character name — free, and before they
-        open to everyone at {GOAL_YEARS} years.
+      <p className="mt-3.5 text-sm leading-relaxed text-[var(--dim)]">
+        Add a year to hoodfi.eth&apos;s expiry on Ethereum and earn one credit. Each
+        credit mints any 1, 2 or 3 character name — free, and before they open to
+        everyone at {GOAL_YEARS} years.
       </p>
 
-      <div className="mt-6 flex items-center gap-3">
+      <div className="mt-6 flex items-center">
         <button
-          className="btn btn-ghost !px-4"
+          className="data h-12 w-12 shrink-0 border border-[var(--line-card)] text-lg transition-colors hover:bg-[var(--hover-fill)]"
           onClick={() => setYears((y) => Math.max(1, y - 1))}
           aria-label="One year less"
           type="button"
@@ -130,20 +136,18 @@ export function DonatePanel() {
           −
         </button>
         <input
-          className="input data flex-1 text-center text-lg"
+          className="input data h-12 border-x-0 text-center text-lg"
           type="number"
           min={1}
           max={GOAL_YEARS}
           value={years}
           onChange={(e) =>
-            setYears(
-              Math.max(1, Math.min(GOAL_YEARS, Number(e.target.value) || 1))
-            )
+            setYears(Math.max(1, Math.min(GOAL_YEARS, Number(e.target.value) || 1)))
           }
           aria-label="Years to donate"
         />
         <button
-          className="btn btn-ghost !px-4"
+          className="data h-12 w-12 shrink-0 border border-[var(--line-card)] text-lg transition-colors hover:bg-[var(--hover-fill)]"
           onClick={() => setYears((y) => Math.min(GOAL_YEARS, y + 1))}
           aria-label="One year more"
           type="button"
@@ -152,25 +156,21 @@ export function DonatePanel() {
         </button>
       </div>
 
-      <div className="mt-4">
-        <div className="ledger-row">
-          <span className="text-sm text-[var(--dim)]">
-            Extends hoodfi.eth by
-          </span>
+      <div className="mt-5 border-t border-[var(--line)]">
+        <div className="ledger-line">
+          <span className="text-sm text-[var(--dim)]">Extends hoodfi.eth by</span>
           <span className="data text-sm">
             {years} year{years === 1 ? "" : "s"}
           </span>
         </div>
-        <div className="ledger-row">
-          <span className="text-sm text-[var(--dim)]">
-            Short-name credits earned
+        <div className="ledger-line">
+          <span className="text-sm text-[var(--dim)]">Short-name credits earned</span>
+          <span className="data text-sm" style={{ color: "var(--lime)" }}>
+            {years}
           </span>
-          <span className="data text-sm ok">{years}</span>
         </div>
-        <div className="ledger-row">
-          <span className="text-sm text-[var(--dim)]">
-            Cost (live ENS renewal price)
-          </span>
+        <div className="ledger-line">
+          <span className="text-sm text-[var(--dim)]">Cost (live ENS renewal price)</span>
           <span className="data text-sm">
             {enabled ? (quote ? `${formatEth(quote)} ETH` : "…") : "—"}
           </span>
@@ -178,7 +178,7 @@ export function DonatePanel() {
       </div>
 
       <button
-        className="btn btn-primary mt-6 w-full"
+        className="btn btn-lime btn-lg mt-6 w-full"
         onClick={donate}
         disabled={!enabled || isPending || receipt.isLoading}
         type="button"
@@ -191,16 +191,16 @@ export function DonatePanel() {
           ? "Confirm in wallet…"
           : receipt.isLoading
           ? "Extending hoodfi.eth…"
-          : `Donate ${years} year${years === 1 ? "" : "s"}`}
+          : `Donate ${years} year${years === 1 ? "" : "s"} ↗`}
       </button>
 
       {receipt.isSuccess && txHash && (
-        <div className="mt-4 rounded-md border border-[var(--line)] bg-[var(--green-soft)] p-4">
-          <div className="data text-xs ok">
-            ✓ hoodfi.eth extended — {submitted} credit
-            {submitted === 1 ? "" : "s"} earned.{" "}
+        <div className="mt-5 border border-[var(--line-card)] p-4">
+          <div className="data text-xs leading-relaxed" style={{ color: "var(--lime)" }}>
+            ✓ hoodfi.eth extended — {submitted} credit{submitted === 1 ? "" : "s"}{" "}
+            earned.{" "}
             <a
-              className="underline"
+              className="link"
               href={`https://etherscan.io/tx/${txHash}`}
               target="_blank"
               rel="noreferrer"
@@ -208,11 +208,11 @@ export function DonatePanel() {
               View transaction
             </a>
           </div>
-          <Link href="/mint/" className="btn btn-primary mt-3 w-full">
+          <Link href="/mint/" className="btn btn-lime mt-4 w-full">
             Mint your short name
           </Link>
           <ShareOnX
-            className="btn btn-ghost mt-2 w-full"
+            className="btn btn-ghost mt-2.5 w-full"
             eventLabel="donate_success"
             text={`Just added ${submitted} year${
               submitted === 1 ? "" : "s"
@@ -223,15 +223,18 @@ export function DonatePanel() {
         </div>
       )}
       {(actionError || writeError) && (
-        <div className="data mt-3 break-words text-xs bad">
+        <div
+          className="data mt-3.5 break-words text-xs leading-relaxed"
+          style={{ color: "var(--status-bad)" }}
+        >
           {actionError ?? walletErrorMessage(writeError)}
         </div>
       )}
 
       <p className="data mt-4 text-[11px] leading-relaxed text-[var(--faint)]">
         One transaction on Ethereum. Your ETH goes straight to the official ENS
-        controller — this site&apos;s contract can&apos;t hold funds, and any
-        excess is refunded in the same transaction.
+        controller — this site&apos;s contract can&apos;t hold funds, and any excess is
+        refunded in the same transaction.
       </p>
     </div>
   );

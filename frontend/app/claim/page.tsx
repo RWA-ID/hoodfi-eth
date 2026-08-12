@@ -23,18 +23,16 @@ export default function ClaimPage() {
     <>
       <ClaimRedirect />
       <Header />
-      <main className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center px-4 text-center sm:px-6">
+      <main className="shell flex min-h-[60vh] flex-col items-center justify-center py-24 text-center">
         <div className="eyebrow">this page moved</div>
-        <h1 className="display mt-3 text-[clamp(28px,3.4vw,40px)]">
-          Names are minted instantly now
-        </h1>
-        <p className="mt-4 text-[clamp(15px,1.2vw,18px)] text-[var(--dim)]">
+        <h1 className="h-page mt-[18px] max-w-[16ch]">Names are minted instantly now.</h1>
+        <p className="lede mt-6 max-w-[46ch] text-[17px]">
           There&apos;s no snapshot to wait for. Search a name and it&apos;s yours in one
           transaction.
         </p>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link href="/mint/" className="btn btn-primary">
-            Mint a name
+        <div className="mt-9 flex flex-wrap justify-center gap-2.5">
+          <Link href="/mint/" className="btn btn-ink">
+            Mint a name ↗
           </Link>
           <Link href="/manage/" className="btn btn-ghost">
             Manage your names
