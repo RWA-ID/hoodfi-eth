@@ -1,0 +1,20 @@
+name = "hoodfi-mcp"
+main = "./src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[vars]
+# ROBINHOOD_RPC_URL is deliberately NOT declared here. It is a secret
+# (`wrangler secret put ROBINHOOD_RPC_URL`) because it carries an API key, and a
+# plain var of the same name would shadow that secret on every deploy. The public
+# endpoint it would otherwise hold is the built-in fallback in src/chain.ts.
+#
+# This worker needs its own dedicated RPC for the same reason the gateway does:
+# public endpoints throttle Workers hard, because every Cloudflare colo shares a
+# small pool of egress IPs and the rate limiter sees one very busy caller.
+REGISTRAR_ADDRESS = "0x56be5565acc823f4195c2cf3b9046C083633209a"
+L2_REGISTRY_ADDRESS = "0xf2bABA012244bdD7445129597350054E1B3aEe5C"
+USDG_ADDRESS = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
