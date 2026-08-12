@@ -12,6 +12,7 @@ export const metadata: Metadata = ogMetadata({
   description:
     "Search a name, mint it in one transaction on Robinhood Chain, point it wherever you like, and keep it for life. No renewals, no expiry.",
   path: "/how-it-works/",
+  image: "/og/how-it-works.png",
 });
 
 /**

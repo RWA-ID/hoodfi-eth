@@ -13,6 +13,7 @@ export const metadata: Metadata = ogMetadata({
   description:
     "One, two and three character *.hoodfi.eth names are premium inventory. Donate a year to hoodfi.eth's ENS expiry to earn a credit and mint one free.",
   path: "/short-names/",
+  image: "/og/short-names.png",
 });
 
 /**
