@@ -100,15 +100,34 @@ export function labelFromName(name: string): string {
 }
 
 /**
- * Renders an avatar record for display. Handles the ipfs:// form the ENS avatar
- * spec uses; anything else (https, data:) is passed through untouched.
+ * Our own Pinata gateway — the one the uploader pins to. It serves a CID the moment
+ * the upload completes, because it is the account holding the pin rather than a
+ * stranger that has to find the bytes on the network first.
  */
-export function avatarToUrl(value: string): string {
-  if (!value) return "";
+const PINNED_GATEWAY = "https://ipfs.onchain-id.id/ipfs/";
+/** For CIDs we didn't pin, which the dedicated gateway refuses outright. */
+const PUBLIC_GATEWAY = "https://ipfs.io/ipfs/";
+
+/**
+ * Where an avatar record can be fetched from, best first.
+ *
+ * Handles the ipfs:// form the ENS avatar spec uses; anything else (https, data:) is
+ * passed through untouched, as a single candidate.
+ *
+ * There are two gateways because neither one covers both cases. A freshly uploaded
+ * avatar is pinned on our account and available from our gateway immediately, while a
+ * public gateway may take minutes to find it — that delay is the whole reason a new
+ * picture used to seem not to have saved. But the dedicated gateway serves *only* what
+ * this account pinned and 403s everything else, and the avatar field accepts any URI
+ * an owner types, so a CID pinned somewhere else has to fall through to the public one.
+ */
+export function avatarUrls(value: string): string[] {
+  if (!value) return [];
   if (value.startsWith("ipfs://")) {
-    return `https://ipfs.io/ipfs/${value.slice("ipfs://".length)}`;
+    const cid = value.slice("ipfs://".length);
+    return [`${PINNED_GATEWAY}${cid}`, `${PUBLIC_GATEWAY}${cid}`];
   }
-  return value;
+  return [value];
 }
 
 /** Strips a leading @ and any x.com/twitter.com URL wrapper down to the handle. */

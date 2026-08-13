@@ -4,10 +4,6 @@ import { type Env, envVar } from '../env'
 import { robinhoodClient } from '../rpc'
 import { dnsDecodeName } from '../ccip-read/utils'
 
-/** Collection art, shared by every name. Pinned on IPFS so metadata art outlives the worker. */
-const IMAGE_CID = 'QmTCk5fENM4LNeT3BxVMHd3rHpnibDW8ZSDrrRTNsWybgZ'
-const IMAGE_URI = `ipfs://${IMAGE_CID}`
-
 const registryAbi = parseAbi(['function names(bytes32) view returns (bytes)'])
 
 /**
@@ -17,8 +13,13 @@ const registryAbi = parseAbi(['function names(bytes32) view returns (bytes)'])
  * decimal uint256, convert back to the bytes32 ENS node, and read the registry's
  * DNS-encoded name. An unminted or unknown id has no name — 404 rather than a
  * placeholder, so marketplaces don't cache a phantom token.
+ *
+ * `requestUrl` supplies the origin the art is served from. It comes from the request
+ * rather than a configured constant on purpose: the registry's baseURI is the address a
+ * marketplace actually reached us on, and an image URL built from anything else would
+ * point somewhere the collection isn't.
  */
-export async function getTokenMetadata(tokenId: string, env: Env) {
+export async function getTokenMetadata(tokenId: string, requestUrl: string, env: Env) {
   let node: Hex
   try {
     node = toHex(BigInt(tokenId), { size: 32 })
@@ -45,6 +46,7 @@ export async function getTokenMetadata(tokenId: string, env: Env) {
 
   const name = dnsDecodeName(dnsEncodedName)
   const label = name.split('.')[0] ?? name
+  const origin = new URL(requestUrl).origin
 
   return Response.json(
     {
@@ -52,7 +54,9 @@ export async function getTokenMetadata(tokenId: string, env: Env) {
       description:
         `${name} — an ENS name on Robinhood Chain, issued by HoodFi. ` +
         `Resolves onchain across Ethereum via CCIP-Read.`,
-      image: IMAGE_URI,
+      // The name itself, set on the house lime. Every token used to share one piece of
+      // collection art, which left a marketplace grid unable to say which name was which.
+      image: `${origin}/art/${encodeURIComponent(label)}.png`,
       external_url: `https://hoodfi.eth.limo/?name=${encodeURIComponent(label)}`,
       attributes: [
         { trait_type: 'Length', value: label.length },

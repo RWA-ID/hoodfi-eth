@@ -1,44 +1,10 @@
 import { namehash } from 'viem'
-import { ImageResponse, loadGoogleFont } from 'workers-og'
+import { ImageResponse } from 'workers-og'
 
 import { type Env } from '../env'
-import { avatarToUrl, normalizeLabel, readNameProfile } from '../name-profile'
+import { loadFonts } from '../fonts'
+import { avatarUrls, normalizeLabel, readNameProfile } from '../name-profile'
 import { HEIGHT, WIDTH, cardHtml } from './nameCardHtml'
-
-/**
- * The site's own type, so a shared card looks like the page behind it. Without this
- * satori falls back to a serif, which reads as somebody else's product.
- *
- * Two families and only two, exactly as the site loads: Archivo carries every piece of
- * structure and IBM Plex Mono carries anything that is data. Two weights of each,
- * because the design leans on the distance between 500 and 800.
- *
- * Cached in module scope: a warm isolate renders every subsequent card without
- * re-fetching, and the fetch itself is only four requests on a cold start.
- */
-let fontCache: Promise<{ name: string; data: ArrayBuffer; weight: 400 | 500 | 600 | 800 }[]> | null =
-  null
-
-function loadFonts() {
-  if (!fontCache) {
-    fontCache = Promise.all([
-      loadGoogleFont({ family: 'Archivo', weight: 500 }),
-      loadGoogleFont({ family: 'Archivo', weight: 800 }),
-      loadGoogleFont({ family: 'IBM Plex Mono', weight: 400 }),
-      loadGoogleFont({ family: 'IBM Plex Mono', weight: 600 }),
-    ]).then(([archivo, archivoBold, mono, monoBold]) => [
-      { name: 'Archivo', data: archivo, weight: 500 as const },
-      { name: 'Archivo', data: archivoBold, weight: 800 as const },
-      { name: 'IBM Plex Mono', data: mono, weight: 400 as const },
-      { name: 'IBM Plex Mono', data: monoBold, weight: 600 as const },
-    ])
-    // A failed fetch must not poison the cache for the life of the isolate.
-    fontCache.catch(() => {
-      fontCache = null
-    })
-  }
-  return fontCache
-}
 
 /**
  * The formats satori can actually decode. WebP and AVIF are not among them, and the
@@ -72,20 +38,30 @@ function toBase64(buf: ArrayBuffer): string {
  * only before the markup is built, so that is where the decision gets made: anything
  * satori can decode is inlined, and anything else — an unsupported format, a dead host,
  * a slow one, an oversized file — returns empty and the card draws the house mark.
+ *
+ * Candidates are tried in order because a public IPFS gateway is exactly the slow host
+ * this guards against: ipfs.io has been measured taking 25s to serve a CID our own
+ * gateway returns in one, and against a 4s timeout that is an avatar silently missing
+ * from the card. Our gateway goes first and the public one only catches CIDs it won't
+ * serve.
  */
-async function inlineAvatar(url: string): Promise<string> {
-  if (!url) return ''
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) })
-    if (!res.ok) return ''
-    const type = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase()
-    if (!RENDERABLE.has(type)) return ''
-    const buf = await res.arrayBuffer()
-    if (buf.byteLength === 0 || buf.byteLength > MAX_AVATAR_BYTES) return ''
-    return `data:${type};base64,${toBase64(buf)}`
-  } catch {
-    return ''
+async function inlineAvatar(urls: string[]): Promise<string> {
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(4000) })
+      if (!res.ok) continue
+      const type = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase()
+      // A format satori can't decode is the file itself, not the gateway serving it —
+      // another gateway would return the same bytes, so stop rather than pay for it.
+      if (!RENDERABLE.has(type)) return ''
+      const buf = await res.arrayBuffer()
+      if (buf.byteLength === 0 || buf.byteLength > MAX_AVATAR_BYTES) return ''
+      return `data:${type};base64,${toBase64(buf)}`
+    } catch {
+      continue
+    }
   }
+  return ''
 }
 
 /**
@@ -112,7 +88,7 @@ export async function getNameCard(rawLabel: string, env: Env): Promise<Response>
 
   // Already resolved to inline bytes or to nothing, so the render itself has no
   // network left to fail on and needs no fallback path of its own.
-  const avatar = await inlineAvatar(avatarToUrl(profile.avatar))
+  const avatar = await inlineAvatar(avatarUrls(profile.avatar))
 
   const rendered = new ImageResponse(
     cardHtml({

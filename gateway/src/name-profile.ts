@@ -126,12 +126,30 @@ export async function readNameProfile(
   }
 }
 
-/** ipfs:// avatars need a gateway before any renderer or crawler can fetch them. */
-export function avatarToUrl(value: string): string {
-  if (!value) return ''
+/**
+ * Our own Pinata gateway — the one `postAvatar` pins to, so it can serve an upload the
+ * moment it finishes rather than waiting for the network to find the bytes.
+ */
+const PINNED_GATEWAY = 'https://ipfs.onchain-id.id/ipfs/'
+/** For CIDs we didn't pin, which the dedicated gateway refuses outright. */
+const PUBLIC_GATEWAY = 'https://ipfs.io/ipfs/'
+
+/**
+ * Where an avatar record can be fetched from, best first — `ipfs://` avatars need a
+ * gateway before any renderer or crawler can fetch them.
+ *
+ * Two of them, because neither covers both cases: the dedicated gateway holds the pin
+ * for anything uploaded here and answers immediately, but serves only this account's
+ * CIDs and 403s the rest, and the record accepts any URI its owner types. Anything that
+ * isn't http(s) after that is dropped — a card renderer should not be handed a `data:`
+ * or `file:` URI out of a text record.
+ */
+export function avatarUrls(value: string): string[] {
+  if (!value) return []
   if (value.startsWith('ipfs://')) {
-    return `https://ipfs.io/ipfs/${value.slice('ipfs://'.length)}`
+    const cid = value.slice('ipfs://'.length)
+    return [`${PINNED_GATEWAY}${cid}`, `${PUBLIC_GATEWAY}${cid}`]
   }
-  if (!/^https?:\/\//i.test(value)) return ''
-  return value
+  if (!/^https?:\/\//i.test(value)) return []
+  return [value]
 }

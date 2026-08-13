@@ -168,6 +168,11 @@ function NameEditor({
   // lands, and neither is worth a spinner.
   const [l1, setL1] = useState<L1State>({ status: "idle" });
   const [mintedOn, setMintedOn] = useState<string | null>(null);
+  // Whether the batch that just confirmed carried a new picture. Captured at submit,
+  // because by the time the receipt lands `dirty` has been cleared — and the answer
+  // decides whether the owner is told to expect a wait.
+  const [avatarInFlight, setAvatarInFlight] = useState(false);
+  const [avatarSaved, setAvatarSaved] = useState(false);
 
   const avatar = useTextRecord(name.node, "avatar");
   const twitter = useTextRecord(name.node, "com.twitter");
@@ -216,6 +221,7 @@ function NameEditor({
       track("record_saved", { method: String(dirty.size) });
       setDirty(new Set());
       setSaving(false);
+      setAvatarSaved(avatarInFlight);
       void avatar.refetch();
       void twitter.refetch();
       void url.refetch();
@@ -354,6 +360,8 @@ function NameEditor({
     const calls = pendingCalls();
     if (calls.length === 0) return;
     setActionError(null);
+    setAvatarSaved(false);
+    setAvatarInFlight(dirty.has("avatar"));
     try {
       await ensureChain();
       setSaving(true);
@@ -517,6 +525,19 @@ function NameEditor({
           )}
           {receipt.isSuccess && !saving && (
             <div className="data text-xs" style={{ color: "var(--olive)" }}>✓ Records saved onchain.</div>
+          )}
+          {/* A new picture is the one record whose result isn't instant anywhere but
+              here. The write lands in a block like everything else, but wallets,
+              marketplaces and share cards all serve images from their own caches, so
+              the old one can keep showing for minutes after the save succeeded — which
+              reads as a save that didn't work, and invites a second transaction that
+              changes nothing. */}
+          {avatarSaved && !saving && (
+            <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
+              Your new picture is live onchain and already showing on the card here.
+              Wallets, marketplaces and shared links cache images, so give them a few
+              minutes to catch up — there&apos;s nothing left to sign.
+            </p>
           )}
           <p className="data mt-3 text-[11px] leading-relaxed text-[var(--faint)]">
             Every change saves in a single transaction on Robinhood Chain. You&apos;re

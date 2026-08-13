@@ -6,6 +6,7 @@ import { getCcipRead, getHealth } from './handlers/getCcipRead'
 import { getDonations } from './handlers/getDonations'
 import { getNameCard } from './handlers/getNameCard'
 import { getSharePage } from './handlers/getSharePage'
+import { getTokenArt } from './handlers/getTokenArt'
 import { getTokenMetadata } from './handlers/getTokenMetadata'
 import { getVoucher } from './handlers/getVoucher'
 import { postAvatar } from './handlers/postAvatar'
@@ -35,8 +36,11 @@ app.post('/v1', async (c) => {
 // ERC-721 metadata — the registry's baseURI points here, so marketplaces fetch
 // `/nft/{tokenId}`. Some indexers append `.json`; accept both spellings.
 app.get('/nft/:tokenId', async (c) =>
-  getTokenMetadata(c.req.param('tokenId').replace(/\.json$/, ''), c.env)
+  getTokenMetadata(c.req.param('tokenId').replace(/\.json$/, ''), c.req.url, c.env)
 )
+
+// The image that metadata points at, rendered per name — the name itself on lime.
+app.get('/art/:label', async (c) => getTokenArt(c.req.param('label'), c.env))
 
 // Short-name credit voucher. Attests mainnet donation credits so HoodfiRegistrar on
 // Robinhood Chain can let a donor mint a 1-3 char name without a bridge.

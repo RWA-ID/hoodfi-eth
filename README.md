@@ -32,6 +32,7 @@ and app through the ENS Universal Resolver.
 | CCIP gateway | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/v1/{sender}/{data}.json` |
 | Credit voucher signer | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/voucher/{address}` |
 | ERC-721 metadata | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/nft/{tokenId}` |
+| Token art (NFT image) | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/art/{label}.png` (generated 1000×1000) |
 | Per-name share page | Cloudflare Workers | `https://www.hoodfi.name/{label}` → `/n/{label}` (per-name OG tags) |
 | Per-name share card | Cloudflare Workers | `https://www.hoodfi.name/card/{label}.png` (generated 1200×630) |
 | Donation ledger | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/donations` |
@@ -177,7 +178,7 @@ Resolution design notes:
 | `contracts/src/hoodfi/LabelUtils.sol` | Shared label validation (mirrored in `frontend/lib/labels.ts`) |
 | `contracts/scripts/hoodfi/` | Deploy scripts (donations / L2 stack / L1 resolver / `UpgradeRegistrar`) |
 | `contracts/test/hoodfi/` | Unit + mainnet-fork tests, including a full rehearsal of the registrar upgrade |
-| `gateway/` | Cloudflare Worker (Hono + viem): CCIP-Read gateway, credit-voucher signer, NFT metadata, share pages and cards, donation ledger, analytics sink |
+| `gateway/` | Cloudflare Worker (Hono + viem): CCIP-Read gateway, credit-voucher signer, NFT metadata and token art, share pages and cards, donation ledger, analytics sink |
 | `gateway/src/rpc.ts` | Shared clients. Dedicated RPC first, public endpoints behind it via `fallback()` — a public RPC rate-limits the worker's shared egress even when the same call works from a laptop |
 | `gateway/src/ccip-read/query.ts` | Separates "the chain answered no" from "we couldn't reach the chain"; only the first is ever signed |
 | `gateway/src/handlers/getVoucher.ts` | Reads `shortCredits` on L1, signs the voucher the registrar accepts |
