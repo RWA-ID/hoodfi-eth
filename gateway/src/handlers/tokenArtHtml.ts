@@ -15,7 +15,17 @@ export const SIZE = 1000
 const LIME = '#C6F702'
 const INK = '#0B0E08'
 
-const SUFFIX = '.hoodfi.eth'
+/**
+ * A name splits into the part that identifies it and the part that says where it lives:
+ * `gm` and `.hoodfi.eth`. The registry holds the parent `hoodfi.eth` as a token too, so
+ * the tail is whatever follows the first dot rather than a constant — assuming
+ * `.hoodfi.eth` is what drew the root token's art as `hoodfi.hoodfi.eth`.
+ */
+function split(name: string): { head: string; tail: string } {
+  const dot = name.indexOf('.')
+  if (dot < 0) return { head: name, tail: '' }
+  return { head: name.slice(0, dot), tail: name.slice(dot) }
+}
 
 /** The lime the name is not allowed to touch. */
 const MARGIN = 60
@@ -90,24 +100,25 @@ function fit(text: string, lines: number): number {
 /**
  * How to set the name so it fills the pill without overflowing it.
  *
- * Labels run to 32 characters and the suffix costs another 11, so no single size works
- * for the whole range — a 32-character name set on one line lands near 30px on a 1000px
- * canvas, which is a caption, not a token. Past the point where one line stops reading
- * as a name, the suffix drops to its own line and both are sized against the longer of
- * the two.
+ * Labels run to 32 characters and `.hoodfi.eth` costs another 11, so no single size
+ * works for the whole range — a 32-character name set on one line lands near 30px on a
+ * 1000px canvas, which is a caption, not a token. Past the point where one line stops
+ * reading as a name, the tail drops to its own line and both are sized against the
+ * longer of the two.
  */
-function nameLayout(label: string): { size: number; stack: boolean } {
-  const oneLine = fit(label + SUFFIX, 1)
+function nameLayout(name: string): { size: number; stack: boolean } {
+  const oneLine = fit(name, 1)
   if (oneLine >= 54) return { size: Math.min(132, oneLine), stack: false }
+  const { head, tail } = split(name)
   // Sized against whichever line is wider. That is the label in every case that
-  // actually stacks, but the suffix is measured rather than assumed to be shorter.
-  const stacked = Math.min(fit(label, 2), fit(SUFFIX, 2))
+  // actually stacks, but the tail is measured rather than assumed to be shorter.
+  const stacked = Math.min(fit(head, 2), fit(tail, 2))
   return { size: Math.min(132, stacked), stack: true }
 }
 
 /**
- * The label is normalised before it reaches here — a–z, 0–9 and hyphens only — so this
- * escapes nothing that can currently occur. It stays because the guarantee lives in
+ * The name is normalised before it reaches here — a–z, 0–9, hyphens and dots only — so
+ * this escapes nothing that can currently occur. It stays because the guarantee lives in
  * another module, and markup built by string concatenation should not depend on one.
  */
 function escapeHtml(value: string): string {
@@ -126,9 +137,12 @@ function escapeHtml(value: string): string {
  * is, which is the one thing a marketplace grid of identical collection art could never
  * say, and it needs no chain read beyond the name itself: no avatar, no owner, no
  * records, so the image for a given token is fixed the moment it is minted.
+ *
+ * Takes the whole name, `gm.hoodfi.eth`, not the label — the registry's own root token
+ * is `hoodfi.eth`, and it is the one token a label plus a fixed parent gets wrong.
  */
-export function tokenArtHtml(label: string): string {
-  const { size, stack } = nameLayout(label)
+export function tokenArtHtml(fullName: string): string {
+  const { size, stack } = nameLayout(fullName)
   const lines = stack ? 2 : 1
   const pad = `${Math.round(size * PAD_Y)}px ${Math.round(size * padX(lines))}px`
 
@@ -138,12 +152,13 @@ export function tokenArtHtml(label: string): string {
 
   // Stacked, the two halves are separate rows; inline, they are one baseline. Satori has
   // no soft-wrap opportunity to lean on, so the choice is made here, not in CSS.
+  const { head, tail } = split(fullName)
   const name = stack
     ? `<div style="display:flex;flex-direction:column;align-items:center;${type}">
-         <span>${escapeHtml(label)}</span>
-         <span>${SUFFIX}</span>
+         <span>${escapeHtml(head)}</span>
+         <span>${escapeHtml(tail)}</span>
        </div>`
-    : `<div style="display:flex;${type}">${escapeHtml(label)}${SUFFIX}</div>`
+    : `<div style="display:flex;${type}">${escapeHtml(fullName)}</div>`
 
   // Radius is the one place this design leaves the site's square geometry: a pill is what
   // the name wears everywhere it is quoted as itself, and a rectangle here would read as

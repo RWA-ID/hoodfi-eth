@@ -20,15 +20,15 @@ import { SIZE, tokenArtHtml } from './tokenArtHtml'
  * listing is far stickier than a missing one. Only `/nft/{tokenId}` decides whether a
  * token exists; it is the only route a marketplace reaches this one through.
  */
-export async function getTokenArt(rawLabel: string, env: Env): Promise<Response> {
-  const label = normalizeLabel(rawLabel.replace(/\.png$/, ''))
-  if (!label) {
+export async function getTokenArt(raw: string, env: Env): Promise<Response> {
+  const name = normalizeName(raw.replace(/\.png$/, ''))
+  if (!name) {
     return Response.json({ message: 'Invalid name' }, { status: 400 })
   }
 
   const fonts = await loadFonts().catch(() => undefined)
 
-  const rendered = new ImageResponse(tokenArtHtml(label), {
+  const rendered = new ImageResponse(tokenArtHtml(name), {
     width: SIZE,
     height: SIZE,
     format: 'png',
@@ -42,4 +42,22 @@ export async function getTokenArt(rawLabel: string, env: Env): Promise<Response>
   // moves whenever the owner edits a record.
   headers.set('Cache-Control', 'public, max-age=86400, s-maxage=2592000')
   return new Response(response.body, { status: 200, headers })
+}
+
+/** The parent, which the registry mints to itself and which owns no label of its own. */
+const ROOT = 'hoodfi.eth'
+
+/**
+ * The full name this art is for, or null if no token could carry it.
+ *
+ * Checked against the root before anything else: `normalizeLabel` reads `hoodfi.eth` as
+ * the label `hoodfi`, which is a real distinction — one is the parent, the other would
+ * be a subname of it. Every other form goes through the registrar's own charset rules,
+ * so `gm`, `gm.hoodfi.eth` and `gm.eth` all name the same picture and a bare label keeps
+ * working as the short way to ask for one.
+ */
+function normalizeName(raw: string): string | null {
+  if (raw.trim().toLowerCase() === ROOT) return ROOT
+  const label = normalizeLabel(raw)
+  return label ? `${label}.${ROOT}` : null
 }

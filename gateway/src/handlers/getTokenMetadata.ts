@@ -56,7 +56,9 @@ export async function getTokenMetadata(tokenId: string, requestUrl: string, env:
         `Resolves onchain across Ethereum via CCIP-Read.`,
       // The name itself, set on the house lime. Every token used to share one piece of
       // collection art, which left a marketplace grid unable to say which name was which.
-      image: `${origin}/art/${encodeURIComponent(label)}.png`,
+      // The whole name, not the label: the registry's root token is `hoodfi.eth`, which
+      // a label plus a fixed parent would draw as `hoodfi.hoodfi.eth`.
+      image: `${origin}/art/${encodeURIComponent(name)}.png`,
       external_url: `https://hoodfi.eth.limo/?name=${encodeURIComponent(label)}`,
       attributes: [
         { trait_type: 'Length', value: label.length },
