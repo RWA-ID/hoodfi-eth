@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useAccount,
+  usePublicClient,
   useReadContract,
   useSwitchChain,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
+import { BaseError, ContractFunctionRevertedError } from "viem";
 import { robinhoodChain } from "@/lib/chains";
 import { PROBE_SIZE, useFitText } from "@/lib/useFitText";
 
@@ -111,6 +113,9 @@ export function MintPanel({
     hash: txHash,
     chainId: robinhoodChain.id,
   });
+  // Reads Robinhood Chain over our own RPC rather than through the wallet. See
+  // `preflight` below for why the distinction matters.
+  const publicClient = usePublicClient({ chainId: robinhoodChain.id });
 
   const enabled = Boolean(REGISTRAR_ADDRESS);
   const check = checkLabel(query);
@@ -370,6 +375,44 @@ export function MintPanel({
     return true;
   }
 
+  /**
+   * Run the mint against our own RPC before handing it to the wallet.
+   *
+   * Wallets estimate gas on their own node and are free to throw the revert payload
+   * away before the page ever sees it. Brave does exactly that: a mint that the
+   * registrar refused came back as "reverted with the following reason:" and no
+   * reason, because there was no data left to decode. Our RPC returns the full
+   * four-byte error, so simulating here means the user is told *why* — and is never
+   * asked to sign something that was always going to fail.
+   *
+   * Returns an error message, or null when the transaction is good to send. A
+   * simulation that cannot run at all (RPC down) returns null: refusing to mint
+   * because a pre-check was unavailable would be the worse failure.
+   */
+  async function preflight(call: {
+    readonly address: `0x${string}`;
+    readonly abi: typeof registrarAbi;
+    readonly functionName: "register" | "registerWithUsdc" | "mintShortWithVoucher";
+    readonly args: readonly unknown[];
+    readonly value?: bigint;
+    readonly chainId: number;
+  }): Promise<string | null> {
+    if (!publicClient || !address) return null;
+    try {
+      // simulateContract and writeContract disagree only over fields neither of
+      // these calls sets, and this is the exact object wagmi is about to send.
+      await publicClient.simulateContract({ ...call, account: address } as Parameters<
+        typeof publicClient.simulateContract
+      >[0]);
+      return null;
+    } catch (error) {
+      if (error instanceof BaseError && error.walk((e) => e instanceof ContractFunctionRevertedError)) {
+        return walletErrorMessage(error);
+      }
+      return null;
+    }
+  }
+
   async function mint() {
     // Connecting is the first half of minting, so the button does it even with an
     // empty field — that is the state most visitors meet the card in, and a control
@@ -392,7 +435,7 @@ export function MintPanel({
 
       if (canMintWithCredit && voucher) {
         track("short_mint_started", { tier: String(tier) });
-        await writeContractAsync({
+        const call = {
           address: REGISTRAR_ADDRESS,
           abi: registrarAbi,
           functionName: "mintShortWithVoucher",
@@ -403,7 +446,14 @@ export function MintPanel({
             voucher.signature,
           ],
           chainId: robinhoodChain.id,
-        });
+        } as const;
+        const refused = await preflight(call);
+        if (refused) {
+          track("mint_failed", { tier: String(tier) });
+          setActionError(refused);
+          return;
+        }
+        await writeContractAsync(call);
       } else if (method === "usdg") {
         if (!USDC_ADDRESS || usdgPrice === undefined) return;
         track("mint_started", { tier: String(tier), method: "usdg" });
@@ -416,24 +466,42 @@ export function MintPanel({
             chainId: robinhoodChain.id,
           });
         }
-        await writeContractAsync({
+        const call = {
           address: REGISTRAR_ADDRESS,
           abi: registrarAbi,
           functionName: "registerWithUsdc",
           args: [snapshot],
           chainId: robinhoodChain.id,
-        });
+        } as const;
+        // Only worth simulating once the approval is in place — before that the
+        // registrar has no allowance and every simulation would fail on that.
+        if ((allowance ?? 0n) >= usdgPrice) {
+          const refused = await preflight(call);
+          if (refused) {
+            track("mint_failed", { tier: String(tier) });
+            setActionError(refused);
+            return;
+          }
+        }
+        await writeContractAsync(call);
       } else {
         if (weiPrice === undefined) return;
         track("mint_started", { tier: String(tier), method: "eth" });
-        await writeContractAsync({
+        const call = {
           address: REGISTRAR_ADDRESS,
           abi: registrarAbi,
           functionName: "register",
           args: [snapshot],
           value: weiPrice,
           chainId: robinhoodChain.id,
-        });
+        } as const;
+        const refused = await preflight(call);
+        if (refused) {
+          track("mint_failed", { tier: String(tier) });
+          setActionError(refused);
+          return;
+        }
+        await writeContractAsync(call);
       }
       setMinted(snapshot);
     } catch (error) {

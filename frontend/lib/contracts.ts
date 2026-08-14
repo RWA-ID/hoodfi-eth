@@ -110,6 +110,64 @@ export const donationsAbi = [
       { name: "totalYears", type: "uint256", indexed: false },
     ],
   },
+  { type: "error", name: "AlreadyFinalized", inputs: [] },
+  { type: "error", name: "GoalNotReached", inputs: [] },
+  { type: "error", name: "InvalidYears", inputs: [] },
+  {
+    type: "error",
+    name: "InsufficientPayment",
+    inputs: [
+      { name: "required", type: "uint256" },
+      { name: "provided", type: "uint256" },
+    ],
+  },
+  { type: "error", name: "RefundFailed", inputs: [] },
+] as const;
+
+/**
+ * L2Registry reverts, shared by every ABI that can trigger one. The registrar mints
+ * through the registry, so a mint can fail with any of these — `NotAvailable` above
+ * all, when the same label is taken between the availability check and the mint.
+ */
+const registryErrors = [
+  { type: "error", name: "LabelTooShort", inputs: [] },
+  { type: "error", name: "LabelTooLong", inputs: [{ name: "label", type: "string" }] },
+  {
+    type: "error",
+    name: "NotAvailable",
+    inputs: [
+      { name: "label", type: "string" },
+      { name: "parentNode", type: "bytes32" },
+    ],
+  },
+  { type: "error", name: "Unauthorized", inputs: [{ name: "node", type: "bytes32" }] },
+  {
+    type: "error",
+    name: "ERC721InvalidReceiver",
+    inputs: [{ name: "receiver", type: "address" }],
+  },
+] as const;
+
+/** OpenZeppelin v5 ERC-20 reverts, reachable through the USDG mint path. */
+const erc20Errors = [
+  {
+    type: "error",
+    name: "ERC20InsufficientBalance",
+    inputs: [
+      { name: "sender", type: "address" },
+      { name: "balance", type: "uint256" },
+      { name: "needed", type: "uint256" },
+    ],
+  },
+  {
+    type: "error",
+    name: "ERC20InsufficientAllowance",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "allowance", type: "uint256" },
+      { name: "needed", type: "uint256" },
+    ],
+  },
 ] as const;
 
 export const registrarAbi = [
@@ -198,6 +256,38 @@ export const registrarAbi = [
       { name: "creditsSpent", type: "uint256", indexed: false },
     ],
   },
+  // Every revert this contract can produce, plus the ones it bubbles up from the
+  // registry and from the USDG token. Without these entries viem has nothing to
+  // decode the four-byte selector against, and a failed mint reaches the user as
+  // "reverted with the following signature: 0xb99e2ab7" — which says nothing.
+  { type: "error", name: "MintingPaused", inputs: [] },
+  { type: "error", name: "InvalidLabel", inputs: [{ name: "label", type: "string" }] },
+  { type: "error", name: "LabelBlocked", inputs: [{ name: "label", type: "string" }] },
+  { type: "error", name: "ShortNameLocked", inputs: [{ name: "label", type: "string" }] },
+  { type: "error", name: "NotAShortName", inputs: [{ name: "label", type: "string" }] },
+  {
+    type: "error",
+    name: "InsufficientPayment",
+    inputs: [
+      { name: "required", type: "uint256" },
+      { name: "provided", type: "uint256" },
+    ],
+  },
+  { type: "error", name: "UsdcNotConfigured", inputs: [] },
+  {
+    type: "error",
+    name: "NoCreditsLeft",
+    inputs: [
+      { name: "attested", type: "uint256" },
+      { name: "spent", type: "uint256" },
+    ],
+  },
+  { type: "error", name: "VoucherExpired", inputs: [{ name: "expiry", type: "uint256" }] },
+  { type: "error", name: "BadVoucher", inputs: [] },
+  { type: "error", name: "SignerNotConfigured", inputs: [] },
+  { type: "error", name: "RefundFailed", inputs: [] },
+  ...registryErrors,
+  ...erc20Errors,
 ] as const;
 
 /**
@@ -311,6 +401,7 @@ export const registryAbi = [
       { name: "tokenId", type: "uint256", indexed: true },
     ],
   },
+  ...registryErrors,
 ] as const;
 
 export const erc20Abi = [
