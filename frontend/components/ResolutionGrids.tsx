@@ -29,7 +29,10 @@ const WALLETS: Cell[] = [
   { mark: "safe", name: "Safe", note: "Owner and recipient lookup" },
   { mark: "phantom", name: "Phantom", note: "Solana record, ENSIP-9" },
   { mark: "uniswap", name: "Uniswap", note: "Swap straight to a name" },
-  { mark: "robinhood", name: "Robinhood Wallet", note: "Native chain coinType" },
+  // Robinhood Wallet has NOT integrated ENS — it cannot send *to* a name. Receiving
+  // works because resolution happens in the sender's wallet. Every other note in this
+  // grid describes sending; this one must not.
+  { mark: "robinhood", name: "Robinhood Wallet", note: "Receive to your name" },
   { mark: "ethereum", name: "Any ENS app", note: "Via the Universal Resolver" },
 ];
 

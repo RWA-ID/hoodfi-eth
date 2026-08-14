@@ -301,12 +301,19 @@ a {
   background: var(--ink);
 }
 
-/* The only two shadows in the design: hard offsets, no blur. */
+/* Every shadow in the design: hard offsets, no blur. */
 .shadow-hero {
   box-shadow: 16px 16px 0 rgba(11, 14, 8, 0.18);
 }
 .shadow-card {
   box-shadow: 14px 14px 0 rgba(11, 14, 8, 0.1);
+}
+/* Same geometry as .shadow-card, in the accent. Reserved for the one block on
+   the page that is about somebody else — the offset reads as a second edge, so
+   the co-brand gets a lime frame without a lime fill competing with the CTA
+   band above it. */
+.shadow-lime {
+  box-shadow: 14px 14px 0 var(--lime);
 }
 
 .hairline-t {
@@ -571,6 +578,53 @@ a {
   background-color: var(--mark-tile);
   background-size: cover;
   background-position: center;
+}
+
+/* ── wallet lockup ──
+   The band's own ground, one step under the page. See the note in
+   `components/WalletLockup.tsx` for why this section alone gets it. */
+.wallet-band {
+  background: var(--paper-alt);
+}
+
+   The co-brand coda above the footer. Both signs are the same glyph at two jobs:
+   in the heading it is punctuation between two names, in the lockup it is the
+   join between two marks. */
+.lockup-x {
+  /* A real word space sits either side of this in the markup — the break
+     opportunity the heading needs — so the padding only tops it up. */
+  padding: 0 0.16em;
+  color: var(--faint);
+  font-weight: 600;
+}
+.lockup-sign {
+  font-family: var(--font-display), sans-serif;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--faint);
+}
+
+/* Apple and Google both require their badge unmodified — no recolour, no
+   stroke on the art. The ring is held off the badge in its own clear space,
+   which is why the padding is here and not inside the image. */
+.store-badge {
+  display: inline-flex;
+  padding: 5px;
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+.store-badge img {
+  display: block;
+  width: 148px;
+  height: auto;
+}
+.store-badge:hover {
+  border-color: var(--line-card);
+}
+.store-badge:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 /* ── in-flight read ──

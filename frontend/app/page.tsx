@@ -12,6 +12,7 @@ import { IdentityCard } from "@/components/IdentityCard";
 import { FundTheCentury } from "@/components/FundTheCentury";
 import { ResolutionGrids } from "@/components/ResolutionGrids";
 import { ContractsTable } from "@/components/ContractsTable";
+import { WalletLockup } from "@/components/WalletLockup";
 import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
 import { PageView } from "@/components/PageView";
 import { ROBINHOOD_CHAIN_ID } from "@/lib/chains";
@@ -260,6 +261,8 @@ export default function Home() {
               </div>
             </div>
           </section>
+
+          <WalletLockup />
         </main>
       </MintQueryProvider>
       <Footer />

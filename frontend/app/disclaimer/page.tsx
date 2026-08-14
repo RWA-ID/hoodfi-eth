@@ -37,10 +37,12 @@ export default function DisclaimerPage() {
               Robinhood Markets, Inc.; it appears on this site solely to refer to the
               public Robinhood Chain network (chain id 4663) on which names are issued,
               and to the Robinhood Wallet app, which supports that network. The
-              Robinhood Wallet name, logo, and download links in the footer point to the
-              official Apple App Store and Google Play listings and are provided for
-              your convenience only — they are not a partnership, sponsorship, or
-              endorsement in either direction. Apple and the Apple logo are trademarks
+              Robinhood Wallet name, app icon, and download links shown on this site
+              point to the official Apple App Store and Google Play listings and are
+              provided for your convenience only — they are not a partnership,
+              sponsorship, or endorsement in either direction. Robinhood Wallet has not
+              integrated ENS: a HoodFi name can be used to receive funds there, but the
+              app cannot itself send to a name. Apple and the Apple logo are trademarks
               of Apple Inc.; Google Play and the Google Play logo are trademarks of
               Google LLC. HoodFi.eth is also not affiliated with ENS Labs, the ENS DAO,
               or the Ethereum Foundation.
