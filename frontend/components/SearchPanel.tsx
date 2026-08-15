@@ -18,6 +18,11 @@ import {
   SOL_COIN_TYPE,
   decodeChainAddress,
 } from "@/lib/ens";
+import {
+  contentGatewayUrl,
+  decodeContenthash,
+  type ContentHash,
+} from "@/lib/contenthash";
 import { MINT_STATUS, checkLabel, normalizeLabel } from "@/lib/labels";
 import { track } from "@/lib/analytics";
 import { ArrowNE } from "./ArrowNE";
@@ -47,6 +52,8 @@ type Records = {
   sol: string;
   texts: { key: string; label: string; value: string }[];
   avatar: string;
+  /** The website the name serves, if its owner set one. */
+  content: ContentHash | null;
 };
 
 /**
@@ -122,12 +129,18 @@ async function readRecords(label: string): Promise<Lookup> {
       args: [node, coinType],
     });
 
-  const [avatar, texts, evmRaw, btcRaw, solRaw] = await Promise.all([
+  const [avatar, texts, evmRaw, btcRaw, solRaw, contentRaw] = await Promise.all([
     text("avatar"),
     Promise.all(TEXT_KEYS.map((t) => text(t.key))),
     addr(ROBINHOOD_COIN_TYPE),
     addr(BTC_COIN_TYPE),
     addr(SOL_COIN_TYPE),
+    l2Client.readContract({
+      address: registry,
+      abi: registryAbi,
+      functionName: "contenthash",
+      args: [node],
+    }),
   ]);
 
   const records: Records = {
@@ -139,6 +152,7 @@ async function readRecords(label: string): Promise<Lookup> {
     btc: decodeChainAddress(BTC_COIN_TYPE, btcRaw as string),
     sol: decodeChainAddress(SOL_COIN_TYPE, solRaw as string),
     avatar: avatar ?? "",
+    content: decodeContenthash(contentRaw as string),
     texts: TEXT_KEYS.map((t, i) => ({
       key: t.key,
       label: t.label,
@@ -170,7 +184,17 @@ type LedgerRow = {
 function RecordsLedger({ records }: { records: Records }) {
   const { copied, copy } = useCopy();
 
+  const site = records.content;
+
   const rows: LedgerRow[] = [
+    // The website first: it's the only record you can *go* to, and burying it under
+    // three addresses would hide the one thing a visitor can act on.
+    {
+      key: "content",
+      label: "Website (IPFS)",
+      value: site?.uri ?? "",
+      href: site ? contentGatewayUrl(site) : undefined,
+    },
     { key: "evm", label: "Ethereum & EVM", value: records.evm, mark: "ethereum" },
     { key: "btc", label: "Bitcoin", value: records.btc, mark: "bitcoin" },
     { key: "sol", label: "Solana", value: records.sol, mark: "solana" },
@@ -248,6 +272,20 @@ function RecordsLedger({ records }: { records: Records }) {
       ))}
 
       <div className="flex flex-wrap gap-2.5 px-4 py-4 sm:px-5">
+        {/* Sent to the CID's own subdomain gateway rather than to the .eth.limo
+            address: it is the one link guaranteed to open in an ordinary browser,
+            and it gives the site its own origin so its assets load. */}
+        {site && (
+          <a
+            className="btn btn-ink btn-sm"
+            href={contentGatewayUrl(site)}
+            target="_blank"
+            rel="noreferrer noopener"
+            onClick={() => track("site_visited", { method: site.protocol })}
+          >
+            Visit website <ArrowNE />
+          </a>
+        )}
         <a
           className="btn btn-ghost btn-sm"
           href={`${robinhoodChain.blockExplorers.default.url}/token/${L2_REGISTRY_ADDRESS}/instance/${records.tokenId}`}

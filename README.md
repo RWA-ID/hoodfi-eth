@@ -68,7 +68,7 @@ before and after the v2 registrar swap.
    Robinhood Chain — no waitlist, no allowlist.
 2. **Mint.** One transaction in **ETH** or **USDG**, at the tier price below. The
    name is an ERC-721 that lands in your wallet immediately.
-3. **Make it yours.** Set the address, avatar, X handle, website and bio straight
+3. **Make it yours.** Set the address, avatar, X handle, link, bio and website straight
    on the L2Registry from `/manage`. The registrar has no say in it. Every change
    in the form saves as one `multicall`, so it costs a single signature however
    many records moved.
@@ -81,6 +81,15 @@ resolves against L1 whatever network it's on, and the address it gets is valid o
 Base, Arbitrum, Polygon, Optimism and Robinhood Chain alike. **Bitcoin and Solana**
 are separate ENSIP-9 coinType records, stored in each chain's own binary encoding
 rather than as the text you typed.
+
+A name can also **be** a website. The EIP-1577 `contenthash` record is editable from
+`/manage` — paste an IPFS CID or an IPNS key and the name serves that site, the same
+mechanism that serves hoodfi.eth itself. `/search` shows the record and a **Visit**
+button for anyone looking the name up. The codec (`frontend/lib/contenthash.ts`,
+IPFS and IPNS only) is hand-rolled rather than pulled from a dependency and has its
+own regression test: `cd frontend && npm test`. Contenthash needs no gateway change —
+the CCIP path forwards whatever record call it is given, and `HoodfiL1Resolver`
+already advertises `0xbc1c58d1`.
 
 | Length | Price | Availability |
 |---|---|---|
@@ -253,6 +262,7 @@ bun scripts/smoke.ts                                              # terminal 2
 
 # Frontend
 cd frontend && npm install && npm run dev
+npm test                                    # contenthash codec vectors
 # production: npm run build → static export in out/ → bash pin.sh (needs PINATA_JWT)
 ```
 

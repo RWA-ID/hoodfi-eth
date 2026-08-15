@@ -10,7 +10,7 @@ import { ogMetadata } from "@/lib/metadata";
 export const metadata: Metadata = ogMetadata({
   title: "Manage your names",
   description:
-    "Point your *.hoodfi.eth name at any address and set your avatar, X handle, website and bio — all onchain, all yours.",
+    "Point your *.hoodfi.eth name at any address, set your avatar, X handle and bio, and serve a whole IPFS website from the name itself — all onchain, all yours.",
   path: "/manage/",
   image: "/og/manage.png",
 });

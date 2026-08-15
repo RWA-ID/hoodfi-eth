@@ -375,6 +375,25 @@ export const registryAbi = [
     outputs: [{ type: "string" }],
   },
   {
+    // EIP-1577. The record that lets a name be opened as a website rather than only
+    // pointed at — stored as <namespace><CID>, decoded in lib/contenthash.
+    type: "function",
+    name: "contenthash",
+    stateMutability: "view",
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ type: "bytes" }],
+  },
+  {
+    type: "function",
+    name: "setContenthash",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "node", type: "bytes32" },
+      { name: "hash", type: "bytes" },
+    ],
+    outputs: [],
+  },
+  {
     type: "function",
     name: "multicall",
     stateMutability: "nonpayable",

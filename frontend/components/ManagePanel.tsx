@@ -27,6 +27,14 @@ import {
   encodeChainAddress,
   normalizeXHandle,
 } from "@/lib/ens";
+import {
+  contentGatewayUrl,
+  decodeContenthash,
+  encodeContenthash,
+  limoUrl,
+  parseContenthash,
+} from "@/lib/contenthash";
+import { ArrowNE } from "./ArrowNE";
 import { AvatarUpload } from "./AvatarUpload";
 import { clearStashedAvatar, readStashedAvatar } from "@/lib/avatar";
 import { BitcoinLogo, EthereumLogo, SolanaLogo } from "./ChainLogo";
@@ -117,6 +125,9 @@ const TEXT_FIELDS: {
   },
 ];
 
+/** The website record's own key in the draft — it is neither a text nor an address. */
+const CONTENTHASH = "contenthash";
+
 function useTextRecord(node: `0x${string}` | undefined, key: string) {
   return useReadContract({
     address: L2_REGISTRY_ADDRESS,
@@ -134,6 +145,17 @@ function useAddrRecord(node: `0x${string}` | undefined, coinType: bigint) {
     abi: registryAbi,
     functionName: "addr",
     args: [node ?? "0x", coinType],
+    chainId: robinhoodChain.id,
+    query: { enabled: Boolean(L2_REGISTRY_ADDRESS && node) },
+  });
+}
+
+function useContenthashRecord(node: `0x${string}` | undefined) {
+  return useReadContract({
+    address: L2_REGISTRY_ADDRESS,
+    abi: registryAbi,
+    functionName: "contenthash",
+    args: [node ?? "0x"],
     chainId: robinhoodChain.id,
     query: { enabled: Boolean(L2_REGISTRY_ADDRESS && node) },
   });
@@ -173,6 +195,10 @@ function NameEditor({
   // decides whether the owner is told to expect a wait.
   const [avatarInFlight, setAvatarInFlight] = useState(false);
   const [avatarSaved, setAvatarSaved] = useState(false);
+  // Same question for the website record, and the same reason: what happens after the
+  // block is confirmed is not instant, and silence there reads as a failed save.
+  const [contentInFlight, setContentInFlight] = useState(false);
+  const [contentSaved, setContentSaved] = useState(false);
 
   const avatar = useTextRecord(name.node, "avatar");
   const twitter = useTextRecord(name.node, "com.twitter");
@@ -182,8 +208,12 @@ function NameEditor({
   const evmAddr = useAddrRecord(name.node, ROBINHOOD_COIN_TYPE);
   const btcAddr = useAddrRecord(name.node, BTC_COIN_TYPE);
   const solAddr = useAddrRecord(name.node, SOL_COIN_TYPE);
+  const content = useContenthashRecord(name.node);
 
   const evmRecord = evmAddr.data as string | undefined;
+  // Shown as the `ipfs://…` URI rather than the stored bytes: it is what every other
+  // ENS tool displays, and the only form an owner could check against their pin.
+  const savedContent = decodeContenthash(content.data as string | undefined);
 
   const onChainValues: Record<string, string> = {
     avatar: avatar.data ?? "",
@@ -194,6 +224,7 @@ function NameEditor({
       evmRecord && evmRecord !== "0x" ? getAddress(evmRecord as Address) : "",
     "addr.btc": decodeChainAddress(BTC_COIN_TYPE, btcAddr.data as string),
     "addr.sol": decodeChainAddress(SOL_COIN_TYPE, solAddr.data as string),
+    [CONTENTHASH]: savedContent?.uri ?? "",
   };
 
   // Seed the form from chain state once, then let the user's edits win.
@@ -214,6 +245,7 @@ function NameEditor({
     evmAddr.data,
     btcAddr.data,
     solAddr.data,
+    content.data,
   ]);
 
   useEffect(() => {
@@ -222,6 +254,7 @@ function NameEditor({
       setDirty(new Set());
       setSaving(false);
       setAvatarSaved(avatarInFlight);
+      setContentSaved(contentInFlight);
       void avatar.refetch();
       void twitter.refetch();
       void url.refetch();
@@ -229,6 +262,7 @@ function NameEditor({
       void evmAddr.refetch();
       void btcAddr.refetch();
       void solAddr.refetch();
+      void content.refetch();
       onSaved();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -320,6 +354,11 @@ function NameEditor({
     return addrBytes(field, field.coinTypes[0]) === null;
   }
 
+  /** What the website field currently holds, parsed — null while empty or unparseable. */
+  const contentDraft = parseContenthash(draft[CONTENTHASH] ?? "");
+  const contentInvalid =
+    (draft[CONTENTHASH] ?? "").trim() !== "" && contentDraft === null;
+
   /** Every pending edit, encoded as registry calls — the whole form in one batch. */
   function pendingCalls(): `0x${string}`[] {
     const calls: `0x${string}`[] = [];
@@ -352,6 +391,21 @@ function NameEditor({
         })
       );
     }
+
+    if (dirty.has(CONTENTHASH)) {
+      const typed = (draft[CONTENTHASH] ?? "").trim();
+      // Emptied on purpose: "0x" clears the record and the name stops being a site.
+      const bytes = typed === "" ? "0x" : encodeContenthash(typed);
+      if (bytes !== null) {
+        calls.push(
+          encodeFunctionData({
+            abi: registryAbi,
+            functionName: "setContenthash",
+            args: [name.node, bytes],
+          })
+        );
+      }
+    }
     return calls;
   }
 
@@ -361,7 +415,9 @@ function NameEditor({
     if (calls.length === 0) return;
     setActionError(null);
     setAvatarSaved(false);
+    setContentSaved(false);
     setAvatarInFlight(dirty.has("avatar"));
+    setContentInFlight(dirty.has(CONTENTHASH));
     try {
       await ensureChain();
       setSaving(true);
@@ -381,8 +437,8 @@ function NameEditor({
   }
 
   const busy = isPending || receipt.isLoading;
-  // An address left unparseable blocks the whole batch — it's one transaction.
-  const blocked = ADDRESS_FIELDS.some(addrInvalid);
+  // Anything left unparseable blocks the whole batch — it's one transaction.
+  const blocked = ADDRESS_FIELDS.some(addrInvalid) || contentInvalid;
   const changeCount = pendingCalls().length === 0 ? 0 : dirty.size;
   const canSave = changeCount > 0 && !blocked && !busy;
 
@@ -501,6 +557,77 @@ function NameEditor({
           </div>
         ))}
 
+        {/* The website record. Last in the ledger because it's the one that changes
+            what the name *is* rather than what it points at — everything above makes
+            the name resolve, this makes it open. */}
+        <div className="flex flex-col gap-2 border-b border-[color-mix(in_srgb,var(--line)_70%,transparent)] px-4 py-4 sm:grid sm:grid-cols-[170px_minmax(0,1fr)] sm:items-start sm:gap-3 sm:px-5">
+          <label className="pt-2" htmlFor={`${CONTENTHASH}-${name.label}`}>
+            <span className="label" style={{ letterSpacing: "0.16em" }}>
+              Website (IPFS)
+            </span>
+          </label>
+          <div className="min-w-0">
+            <input
+              id={`${CONTENTHASH}-${name.label}`}
+              className="input data w-full text-sm"
+              placeholder="ipfs://bafy… or ipns://k51…"
+              value={draft[CONTENTHASH] ?? ""}
+              onChange={(e) => set(CONTENTHASH, e.target.value)}
+              spellCheck={false}
+              autoCapitalize="none"
+            />
+            {contentInvalid ? (
+              <div className="data mt-1.5 text-xs" style={{ color: "var(--bad)" }}>
+                That isn&apos;t an IPFS CID or IPNS key. A CID, an ipfs:// link or a
+                gateway URL all work — anything else can&apos;t be stored.
+              </div>
+            ) : (
+              <p className="mt-1.5 text-xs text-[var(--faint)]">
+                Serve a whole website from your name. Paste the CID of a folder you
+                pinned, or an IPNS key if you want to update it without a transaction.
+              </p>
+            )}
+            {contentDraft &&
+              (savedContent?.uri === contentDraft.uri ? (
+                <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
+                  Live at{" "}
+                  <a
+                    className="link"
+                    href={limoUrl(name.label)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    {name.label}.hoodfi.eth.limo <ArrowNE />
+                  </a>{" "}
+                  and from{" "}
+                  <a
+                    className="link"
+                    href={contentGatewayUrl(contentDraft)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    any IPFS gateway <ArrowNE />
+                  </a>
+                  .
+                </p>
+              ) : (
+                <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
+                  Saving points {name.label}.hoodfi.eth at this content.{" "}
+                  <a
+                    className="link"
+                    href={contentGatewayUrl(contentDraft)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    Check it loads first <ArrowNE />
+                  </a>{" "}
+                  — the record can only carry the CID, so whatever is at its root is
+                  what visitors get.
+                </p>
+              ))}
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-5">
           <button
             className="btn btn-ink sm:w-48"
@@ -537,6 +664,21 @@ function NameEditor({
               Your new picture is live onchain and already showing on the card here.
               Wallets, marketplaces and shared links cache images, so give them a few
               minutes to catch up — there&apos;s nothing left to sign.
+            </p>
+          )}
+          {/* The record is written the moment the block lands, but nobody reads it
+              from the chain directly: mainnet lookups go through our CCIP gateway,
+              whose signed answers clients cache for five minutes, and gateways issue
+              a certificate for the name the first time it's asked for. So a site can
+              be correctly published and still 404 for a few minutes — which is how an
+              owner ends up saving the same record three times. */}
+          {contentSaved && !saving && (
+            <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
+              Your website record is live onchain. Give lookups up to five minutes to
+              stop serving the previous answer, and the first visit to{" "}
+              <span className="data">{name.label}.hoodfi.eth.limo</span> a moment to
+              get its certificate — the content itself is already reachable from the
+              gateway link above.
             </p>
           )}
           <p className="data mt-3 text-[11px] leading-relaxed text-[var(--faint)]">

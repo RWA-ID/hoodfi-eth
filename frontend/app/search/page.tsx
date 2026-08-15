@@ -9,7 +9,7 @@ import { ogMetadata } from "@/lib/metadata";
 export const metadata: Metadata = ogMetadata({
   title: "Look up a name",
   description:
-    "Search any *.hoodfi.eth name and see every record attached to it — addresses, avatar, X, website and bio, read straight from Robinhood Chain.",
+    "Search any *.hoodfi.eth name and see every record attached to it — addresses, avatar, X, bio, and the IPFS site it serves — read straight from Robinhood Chain.",
   path: "/search/",
   image: "/og/default.png",
 });

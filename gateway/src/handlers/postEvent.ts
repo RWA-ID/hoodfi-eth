@@ -24,7 +24,9 @@ const KNOWN_EVENTS = new Set([
   'short_mint_started',
   'short_mint_completed',
   'record_saved',
+  'avatar_uploaded',
   'share_clicked',
+  'site_visited',
   'connect_opened',
 ])
 

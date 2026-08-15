@@ -26,6 +26,7 @@ export type TrackEvent =
   | "record_saved"
   | "avatar_uploaded"
   | "share_clicked"
+  | "site_visited"
   | "connect_opened";
 
 type Props = Record<string, string | number | boolean | undefined>;

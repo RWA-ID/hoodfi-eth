@@ -73,7 +73,11 @@ const GROUPS: { heading: string; items: FaqItem[] }[] = [
     items: [
       {
         q: "What can I set on my name?",
-        a: "The address it resolves to, an avatar, your X handle, a website and a bio. More records are supported by the registry than the manage page exposes today.",
+        a: "The address it resolves to, an avatar, your X handle, a link, a bio, and an IPFS website the name itself serves. More records are supported by the registry than the manage page exposes today.",
+      },
+      {
+        q: "Can my name be a website?",
+        a: "Yes. Pin a site to IPFS and paste its CID into the website field on the manage page — or an IPNS key, if you want to publish updates later without another transaction. The lookup page then shows a Visit button for anyone who searches your name, and ENS-aware browsers and gateways can open the name itself. It's the same mechanism this site uses: hoodfi.eth is served from IPFS through its own contenthash record.",
       },
       {
         q: "Who can change my records?",
