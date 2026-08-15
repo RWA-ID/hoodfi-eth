@@ -31,7 +31,7 @@ import {
   contentGatewayUrl,
   decodeContenthash,
   encodeContenthash,
-  limoUrl,
+  nameUrl,
   parseContenthash,
 } from "@/lib/contenthash";
 import { ArrowNE } from "./ArrowNE";
@@ -593,11 +593,11 @@ function NameEditor({
                   Live at{" "}
                   <a
                     className="link"
-                    href={limoUrl(name.label)}
+                    href={nameUrl(name.label)}
                     target="_blank"
                     rel="noreferrer noopener"
                   >
-                    {name.label}.hoodfi.eth.limo <ArrowNE />
+                    {name.label}.hoodfi.eth.link <ArrowNE />
                   </a>{" "}
                   and from{" "}
                   <a
@@ -676,7 +676,7 @@ function NameEditor({
             <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
               Your website record is live onchain. Give lookups up to five minutes to
               stop serving the previous answer, and the first visit to{" "}
-              <span className="data">{name.label}.hoodfi.eth.limo</span> a moment to
+              <span className="data">{name.label}.hoodfi.eth.link</span> a moment to
               get its certificate — the content itself is already reachable from the
               gateway link above.
             </p>

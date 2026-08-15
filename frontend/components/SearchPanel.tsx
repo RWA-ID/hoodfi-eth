@@ -19,8 +19,8 @@ import {
   decodeChainAddress,
 } from "@/lib/ens";
 import {
-  contentGatewayUrl,
   decodeContenthash,
+  nameUrl,
   type ContentHash,
 } from "@/lib/contenthash";
 import { MINT_STATUS, checkLabel, normalizeLabel } from "@/lib/labels";
@@ -179,6 +179,8 @@ type LedgerRow = {
   mark?: string;
   href?: string;
   prose?: boolean;
+  /** Renders a call-to-action under the value. Only the website row uses it. */
+  visit?: string;
 };
 
 function RecordsLedger({ records }: { records: Records }) {
@@ -189,11 +191,16 @@ function RecordsLedger({ records }: { records: Records }) {
   const rows: LedgerRow[] = [
     // The website first: it's the only record you can *go* to, and burying it under
     // three addresses would hide the one thing a visitor can act on.
+    // Clicking it goes to the name, not to the CID's gateway. The value shown is
+    // still the record — the CID is what's stored and what an owner checks against
+    // their pin — but a visitor who clicks it should land on gm.hoodfi.eth.link and
+    // see the name working, which is the entire point of setting the record.
     {
       key: "content",
       label: "Website (IPFS)",
       value: site?.uri ?? "",
-      href: site ? contentGatewayUrl(site) : undefined,
+      href: site ? nameUrl(records.label) : undefined,
+      visit: site ? nameUrl(records.label) : undefined,
     },
     { key: "evm", label: "Ethereum & EVM", value: records.evm, mark: "ethereum" },
     { key: "btc", label: "Bitcoin", value: records.btc, mark: "bitcoin" },
@@ -259,6 +266,27 @@ function RecordsLedger({ records }: { records: Records }) {
             ) : (
               row.value
             )}
+
+            {/* On the row rather than in the button strip at the foot of the ledger.
+                Down there it sat eight rows below the record it belongs to, past
+                every address and the bio, so the one record a visitor can act on
+                read as the least important thing on the page. */}
+            {row.visit && (
+              // Wrapped in a block so it starts its own line. The button is
+              // inline-flex and this cell is `break-all` for the CID, so left inline
+              // it flows onto the CID's last wrapped line and sits on top of it.
+              <div className="mt-2.5">
+                <a
+                  className="btn btn-ink btn-sm whitespace-nowrap"
+                  href={row.visit}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  onClick={() => track("site_visited", { method: site?.protocol ?? "" })}
+                >
+                  Visit website <ArrowNE />
+                </a>
+              </div>
+            )}
           </div>
 
           <button
@@ -272,20 +300,6 @@ function RecordsLedger({ records }: { records: Records }) {
       ))}
 
       <div className="flex flex-wrap gap-2.5 px-4 py-4 sm:px-5">
-        {/* Sent to the CID's own subdomain gateway rather than to the .eth.limo
-            address: it is the one link guaranteed to open in an ordinary browser,
-            and it gives the site its own origin so its assets load. */}
-        {site && (
-          <a
-            className="btn btn-ink btn-sm"
-            href={contentGatewayUrl(site)}
-            target="_blank"
-            rel="noreferrer noopener"
-            onClick={() => track("site_visited", { method: site.protocol })}
-          >
-            Visit website <ArrowNE />
-          </a>
-        )}
         <a
           className="btn btn-ghost btn-sm"
           href={`${robinhoodChain.blockExplorers.default.url}/token/${L2_REGISTRY_ADDRESS}/instance/${records.tokenId}`}

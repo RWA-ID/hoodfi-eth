@@ -290,11 +290,17 @@ export function contentGatewayUrl(content: ContentHash): string {
 }
 
 /**
- * The address the name itself answers on, through eth.limo's ENS gateway.
+ * The address the name itself answers on.
  *
  * This is the point of setting the record — the CID link above is the fallback that
  * always works, this is the one worth telling people.
+ *
+ * `.eth.link` and `.eth.limo` both serve a hoodfi subname (verified on gm.hoodfi.eth
+ * once the first record existed) and both are run by eth.limo, so this is a naming
+ * call rather than a technical one: `.link` reads as what it is. Kept as one function
+ * so the two places that show an owner their address and send a visitor to it can
+ * never drift apart.
  */
-export function limoUrl(label: string): string {
-  return `https://${label}.hoodfi.eth.limo/`;
+export function nameUrl(label: string): string {
+  return `https://${label}.hoodfi.eth.link/`;
 }

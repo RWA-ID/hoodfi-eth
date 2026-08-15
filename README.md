@@ -91,6 +91,13 @@ own regression test: `cd frontend && npm test`. Contenthash needs no gateway cha
 the CCIP path forwards whatever record call it is given, and `HoodfiL1Resolver`
 already advertises `0xbc1c58d1`.
 
+Verified end to end on **gm.hoodfi.eth**: the record was set from `/manage`, and the
+site is served at `gm.hoodfi.eth.link` **and** `gm.hoodfi.eth.limo` (the UI links
+`.link`; both are run by eth.limo). So a subname
+resolves through the public ENS gateways with no per-name setup — that was an open
+question until the first record existed, and it is why `/search` links a visitor to
+the name rather than to the CID's IPFS gateway.
+
 | Length | Price | Availability |
 |---|---|---|
 | 1 character | $15 | credit holders only, until the 100-year goal |
