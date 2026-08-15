@@ -3,6 +3,18 @@ main = "./src/index.ts"
 compatibility_date = "2024-03-19"
 
 
+# The funnel sink postEvent writes to. Without this binding env.ANALYTICS is
+# undefined and postEvent accepts every event and discards it — silently, by
+# design, so analytics can never break the page. That silence hid the fact that
+# nothing had ever been recorded, so the binding is declared here rather than
+# left to the dashboard.
+# `binding` is the name the Worker code sees and must stay ANALYTICS — postEvent
+# reads env.ANALYTICS. `dataset` is the name on Cloudflare's side, created in the
+# dashboard; the two are unrelated and only the dataset has to match over there.
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "HoodFi_Names"
+
 [vars]
 # ROBINHOOD_RPC_URL is deliberately NOT declared here. It is a secret
 # (`wrangler secret put ROBINHOOD_RPC_URL`) because it carries an API key, and a
