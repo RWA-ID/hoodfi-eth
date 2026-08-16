@@ -200,11 +200,13 @@ Resolution design notes:
 | `gateway/src/handlers/getVoucher.ts` | Reads `shortCredits` on L1, signs the voucher the registrar accepts |
 | `gateway/src/handlers/getSharePage.ts` · `getNameCard.ts` | Per-name OG tags, and the 1200×630 card they point at (satori) |
 | `gateway/src/handlers/getDonations.ts` | The donation ledger, read with the private archive RPC |
+| `gateway/src/handlers/postPartner.ts` | Partner enquiries → one email via Resend. Delivers only to the fixed `PARTNER_NOTIFY_TO`; a caller-chosen recipient would make a public endpoint an open relay |
 | `frontend/` | Next.js 16 static export → hosted + IPFS |
 | `frontend/app/mint/` · `app/manage/` · `app/search/` | Search-and-mint, record editing for names you own, and the public name lookup |
 | `frontend/components/MintPanel.tsx` | The search card: live status, tier pricing, credit vouchers |
 | `frontend/components/SearchPanel.tsx` | Public lookup: reads the L2Registry directly, so it keeps working — and keeps telling the truth — when the gateway in front of it doesn't |
 | `frontend/components/ProfileCard.tsx` | The shareable card, used read-only on `/search` and as a live draft preview on `/manage` |
+| `frontend/app/partner/` | Partner enquiries. Posts to the worker, since a static export has no server of its own; `AddressToName.tsx` makes the case by typing a 42-character address out and replacing it with a name |
 | `frontend/lib/resolution.ts` | Mainnet resolution check and the mint-date lookup, shared by both pages |
 | `frontend/vercel.json` | Rewrites `/{label}`, `/n/`, `/card/` onto the worker. Not `next.config` — `rewrites` there are unsupported under `output: export` |
 | `DEPLOY.md` | The v2 deploy runbook, in the order it must be run |

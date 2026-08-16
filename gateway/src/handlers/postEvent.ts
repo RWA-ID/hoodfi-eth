@@ -28,6 +28,7 @@ const KNOWN_EVENTS = new Set([
   'share_clicked',
   'site_visited',
   'connect_opened',
+  'partner_submitted',
 ])
 
 /** Bounds what a caller can write, so a stray script can't blow up cardinality. */

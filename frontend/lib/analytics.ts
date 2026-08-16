@@ -27,7 +27,8 @@ export type TrackEvent =
   | "avatar_uploaded"
   | "share_clicked"
   | "site_visited"
-  | "connect_opened";
+  | "connect_opened"
+  | "partner_submitted";
 
 type Props = Record<string, string | number | boolean | undefined>;
 

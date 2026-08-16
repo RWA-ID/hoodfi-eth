@@ -478,6 +478,38 @@ a {
   border-color: var(--lime);
 }
 
+/* The multi-line sibling of .input.
+ *
+ * A class of its own rather than `.input` plus a couple of height utilities, because
+ * every rule in this file is UNLAYERED and an unlayered rule beats every Tailwind
+ * utility whatever the specificity — so `h-auto` and `py-3` on a `.input` textarea both
+ * lose, and the field renders as a 48px slot with no vertical padding and its own text
+ * scrolling behind the border. Same trap as the button reset above. */
+.textarea {
+  width: 100%;
+  min-height: 152px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-card);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-data), monospace;
+  font-size: 16px; /* ≥16px kills iOS focus-zoom */
+  line-height: 1.65;
+  resize: vertical;
+  transition: border-color 0.15s ease;
+}
+.textarea:focus {
+  outline: none;
+  border-color: var(--fg);
+}
+.textarea::placeholder {
+  color: var(--faint);
+}
+.on-ink .textarea:focus {
+  border-color: var(--lime);
+}
+
 /* ── status colors ── */
 .ok {
   color: var(--ok);
@@ -587,9 +619,14 @@ a {
   background: var(--paper-alt);
 }
 
-   The co-brand coda above the footer. Both signs are the same glyph at two jobs:
+/* The co-brand coda above the footer. Both signs are the same glyph at two jobs:
    in the heading it is punctuation between two names, in the lockup it is the
-   join between two marks. */
+   join between two marks.
+
+   The opening `/*` here had been lost, which is not a cosmetic problem: the orphaned
+   prose parsed as part of the next selector, so `.lockup-x` was an invalid rule and got
+   dropped entirely — the separator in the wallet lockup lost its spacing and its
+   colour, silently, on every page carrying the band. */
 .lockup-x {
   /* A real word space sits either side of this in the markup — the break
      opportunity the heading needs — so the padding only tops it up. */

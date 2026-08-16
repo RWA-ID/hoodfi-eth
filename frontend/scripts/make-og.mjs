@@ -137,6 +137,14 @@ const CARDS = [
     stat: ["renewals", "none"],
   },
   {
+    file: "partner.png",
+    ground: "lime",
+    eyebrow: "08 / partners",
+    lines: ["A name,", "not an address."],
+    sub: "For wallets, exchanges, apps and agents on Robinhood Chain. Names your users can read back over the phone.",
+    stat: ["reply from", "a person"],
+  },
+  {
     file: "legal.png",
     ground: "ink",
     eyebrow: "05 / transparency",

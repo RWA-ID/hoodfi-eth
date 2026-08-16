@@ -11,6 +11,7 @@ import { getTokenMetadata } from './handlers/getTokenMetadata'
 import { getVoucher } from './handlers/getVoucher'
 import { postAvatar } from './handlers/postAvatar'
 import { postEvent } from './handlers/postEvent'
+import { postPartner } from './handlers/postPartner'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -65,5 +66,10 @@ app.get('/donations', async (c) => getDonations(c.env))
 
 // Cookieless analytics sink. Always 204s — the site must never break on a bad beacon.
 app.post('/e', async (c) => postEvent(c.req.raw, c.env))
+
+// Partner enquiry intake. A static export has nowhere to post a form, so this is the
+// only path from /partner/ to an inbox. Delivers to one fixed address, never a
+// caller-supplied one — see the handler for why that constraint is the whole design.
+app.post('/partner', async (c) => postPartner(c.req.raw, c.env))
 
 export default app

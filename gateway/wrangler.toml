@@ -23,3 +23,12 @@ dataset = "HoodFi_Names"
 L2_REGISTRY_ADDRESS = "0xf2bABA012244bdD7445129597350054E1B3aEe5C"
 # Public information, so a plain var — only the RPC URL behind it is secret.
 DONATIONS_DEPLOY_BLOCK = "25698544"
+
+# Where /partner delivers. A var rather than a secret: it is a destination, not a
+# credential, and having it in the repo is what makes it reviewable. RESEND_API_KEY is
+# the secret half and is deliberately NOT declared here — a plain var of that name
+# would shadow the secret and revert it on every deploy.
+PARTNER_NOTIFY_TO = "hector@rwa-id.com"
+# Must be on the exact verified Resend domain. `mail.onchain-id.id` is verified;
+# `onchain-id.id` is a different domain to Resend and would be rejected.
+PARTNER_FROM = "HoodFi Names <partners@mail.onchain-id.id>"

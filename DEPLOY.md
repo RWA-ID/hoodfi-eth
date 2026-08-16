@@ -71,6 +71,7 @@ npx wrangler secret put MAINNET_RPC_URL      # any reliable mainnet RPC
 npx wrangler secret put DONATIONS_ADDRESS    # from step 1
 npx wrangler secret put REGISTRAR_ADDRESS    # from step 2
 npx wrangler secret put PINATA_JWT           # avatar uploads — same JWT as pin.sh
+npx wrangler secret put RESEND_API_KEY       # partner enquiries — the HoodFi Resend key
 npx wrangler deploy
 ```
 
@@ -78,6 +79,17 @@ npx wrangler deploy
 one route answers 503 and the avatar field falls back to accepting a URL you typed —
 nothing else on the gateway cares. It is a secret rather than a `[vars]` entry for the
 usual reason: a plain var of the same name shadows the secret on every deploy.
+
+`RESEND_API_KEY` is the same story for `/partner`: unset, that route answers 503 and the
+form shows a failure rather than pretending an enquiry was delivered. Its two companions
+are plain `[vars]` in `wrangler.toml` because neither is a credential — `PARTNER_NOTIFY_TO`
+(currently `hector@rwa-id.com`) is where enquiries land, and `PARTNER_FROM` is the envelope
+sender. That `from` **must** be on `mail.onchain-id.id` exactly; Resend treats a bare
+`onchain-id.id` as a different, unverified domain and rejects the send.
+
+The endpoint only ever mails `PARTNER_NOTIFY_TO`. Never make the recipient caller-supplied
+— it is a public POST endpoint, and a caller-chosen `to` turns it into an open relay
+sending attacker-written text from a domain every other project's mail also depends on.
 
 Optional, for analytics — add to `wrangler.toml`:
 
@@ -175,6 +187,8 @@ cast send 0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2 \
 - [ ] `getEnsAddress('test1000.hoodfi.eth')` from mainnet still resolves (CCIP untouched)
 - [ ] Paste the URL into X's card validator and confirm the OG image renders
 - [ ] Confirm analytics events land
+- [ ] Send yourself one enquiry from /partner/ and confirm it arrives, with Reply-To set
+      to the address you typed rather than to the sending domain
 
 ## 8. When the goal is reached
 

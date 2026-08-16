@@ -25,6 +25,7 @@ const ROUTES: { path: string; priority: number }[] = [
   { path: "/how-it-works/", priority: 0.7 },
   { path: "/mcp/", priority: 0.6 },
   { path: "/faq/", priority: 0.6 },
+  { path: "/partner/", priority: 0.6 },
   { path: "/terms/", priority: 0.2 },
   { path: "/privacy/", priority: 0.2 },
   { path: "/disclaimer/", priority: 0.2 },

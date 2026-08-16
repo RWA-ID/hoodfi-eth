@@ -21,6 +21,16 @@ export interface Env {
   PINATA_JWT?: string
   /** Optional Analytics Engine binding for the cookieless funnel sink. */
   ANALYTICS?: AnalyticsEngineDataset
+  /** Resend credential for partner enquiries. Secret — it must never reach the bundle. */
+  RESEND_API_KEY?: string
+  /** The one address partner enquiries are delivered to. Never caller-supplied. */
+  PARTNER_NOTIFY_TO?: string
+  /**
+   * Envelope sender. Resend will only accept a `from` on a verified domain, and ours
+   * is `mail.onchain-id.id` exactly — a bare `onchain-id.id` is a different domain to
+   * Resend and is rejected, not treated as a parent.
+   */
+  PARTNER_FROM?: string
 }
 
 /** Minimal shape of Cloudflare's Analytics Engine binding. */

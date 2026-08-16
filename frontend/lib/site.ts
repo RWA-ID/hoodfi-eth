@@ -62,6 +62,18 @@ export const AVATAR_UPLOAD_URL =
   process.env.NEXT_PUBLIC_AVATAR_UPLOAD_URL ??
   "https://hoodfi-gateway.dmpay.workers.dev/avatar";
 
+/**
+ * Gateway route the partner form posts to.
+ *
+ * Absolute, not a relative `/partner` path, for the same reason the avatar upload is:
+ * `vercel.json` can rewrite a path on the hosted domain, but the identical export also
+ * runs from an IPFS gateway where no rewrite exists and a relative POST would hit the
+ * gateway's own 404. One absolute URL works from both.
+ */
+export const PARTNER_URL =
+  process.env.NEXT_PUBLIC_PARTNER_URL ??
+  "https://hoodfi-gateway.dmpay.workers.dev/partner";
+
 /** Gateway route that signs short-name credit vouchers. */
 export const VOUCHER_URL =
   process.env.NEXT_PUBLIC_VOUCHER_URL ??
