@@ -50,7 +50,7 @@ app.get('/voucher/:address', async (c) => getVoucher(c.req.param('address'), c.e
 // Per-name share link. A static export serves identical HTML for every name, so this
 // is the only place a crawler can be told what `gm.hoodfi.eth` actually is. Rewritten
 // onto the site's own domain, so shared URLs never expose workers.dev.
-app.get('/n/:label', async (c) => getSharePage(c.req.param('label'), c.req.url, c.env))
+app.get('/n/:label', async (c) => getSharePage(c.req.param('label'), c.req.raw, c.env))
 
 // The 1200x630 image those tags point at, rendered per name.
 app.get('/card/:label', async (c) => getNameCard(c.req.param('label'), c.env))
