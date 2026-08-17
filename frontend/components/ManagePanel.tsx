@@ -33,7 +33,7 @@ import {
   encodeContenthash,
   nameUrl,
   parseContenthash,
-} from "@/lib/contenthash";
+} from "@/shared/contenthash";
 import { ArrowNE } from "./ArrowNE";
 import { AvatarUpload } from "./AvatarUpload";
 import { clearStashedAvatar, readStashedAvatar } from "@/lib/avatar";

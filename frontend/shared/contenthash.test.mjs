@@ -1,5 +1,10 @@
 /**
- * Regression test for the contenthash codec: `npm test`.
+ * Regression test for the contenthash codec.
+ *
+ * Run it from anywhere: `node --experimental-strip-types shared/contenthash.test.mjs`,
+ * or `npm test` inside `frontend/` or `mcp/`. Neither the codec nor this file imports
+ * anything, so it needs no install — which is the point, since three packages depend on
+ * it and only one of them used to.
  *
  * Worth having for this one file because a wrong answer here is invisible. Every other
  * record fails loudly — a bad address won't parse, a bad avatar won't load — but a
@@ -14,8 +19,9 @@ import {
   contentGatewayUrl,
   decodeContenthash,
   encodeContenthash,
+  nameUrl,
   parseContenthash,
-} from "../lib/contenthash.ts";
+} from "./contenthash.ts";
 
 // The canonical vector from @ensdomains/content-hash's README.
 const QM = "QmRAQB6YaCyidP37UdDnjFY5vQuiBrcqdyoW1CuDgwxkD4";
@@ -74,8 +80,42 @@ assert.equal(encodeContenthash(IPNS), ipnsHex, "a bare k51 key needs no prefix")
 assert.equal(encodeContenthash(`ipfs://${IPNS}`), ipnsHex, "mislabelled key");
 
 // An old-style peer id only becomes a key when it says so.
+//
+// This vector earns a second mention: base58's zero digit is `1`, so a peer id starting
+// with one decodes to bytes with a *leading zero byte* — the case a big-integer
+// conversion silently drops. It is the only input shape here that reaches that branch,
+// since a CID always starts 0x01. Its bytes begin 0x00 0x24 (an identity multihash),
+// cross-checked against multiformats' base58btc.
 const PEER = "12D3KooWRBy97UB99e3J6hiPesre1MZeuNQvfan4gBziswrRJsNK";
 assert.equal(encodeContenthash(PEER), ipnsHex, "the same key, written the old way");
+assert.ok(
+  encodeContenthash(PEER)?.startsWith("0xe50101720024"),
+  "leading zero byte survives base58 decode"
+);
+
+// A second CIDv0 -> CIDv1 pair, so base58-in and base32-out are not resting on one
+// vector. sha2-256 of 32 zero bytes; derived from multiformats and pinned.
+const V0 = "QmVEQhMp7w4BEzXfCnTWGfritiWAgfWamMxmLQ2n3SdACt";
+const V0_HEX =
+  "0xe3010170122066687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925";
+assert.equal(encodeContenthash(V0), V0_HEX, "second CIDv0 vector");
+assert.equal(
+  decodeContenthash(V0_HEX)?.id,
+  "bafybeidgnb5k36dcxv3wzd6brohj7drabclrjblo4iz3hebkleoq2xzjeu",
+  "second base32 vector"
+);
+
+// base32 is case-insensitive on the way in. Multibase prints lowercase, but anything
+// that has been through a spreadsheet, a URL bar or an uppercasing paste still means
+// the same CID, and reading it back as a *different* one would be silent.
+assert.equal(
+  encodeContenthash(decodeContenthash(V0_HEX).id.toUpperCase()),
+  V0_HEX,
+  "uppercase base32 is the same CID"
+);
+
+// The name's own address is what owners are told; it is the one string a visitor gets.
+assert.equal(nameUrl("gm"), "https://gm.hoodfi.eth.link/");
 
 // Rejections — each of these must not become a stored record.
 for (const bad of [

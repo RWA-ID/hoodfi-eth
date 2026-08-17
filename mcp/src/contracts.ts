@@ -87,6 +87,27 @@ export const registryAbi = [
     inputs: [],
     outputs: [{ type: 'uint256' }],
   },
+  {
+    // EIP-1577. The record that makes a name a website, served at
+    // <label>.hoodfi.eth.link — see shared/contenthash.ts for the byte format.
+    type: 'function',
+    name: 'contenthash',
+    stateMutability: 'view',
+    inputs: [{ name: 'node', type: 'bytes32' }],
+    outputs: [{ type: 'bytes' }],
+  },
+  {
+    // Owner-only, and this server holds no key: the calldata is handed back for the
+    // agent's own wallet to sign, exactly like registration.
+    type: 'function',
+    name: 'setContenthash',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'node', type: 'bytes32' },
+      { name: 'hash', type: 'bytes' },
+    ],
+    outputs: [],
+  },
 ] as const
 
 export const erc20Abi = [

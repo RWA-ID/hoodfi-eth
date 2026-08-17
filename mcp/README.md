@@ -23,7 +23,28 @@ open a stream that would never carry a message.
 | --- | --- |
 | `hoodfi_check_name` | Availability, price in ETH and USDG, and the reason when a name can't be had |
 | `hoodfi_build_registration_tx` | Unsigned calldata to register — one step for ETH, up to two for USDG |
-| `hoodfi_resolve_name` | Owner, address records and text records for a minted name |
+| `hoodfi_resolve_name` | Owner, address records, text records and website for a minted name |
+| `hoodfi_build_set_contenthash_tx` | Unsigned calldata to point a name at an IPFS or IPNS site, or to clear it |
+
+### A name can be a website
+
+`hoodfi_build_set_contenthash_tx` writes an EIP-1577 record, which makes the name serve
+that content at `<label>.hoodfi.eth.link` — no DNS, no host, no certificate. It takes a
+CID in any shape people copy them in (bare, `ipfs://`, `ipns://`, a gateway URL) and
+refuses anything it could not link to: Swarm and Arweave namespaces, and a CID with a
+trailing path, which the record cannot carry.
+
+Two properties worth knowing before wiring it in:
+
+- **It reads `ownerOf` before returning calldata.** `setContenthash` is owner-only, and
+  the ERC-721 and the address records are separate things — a name can resolve to a
+  wallet that does not own it. So a wrong signer gets a sentence rather than a revert.
+- **The codec is not this package's.** It is one shared copy at
+  `frontend/shared/contenthash.ts`, imported by relative path and covered by
+  `node --experimental-strip-types frontend/shared/contenthash.test.mjs`. Two
+  implementations of a byte format is how a name ends up holding a well-formed record
+  that resolves to nothing; the header comment there explains why it lives under
+  `frontend/`.
 
 ### Two things the tool descriptions tell agents, because they will otherwise assume otherwise
 

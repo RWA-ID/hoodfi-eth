@@ -22,7 +22,7 @@ import {
   decodeContenthash,
   nameUrl,
   type ContentHash,
-} from "@/lib/contenthash";
+} from "@/shared/contenthash";
 import { MINT_STATUS, checkLabel, normalizeLabel } from "@/lib/labels";
 import { track } from "@/lib/analytics";
 import { ArrowNE } from "./ArrowNE";

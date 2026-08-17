@@ -36,7 +36,11 @@ const TOOLS = [
   },
   {
     name: "hoodfi_resolve_name",
-    body: "Owner, address records and text records for a name that's already minted. The same data the profile card reads.",
+    body: "Owner, address records, text records and website for a name that's already minted. The same data the profile card reads.",
+  },
+  {
+    name: "hoodfi_build_set_contenthash_tx",
+    body: "The unsigned transaction that points a name at an IPFS or IPNS site, so it answers at name.hoodfi.eth.link with no DNS and no host. Owner-only, and checked against the owner before any calldata comes back.",
   },
 ];
 
@@ -73,9 +77,9 @@ export default function McpPage() {
               </h1>
             </div>
             <p className="lede m-0 mb-2.5 max-w-[46ch]">
-              An MCP server that answers what a name costs and hands back the
-              transaction that mints it. It holds no keys and broadcasts nothing — the
-              agent signs, the agent owns.
+              An MCP server that answers what a name costs, hands back the transaction
+              that mints it, and points it at a website. It holds no keys and broadcasts
+              nothing — the agent signs, the agent owns.
             </p>
           </div>
 
@@ -95,7 +99,7 @@ export default function McpPage() {
 
         <section className="shell section">
           <div className="eyebrow">01 / tools</div>
-          <h2 className="h-page mt-[18px]">Three of them.</h2>
+          <h2 className="h-page mt-[18px]">Four of them.</h2>
           <div className="cells mt-11 border-t border-l border-[var(--line)]">
             {TOOLS.map((tool) => (
               <div

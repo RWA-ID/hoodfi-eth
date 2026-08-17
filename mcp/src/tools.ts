@@ -10,6 +10,15 @@ import {
   numberToHex,
 } from 'viem'
 
+// One copy of the EIP-1577 codec, shared with the site: two implementations of a byte
+// format is how a name ends up holding a well-formed record that resolves to nothing.
+import {
+  contentGatewayUrl,
+  decodeContenthash,
+  encodeContenthash,
+  nameUrl,
+  parseContenthash,
+} from '../../frontend/shared/contenthash'
 import {
   ETH_COIN_TYPE,
   ROBINHOOD_CHAIN_ID,
@@ -102,7 +111,7 @@ export const TOOLS: ToolDefinition[] = [
     name: 'hoodfi_resolve_name',
     title: 'Resolve a hoodfi.eth name',
     description:
-      'Look up a registered hoodfi.eth name: its owner, its address records, and its text records (avatar, description, url, and socials). Returns registered: false if the name has never been minted.',
+      'Look up a registered hoodfi.eth name: its owner, its address records, its text records (avatar, description, url, and socials), and its website — a name holding an IPFS or IPNS contenthash serves that site at <label>.hoodfi.eth.link. Returns registered: false if the name has never been minted.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -113,6 +122,34 @@ export const TOOLS: ToolDefinition[] = [
         },
       },
       required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'hoodfi_build_set_contenthash_tx',
+    title: 'Build a transaction to point a name at a website',
+    description:
+      "Build the unsigned transaction that sets a name's EIP-1577 contenthash, which makes the name serve a website at <label>.hoodfi.eth.link with no DNS and no hosting. Accepts an IPFS or IPNS CID in any of the forms one gets copied in: a bare CID, ipfs://…, ipns://…, or a gateway URL. Only the name's current owner can sign it — pass their address and the tool checks it before returning calldata. Pass content: \"\" to clear the record and take the site down. Nothing is signed or sent here; the transaction is returned for the owner's own wallet.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description:
+            'The name to publish, with or without the .hoodfi.eth suffix.',
+        },
+        content: {
+          type: 'string',
+          description:
+            'The IPFS or IPNS target: a bare CID (Qm… or bafy…), an ipfs:// or ipns:// URI, an IPNS key (k51…), or a gateway URL with the CID in the path or host. An empty string clears the record.',
+        },
+        address: {
+          type: 'string',
+          description:
+            'The wallet that will sign. Must currently own the name, or the transaction would revert.',
+        },
+      },
+      required: ['name', 'content', 'address'],
       additionalProperties: false,
     },
   },
@@ -392,9 +429,18 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
    * gateway that answers "no records" when its backend is down: the outage disappears
    * and a lie takes its place.
    *
-   * Going through Multicall3 makes the distinction structural. If the batch itself
-   * fails, that is transport and it throws. If the batch succeeds and only `ownerOf`
-   * reverted inside it, the token genuinely does not exist.
+   * Going through Multicall3 is what makes the distinction available at all, but it is
+   * `batchFailed()` below that draws it — `allowFailure: true` reports a dead connection
+   * and a reverted call identically, so the batch does *not* throw on transport the way
+   * this comment used to claim. Read that function before trusting a failure here.
+   *
+   * `batchSize: 0` is what makes "one round-trip" true rather than nearly true. viem
+   * splits a multicall once the accumulated calldata passes `batchSize`, default **1024
+   * bytes** — and these ten reads encode to exactly 1000 (36 for ownerOf, 68 per addr,
+   * 36 for contenthash, 132 per text key). One more text record crosses it and quietly
+   * turns this back into two requests, which is the shape being avoided; adding the
+   * contenthash read is what brought it within 24 bytes, so it is pinned rather than
+   * left to arithmetic. There is no gas cost to a wide `eth_call`, nothing to trade off.
    */
   const text = (key: (typeof TEXT_KEYS)[number]) =>
     ({
@@ -408,6 +454,7 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
     ownerResult,
     l2AddrResult,
     ethAddrResult,
+    contenthashResult,
     avatar,
     description,
     url,
@@ -434,6 +481,12 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
         functionName: 'addr',
         args: [node, ETH_COIN_TYPE],
       },
+      {
+        address: registry,
+        abi: registryAbi,
+        functionName: 'contenthash',
+        args: [node],
+      },
       text('avatar'),
       text('description'),
       text('url'),
@@ -442,7 +495,24 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
       text('email'),
     ],
     allowFailure: true,
+    batchSize: 0,
   })
+
+  if (
+    batchFailed([
+      ownerResult,
+      l2AddrResult,
+      ethAddrResult,
+      contenthashResult,
+      avatar,
+      description,
+      url,
+      twitter,
+      github,
+      email,
+    ])
+  )
+    throw new ToolError(UNREADABLE)
 
   if (ownerResult.status === 'failure') {
     return {
@@ -481,14 +551,195 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
       mainnet: decodeAddr(ethAddr),
     },
     records,
+    website: describeWebsite(
+      label,
+      contenthashResult.status === 'success' ? contenthashResult.result : '0x'
+    ),
     explorer: `${ROBINHOOD_EXPLORER}/token/${registry}/instance/${BigInt(node).toString()}`,
   }
 }
+
+/**
+ * The contenthash, in the terms an agent can act on.
+ *
+ * `url` is the answer to "where is this name's site" and is what should be relayed — the
+ * name's own address, not a gateway link, because it keeps working when the CID changes.
+ * `gateway` is the direct copy, for a client that would rather not depend on eth.link.
+ *
+ * A record in an unsupported namespace decodes to null, so this reports `published:
+ * false` with the raw bytes still attached rather than inventing a link nobody checked.
+ */
+function describeWebsite(label: string, stored: Hex) {
+  const content = decodeContenthash(stored)
+  if (!content) {
+    return stored && stored !== '0x'
+      ? {
+          published: false,
+          note: 'This name holds a contenthash in a namespace this server does not decode (only IPFS and IPNS are supported). The raw record is included unchanged.',
+          contenthash: stored,
+        }
+      : {
+          published: false,
+          note: `${fullName(label)} has no contenthash, so it does not serve a website. Its owner can publish one with hoodfi_build_set_contenthash_tx.`,
+        }
+  }
+  return {
+    published: true,
+    url: nameUrl(label),
+    protocol: content.protocol,
+    cid: content.id,
+    uri: content.uri,
+    gateway: contentGatewayUrl(content),
+    contenthash: stored,
+  }
+}
+
+/**
+ * Did the batch itself fail, rather than one call reverting inside it?
+ *
+ * `allowFailure: true` does not distinguish those two, which is the thing to know here:
+ * when the aggregate call fails — a 429 from a throttled public RPC being the case that
+ * actually happens — viem marks **every** entry in the chunk as a failure, identically to
+ * each one having reverted. So "the batch throws on transport, a failed entry means the
+ * token does not exist" was never true, and a rate-limited read was being reported as a
+ * confident "this name was never minted".
+ *
+ * The discriminator is a property of the registry, verified against the live contract:
+ * for a name that was never minted, `ownerOf` reverts while `text`, `addr` and
+ * `contenthash` all return empty *successfully*. A batch in which nothing at all
+ * succeeded therefore carries no answer about the name, only about the connection.
+ */
+function batchFailed(
+  results: readonly { status: 'success' | 'failure' }[]
+): boolean {
+  return results.every((result) => result.status === 'failure')
+}
+
+const UNREADABLE =
+  'Could not read Robinhood Chain right now: the reads failed rather than coming back empty, so this says nothing about whether the name exists. Try again shortly.'
 
 /** The registry stores addr records as raw bytes; 20 of them is an address. */
 function decodeAddr(value: Hex): string | null {
   if (!value || value === '0x' || value.length !== 42) return null
   return getAddress(value)
+}
+
+/**
+ * Publishing a website onto a name, as calldata the owner signs.
+ *
+ * The ownership check is the substance of this tool. `setContenthash` is owner-only, so
+ * a wrong signer produces a revert an agent cannot read — and the likelier mistake is
+ * subtler: the ERC-721 and the address records are separate things, so an agent acting
+ * for a user whose wallet merely *resolves* from the name, rather than owning it, would
+ * get calldata that looks right and fails. Reading `ownerOf` first turns that into a
+ * sentence.
+ */
+async function buildSetContenthashTx(args: Record<string, unknown>, env: Env) {
+  const label = requireLabel(args.name)
+  const address = requireAddress(args.address)
+  if (typeof args.content !== 'string')
+    throw new ToolError('`content` must be a string. Pass "" to clear the record.')
+
+  const client = robinhoodClient(env)
+  const registry = envVar('L2_REGISTRY_ADDRESS', env)
+  const node = namehash(fullName(label))
+
+  const clearing = args.content.trim() === ''
+  // Encode before spending any RPC budget: a CID that cannot be encoded is the caller's
+  // mistake, and saying which shapes are accepted beats a revert.
+  const hash = clearing ? '0x' : encodeContenthash(args.content)
+  if (!hash)
+    throw new ToolError(
+      `\`content\` is not an IPFS or IPNS target this can publish: ${JSON.stringify(args.content.trim().slice(0, 80))}. Accepted: a bare CID (Qm… or bafy…), ipfs:// or ipns://, an IPNS key (k51…), or a gateway URL with the CID in its path or host. Swarm and Arweave are deliberately not supported. A CID with a trailing path is refused — the record cannot carry one.`
+    )
+
+  const [ownerResult, currentResult] = await client.multicall({
+    contracts: [
+      {
+        address: registry,
+        abi: registryAbi,
+        functionName: 'ownerOf',
+        args: [BigInt(node)],
+      },
+      {
+        address: registry,
+        abi: registryAbi,
+        functionName: 'contenthash',
+        args: [node],
+      },
+    ],
+    allowFailure: true,
+    batchSize: 0,
+  })
+
+  // Same reasoning as resolve, and the same trap: only a batch where the *other* read
+  // came back can say anything about whether this token exists.
+  if (batchFailed([ownerResult, currentResult])) throw new ToolError(UNREADABLE)
+  if (ownerResult.status === 'failure')
+    throw new ToolError(
+      `${fullName(label)} has not been minted, so it has no records to set. Register it first with hoodfi_build_registration_tx.`
+    )
+
+  const owner = getAddress(ownerResult.result)
+  if (owner !== address)
+    throw new ToolError(
+      `${fullName(label)} is owned by ${owner}, not ${address}. Only the owner can set its records, so this transaction would revert. Note that owning the name is what counts here — holding its address record is not the same thing.`
+    )
+
+  const current =
+    currentResult.status === 'success' ? currentResult.result : undefined
+  if (clearing && (!current || current === '0x'))
+    throw new ToolError(
+      `${fullName(label)} has no contenthash set, so there is nothing to clear.`
+    )
+
+  const parsed = clearing ? null : parseContenthash(args.content)
+
+  return {
+    name: fullName(label),
+    label,
+    owner,
+    node,
+    steps: [
+      {
+        description: clearing
+          ? `Clear the contenthash on ${fullName(label)}, taking its website down`
+          : `Point ${fullName(label)} at ${parsed?.uri}`,
+        to: registry,
+        data: encodeFunctionData({
+          abi: registryAbi,
+          functionName: 'setContenthash',
+          args: [node, hash as Hex],
+        }),
+        value: '0x0',
+        chainId: ROBINHOOD_CHAIN_ID,
+      },
+    ],
+    ...(clearing
+      ? { clears: true }
+      : {
+          publishes: {
+            protocol: parsed?.protocol,
+            cid: parsed?.id,
+            uri: parsed?.uri,
+            contenthash: hash,
+            /** Where it will answer once the transaction lands. */
+            url: nameUrl(label),
+            /** The same content directly, for checking the CID before publishing it. */
+            gateway: parsed ? contentGatewayUrl(parsed) : undefined,
+          },
+        }),
+    ...(current && current !== '0x'
+      ? {
+          replaces: {
+            contenthash: current,
+            uri: decodeContenthash(current)?.uri ?? null,
+          },
+        }
+      : {}),
+    ownershipNote: `This transaction must be sent by ${owner}. It sets a record on the name and transfers nothing.`,
+    note: 'Records live on Robinhood Chain and resolve through CCIP-Read, so the site answers on mainnet ENS resolvers too. Propagation is not instant: gateways and wallets cache the old record for a few minutes.',
+  }
 }
 
 export async function callTool(
@@ -507,6 +758,9 @@ export async function callTool(
         break
       case 'hoodfi_resolve_name':
         result = await resolveName(args, env)
+        break
+      case 'hoodfi_build_set_contenthash_tx':
+        result = await buildSetContenthashTx(args, env)
         break
       default:
         throw new ToolError(`Unknown tool: ${name}`)

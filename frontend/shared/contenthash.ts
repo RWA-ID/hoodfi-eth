@@ -1,10 +1,3 @@
-import { bytesToHex, hexToBytes } from "viem";
-import {
-  base32UnpaddedDecode,
-  base32UnpaddedEncode,
-  base58UncheckedDecode,
-} from "@ensdomains/address-encoder/utils";
-
 /**
  * EIP-1577 contenthash — the record that turns a name into a website.
  *
@@ -16,6 +9,35 @@ import {
  *
  * The stored bytes are <protoCode varint><CID>, so a record is two decisions: which
  * namespace, and a CID the gateways will accept.
+ *
+ * ## One copy, imported by three packages
+ *
+ * The site writes records on `/manage` and reads them on `/search`; the MCP worker
+ * (`mcp/src/tools.ts`) does both for agents; the gateway's share page is next. Two
+ * implementations of a byte format is the thing to avoid above all else here — a
+ * contenthash off by one byte is a *well-formed* record that resolves to nothing, on a
+ * name whose owner has no way to tell it is broken. So there is exactly one copy, this
+ * is it, and the workers import it across the repo by relative path.
+ *
+ * **Why it sits under `frontend/` rather than a top-level `shared/`:** Turbopack refuses
+ * to resolve any import that leaves its project root — a `@shared/*` alias pointing at
+ * `../shared` fails the build with "aliased to relative '../shared/…' inside of
+ * [project]/" — and Vercel builds this app with `frontend/` as its Root Directory, so a
+ * sibling directory is not guaranteed to be in the build at all. The workers have no
+ * such restriction: esbuild follows a relative path anywhere. So the file lives where
+ * the fussiest consumer can see it, and `shared/` names it for the others.
+ *
+ * **It has no bare imports on purpose.** Whoever bundles it resolves `node_modules` by
+ * walking up from *this* file, which would silently tie the workers to whatever version
+ * the site happens to have installed — and break them entirely if the site's install is
+ * missing. Everything needed is small, pure and specified: hex, base32, base58 and
+ * base36 come to ~60 lines, they are checked vector-by-vector against `multiformats` in
+ * `contenthash.test.mjs`, and being dependency-free is what lets that test run under
+ * plain `node` with nothing installed.
+ *
+ * It must also stay clean under `noUncheckedIndexedAccess`, which `mcp/` sets and the
+ * site does not. Reasonable for a parser: every index here is into attacker-supplied
+ * input.
  */
 
 /** uvarint(0xe3) — ipfs-ns. */
@@ -42,59 +64,133 @@ export type ContentHash = {
 };
 
 /*//////////////////////////////////////////////////////////////
+                              HEX
+//////////////////////////////////////////////////////////////*/
+
+function hexToBytes(hex: string): Uint8Array {
+  const body = hex.startsWith("0x") ? hex.slice(2) : hex;
+  if (body.length % 2 !== 0) throw new Error("Odd-length hex");
+  if (body.length > 0 && !/^[0-9a-f]+$/i.test(body)) throw new Error("Not hex");
+  const bytes = new Uint8Array(body.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = Number.parseInt(body.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+function bytesToHex(bytes: Uint8Array): `0x${string}` {
+  let out = "";
+  for (const byte of bytes) out += byte.toString(16).padStart(2, "0");
+  return `0x${out}`;
+}
+
+/*//////////////////////////////////////////////////////////////
                           MULTIBASE
 //////////////////////////////////////////////////////////////*/
 
 const BASE36 = "0123456789abcdefghijklmnopqrstuvwxyz";
+/** RFC 4648 base32, upper case, no padding. */
+const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+/** Bitcoin base58 — no 0, O, I or l, so a CID can survive being read aloud. */
+const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 /**
- * base36, lowercase — multibase prefix `k`, the form IPNS names are published in.
- *
- * Hand-rolled because it is the one base in this file no dependency here exposes. Both
- * directions carry leading zero bytes explicitly: a big-integer conversion drops them,
- * and for a CID that would silently change which key the record points at.
+ * base-N over a big integer, for the two bases whose digits don't align to bit
+ * boundaries. Leading zero bytes are carried explicitly in both directions: a
+ * big-integer conversion drops them, and for a CID that would silently change which
+ * key the record points at.
  */
-function base36Decode(input: string): Uint8Array {
+function bigBaseDecode(input: string, alphabet: string): Uint8Array {
+  const radix = BigInt(alphabet.length);
   let value = 0n;
   for (const char of input) {
-    const digit = BASE36.indexOf(char);
-    if (digit < 0) throw new Error("Not base36");
-    value = value * 36n + BigInt(digit);
+    const digit = alphabet.indexOf(char);
+    if (digit < 0) throw new Error(`Not base${alphabet.length}`);
+    value = value * radix + BigInt(digit);
   }
   const bytes: number[] = [];
   while (value > 0n) {
     bytes.unshift(Number(value & 0xffn));
     value >>= 8n;
   }
+  const zero = alphabet[0];
   for (const char of input) {
-    if (char !== "0") break;
+    if (char !== zero) break;
     bytes.unshift(0);
   }
   return new Uint8Array(bytes);
 }
 
-function base36Encode(bytes: Uint8Array): string {
+function bigBaseEncode(bytes: Uint8Array, alphabet: string): string {
+  const radix = BigInt(alphabet.length);
   let value = 0n;
   for (const byte of bytes) value = (value << 8n) | BigInt(byte);
   let out = "";
   while (value > 0n) {
-    out = BASE36[Number(value % 36n)] + out;
-    value /= 36n;
+    out = alphabet[Number(value % radix)] + out;
+    value /= radix;
   }
   for (const byte of bytes) {
     if (byte !== 0) break;
-    out = `0${out}`;
+    out = `${alphabet[0]}${out}`;
   }
   return out;
 }
 
-/** base32 with no padding, lowercase — multibase prefix `b`, the canonical CIDv1 form. */
+/** base36, lowercase — multibase prefix `k`, the form IPNS names are published in. */
+function base36Decode(input: string): Uint8Array {
+  return bigBaseDecode(input, BASE36);
+}
+
+function base36Encode(bytes: Uint8Array): string {
+  return bigBaseEncode(bytes, BASE36);
+}
+
+/** base58, no checksum — the encoding inside a `Qm…` CIDv0. */
+function base58Decode(input: string): Uint8Array {
+  return bigBaseDecode(input, BASE58);
+}
+
+/**
+ * base32 with no padding, lowercase — multibase prefix `b`, the canonical CIDv1 form.
+ *
+ * Bit-accumulator rather than a big integer: base32's 5 bits divide into bytes, so the
+ * only thing to get right is the tail. Encoding pads the last group with zero bits;
+ * decoding drops a remainder of fewer than 8 bits rather than emitting a byte from it,
+ * which is what makes an unpadded string round-trip.
+ */
 function base32Decode(input: string): Uint8Array {
-  return base32UnpaddedDecode(input.toUpperCase());
+  const upper = input.toUpperCase();
+  const bytes: number[] = [];
+  let bits = 0;
+  let value = 0;
+  for (const char of upper) {
+    const digit = BASE32.indexOf(char);
+    if (digit < 0) throw new Error("Not base32");
+    value = (value << 5) | digit;
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes.push((value >> bits) & 0xff);
+    }
+  }
+  return new Uint8Array(bytes);
 }
 
 function base32Encode(bytes: Uint8Array): string {
-  return base32UnpaddedEncode(bytes).toLowerCase();
+  let out = "";
+  let bits = 0;
+  let value = 0;
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      out += BASE32[(value >> bits) & 0x1f];
+    }
+  }
+  if (bits > 0) out += BASE32[(value << (5 - bits)) & 0x1f];
+  return out.toLowerCase();
 }
 
 /*//////////////////////////////////////////////////////////////
@@ -108,6 +204,7 @@ function readVarint(bytes: Uint8Array, offset: number): [number, number] {
   let i = offset;
   while (i < bytes.length) {
     const byte = bytes[i];
+    if (byte === undefined) break;
     value |= (byte & 0x7f) << shift;
     i += 1;
     if ((byte & 0x80) === 0) return [value >>> 0, i];
@@ -148,13 +245,13 @@ function decodeMultibase(id: string): Uint8Array | null {
     // CIDv0 — a bare base58 multihash, always dag-pb. Kept as its own case because it
     // has no multibase prefix at all: the leading `Qm` is part of the hash.
     if (/^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(id)) {
-      return new Uint8Array([0x01, 0x70, ...base58UncheckedDecode(id)]);
+      return new Uint8Array([0x01, 0x70, ...base58Decode(id)]);
     }
     if (/^b[a-z2-7]+$/i.test(id)) return base32Decode(id.slice(1));
     if (/^k[0-9a-z]+$/.test(id)) return base36Decode(id.slice(1));
     // A raw libp2p peer id, which is how IPNS names were published before base36.
     if (/^1[1-9A-HJ-NP-Za-km-z]{10,}$/.test(id)) {
-      return new Uint8Array([0x01, IPNS_CODEC, ...base58UncheckedDecode(id)]);
+      return new Uint8Array([0x01, IPNS_CODEC, ...base58Decode(id)]);
     }
     return null;
   } catch {
@@ -176,7 +273,7 @@ export function decodeContenthash(
 ): ContentHash | null {
   if (!stored || stored === "0x") return null;
   try {
-    const bytes = hexToBytes(stored as `0x${string}`);
+    const bytes = hexToBytes(stored);
     const [namespace, offset] = readVarint(bytes, 0);
     const cid = bytes.slice(offset);
 
@@ -232,13 +329,18 @@ function parseContentInput(
   // gateway, in the host (<cid>.ipfs.dweb.link).
   const httpMatch = value.match(/^https?:\/\/([^/]+)(\/.*)?$/i);
   if (httpMatch) {
-    const [, host, path = ""] = httpMatch;
+    const host = httpMatch[1] ?? "";
+    const path = httpMatch[2] ?? "";
     const pathMatch = path.match(/\/(ipfs|ipns)\/([^/?#]+)/i);
     const hostMatch = host.match(/^([^.]+)\.(ipfs|ipns)\./i);
-    if (pathMatch) {
+    // Every group read below is inside its own alternative and non-optional in the
+    // pattern, so it is present whenever the match is — but the checks are spelled out
+    // because a bundler that strips them would leave the string "undefined" being
+    // parsed as a CID.
+    if (pathMatch?.[1] && pathMatch[2]) {
       protocol = pathMatch[1].toLowerCase() as ContentProtocol;
       value = pathMatch[2];
-    } else if (hostMatch) {
+    } else if (hostMatch?.[1] && hostMatch[2]) {
       protocol = hostMatch[2].toLowerCase() as ContentProtocol;
       value = hostMatch[1];
     } else {
@@ -247,7 +349,7 @@ function parseContentInput(
   }
 
   const uriMatch = value.match(/^(ipfs|ipns):\/\/(?:(?:ipfs|ipns)\/)?(.+)$/i);
-  if (uriMatch) {
+  if (uriMatch?.[1] && uriMatch[2]) {
     protocol = uriMatch[1].toLowerCase() as ContentProtocol;
     value = uriMatch[2];
   }
@@ -298,7 +400,7 @@ export function contentGatewayUrl(content: ContentHash): string {
  * `.eth.link` and `.eth.limo` both serve a hoodfi subname (verified on gm.hoodfi.eth
  * once the first record existed) and both are run by eth.limo, so this is a naming
  * call rather than a technical one: `.link` reads as what it is. Kept as one function
- * so the two places that show an owner their address and send a visitor to it can
+ * so every place that shows an owner their address and sends a visitor to it can
  * never drift apart.
  */
 export function nameUrl(label: string): string {
