@@ -13,7 +13,10 @@ enabled = true
 # also revert the secret each time, silently. The public endpoints stay as the
 # built-in fallback in src/chain.ts, so losing the secret degrades rather than fails.
 #
-# SET 2026-08-17: a paid Alchemy endpoint, for the same reason the gateway has one —
+# SET 2026-08-17: this worker's own paid Alchemy key — deliberately NOT the gateway's,
+# so the two can be rotated independently and Alchemy's dashboard shows which service is
+# spending what. Sharing one key couples the blast radius: rotating it would take down
+# resolution, name cards, vouchers and the agent tools together. Same reason the gateway has one —
 # public RPCs throttle Workers hard, because every Cloudflare colo shares a small
 # pool of egress IPs and the rate limiter sees one very busy caller. Measured on
 # this worker before and after, resolving the same name: 29/30 then 60/60, median
