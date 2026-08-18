@@ -35,6 +35,38 @@ const PHONE_H = 620;
  */
 export function SitePreview({ html, label }: Props) {
   const [mode, setMode] = useState<(typeof WIDTHS)[number]["id"]>("desktop");
+
+  /**
+   * Two frames, alternating, and a settle delay before either is touched.
+   *
+   * Replacing `srcdoc` tears the iframe document down and reloads it, so updating on
+   * every keystroke meant a full reload per character — which is the flicker: the frame
+   * repaints empty before the new document paints. Neither half fixes this alone.
+   * Debouncing alone still flashes, once per pause. Swapping alone flashes less but
+   * still reloads constantly and burns CPU on a page that also holds a wallet
+   * connection.
+   *
+   * So: wait until typing settles, render into whichever frame is hidden, and reveal it
+   * only once it reports `load`. The visible frame never goes blank because it is never
+   * the one being written to.
+   */
+  const [docs, setDocs] = useState<[string, string]>([html, ""]);
+  const [front, setFront] = useState(0);
+  const pending = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (html === docs[front]) return;
+    if (pending.current) window.clearTimeout(pending.current);
+    // 220ms: past a fast typist's inter-key gap, under the point where the preview feels
+    // detached from the field being edited.
+    pending.current = window.setTimeout(() => {
+      const back = front === 0 ? 1 : 0;
+      setDocs((d) => (back === 0 ? [html, d[1]] : [d[0], html]));
+    }, 220);
+    return () => {
+      if (pending.current) window.clearTimeout(pending.current);
+    };
+  }, [html, docs, front]);
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [innerHeight, setInnerHeight] = useState(560);
@@ -63,24 +95,42 @@ export function SitePreview({ html, label }: Props) {
 
   const frameUrl = `${label}.hoodfi.eth.link`;
 
+  const frameStyle = {
+    width: `${width}px`,
+    height: `${Math.round(innerHeight / scale)}px`,
+    border: 0,
+    transform: `scale(${scale})`,
+    transformOrigin: "top left",
+    background: "#fff",
+    display: "block",
+  } as const;
+
   const frame = (
-    <iframe
-      title={`${label}.hoodfi.eth preview`}
-      srcDoc={html}
-      sandbox="allow-scripts allow-same-origin"
-      /* Never loading="lazy": an iframe outside the initial viewport with lazy set
-         never loads at all, which is how the site's phone-frame preview shipped
-         invisible once. */
-      style={{
-        width: `${width}px`,
-        height: `${Math.round(innerHeight / scale)}px`,
-        border: 0,
-        transform: `scale(${scale})`,
-        transformOrigin: "top left",
-        background: "#fff",
-        display: "block",
-      }}
-    />
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {docs.map((doc, i) => (
+        <iframe
+          aria-hidden={i !== front}
+          key={i}
+          title={i === front ? `${label}.hoodfi.eth preview` : ""}
+          srcDoc={doc || undefined}
+          sandbox="allow-scripts allow-same-origin"
+          /* Never loading="lazy": an iframe outside the initial viewport with lazy set
+             never loads at all, which is how the site's phone-frame preview shipped
+             invisible once. */
+          onLoad={() => {
+            // Reveal only once this frame has something painted in it.
+            if (doc && i !== front) setFront(i);
+          }}
+          style={{
+            ...frameStyle,
+            position: "absolute",
+            inset: 0,
+            opacity: i === front ? 1 : 0,
+            pointerEvents: i === front ? "auto" : "none",
+          }}
+        />
+      ))}
+    </div>
   );
 
   return (

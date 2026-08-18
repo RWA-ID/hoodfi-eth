@@ -56,7 +56,7 @@ export function PublishPanel({ name, templateId, html }: Props) {
   const { address, chainId, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { switchChainAsync } = useSwitchChain();
-  const { data: wallet } = useWalletClient();
+  const { data: wallet } = useWalletClient({ chainId: robinhoodChain.id });
   const client = usePublicClient({ chainId: robinhoodChain.id });
 
   const [step, setStep] = useState<Step>("idle");
@@ -134,7 +134,13 @@ export function PublishPanel({ name, templateId, html }: Props) {
       // Simulate against our own RPC first. A wallet that estimates on its own node can
       // drop the revert payload entirely — that is the Brave signature — and the person
       // is then asked to sign a transaction that was always going to fail.
-      const { request } = await client.simulateContract({
+      //
+      // The simulate is for the REVERT REASON only; its `request` is deliberately not
+      // forwarded to writeContract. That object carries a chain inherited from whatever
+      // the public client resolved to, and handing it straight over is what produced
+      // "the current chain of the wallet (id: 4663) does not match the target chain for
+      // the transaction (id: 1 – Ethereum)". Every write below names its chain outright.
+      await client.simulateContract({
         address: SITES_ADDRESS,
         abi: sitesAbi,
         functionName: "publish",
@@ -142,7 +148,15 @@ export function PublishPanel({ name, templateId, html }: Props) {
         account: address,
         value: 0n,
       });
-      const payHash = await wallet.writeContract(request);
+      const payHash = await wallet.writeContract({
+        address: SITES_ADDRESS,
+        abi: sitesAbi,
+        functionName: "publish",
+        args: [name.node, templateHash, pinned.cid],
+        value: 0n,
+        chain: robinhoodChain,
+        account: address,
+      });
       await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
 
       // ── 4. Tell the gateway to keep it. Retried, because isPaid cannot see the

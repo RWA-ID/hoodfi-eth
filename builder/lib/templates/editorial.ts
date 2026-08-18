@@ -46,6 +46,45 @@ function renderEditorial(data: SiteData): string {
     .map((l) => ({ label: l.label.trim(), url: safeUrl(l.url) }))
     .filter((l) => l.label && l.url);
 
+  /**
+   * The headline, typed on.
+   *
+   * Per-character spans with a staggered delay, and three things the canvas version got
+   * wrong:
+   *
+   * 1. It looped, erasing at 87% of a shared 7s cycle. Because every character carries
+   *    the same duration and a different delay, the erase is staggered in the SAME
+   *    direction as the type-on — so the FIRST letter vanishes first. Deleting runs
+   *    backwards from the end; forwards reads as a rendering fault. Typing once on load
+   *    and staying removes the problem rather than reversing it, and a name that
+   *    endlessly retypes itself is a novelty that wears out on the second visit.
+   * 2. One <b> per character plus `overflow-wrap:anywhere` lets the browser break
+   *    between any two letters — GREEN wrapping to GRE / EN. Each WORD is now its own
+   *    nowrap span, so lines break between words only.
+   * 3. The caret sat on the baseline at 0.72em tall, riding low against the caps.
+   *
+   * Under prefers-reduced-motion every character is simply visible: the animation is
+   * decoration, and the name is the content.
+   */
+  const STEP = 0.055; // seconds between characters
+  const START = 0.25;
+  let charIndex = 0;
+  const typed = (data.displayName || data.label)
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      const chars = [...word]
+        .map((ch) => {
+          const delay = (START + charIndex * STEP).toFixed(3);
+          charIndex += 1;
+          return `<b style="animation-delay:${delay}s">${esc(ch)}</b>`;
+        })
+        .join("");
+      return `<span class="w">${chars}</span>`;
+    })
+    .join(" ");
+  const caretDelay = (START + charIndex * STEP).toFixed(3);
+
   const marquee = ["■ " + label + ".hoodfi.eth", "■ served from IPFS", "■ no renewals", "■ owned outright"];
   const usedIcons = [...(rows.map((r) => r.id).filter(Boolean) as IconId[]), "rh" as IconId];
 
@@ -73,7 +112,16 @@ ${ICON_CSS}
 .band{background:#c6f702;border-bottom:1px solid #0b0e08;overflow:hidden}
 .band .shell{padding-top:30px}
 .top{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(11,14,8,.62)}
-h1{font-size:clamp(56px,13vw,158px);font-weight:800;line-height:.82;letter-spacing:-.05em;text-transform:uppercase;margin-top:26px;overflow-wrap:anywhere}
+h1{font-size:clamp(56px,13vw,158px);font-weight:500;line-height:.86;letter-spacing:-.04em;text-transform:uppercase;margin-top:26px}
+/* Each word is its own unbreakable run. Without this, one <b> per character lets a line
+   break land between any two letters of a name. */
+h1 .w{display:inline-block;white-space:nowrap}
+h1 b{font-weight:inherit;opacity:0;animation:ed-in .001s linear forwards}
+@keyframes ed-in{to{opacity:1}}
+/* Sits against the cap height rather than the baseline, where it read as dropped. */
+h1 i{display:inline-block;width:.055em;height:.66em;background:currentColor;margin-left:.06em;vertical-align:-.02em;opacity:0;animation:ed-caret .9s steps(1) infinite}
+@keyframes ed-caret{0%,49.9%{opacity:1}50%,100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){h1 b{opacity:1;animation:none}h1 i{display:none}}
 .lower{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:32px;margin-top:22px}
 .tag{font-size:clamp(17px,2.2vw,20px);line-height:1.35;max-width:32ch;padding-bottom:34px;font-weight:500;min-width:0;flex:1 1 280px}
 /* Lifts the portrait up into the headline. The overlap IS the layout — without it this
@@ -113,7 +161,7 @@ footer .shell{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between
 ${sprite(usedIcons)}
 <div class="band"><div class="shell">
   <div class="top"><span>${label}.hoodfi.eth</span>${keyed("rh", "Robinhood Chain · lifetime")}</div>
-  <h1>${name}</h1>
+  <h1>${typed}<i style="animation-delay:${caretDelay}s"></i></h1>
   <div class="lower">
     <div class="tag">${esc(data.tagline)}</div>
     ${avatar ? `<div class="port"><img src="${attr(avatar)}" alt="${attr(name)}"></div>` : ""}
