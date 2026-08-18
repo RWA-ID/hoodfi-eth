@@ -13,9 +13,14 @@ import {IL2Registry} from "../interfaces/IL2Registry.sol";
 /// @notice The paywall behind build.hoodfi.name.
 ///
 ///         A HoodFi name owner pays once to publish a website on that name, and less to
-///         republish it later. Payment buys a credit against the *name*, not the buyer,
-///         so an unlock survives a sale and a site can be rebuilt by whoever holds the
-///         name afterwards.
+///         republish it later. What a payment buys is one specific site — the CID is part
+///         of the transaction — so there is no credit to meter, nothing to decrement, and
+///         nobody who has to hold a key to mark a payment used. "Has this been paid for"
+///         is a pure read, answerable by anyone.
+///
+///         The alternative was a credit counter spent by a trusted recorder, which would
+///         have meant giving the gateway a funded hot key purely to write down something
+///         the payer could just as well have said themselves.
 ///
 ///         This contract never touches the name itself. It sells the right to have a
 ///         site pinned and takes no authority over the contenthash record — the owner
@@ -36,6 +41,11 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     IL2Registry public immutable registry;
+
+    /// @notice Longest CID we will store. Comfortably past a CIDv1 base32 (59 chars) and
+    ///         an IPNS base36 key, and short enough that nobody can bloat storage with a
+    ///         megabyte of calldata dressed as an address.
+    uint256 public constant MAX_CID_LENGTH = 128;
 
     /// @notice Ceiling on a partner's cut. Not a business rule so much as a guard: an
     ///         input of 100000 where 10000 was meant would otherwise pay out ten times
@@ -65,15 +75,16 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
     /// @notice Emergency stop for all publishing.
     bool public paused;
 
-    /// @notice Publishes paid for and not yet spent, per name.
-    mapping(bytes32 node => uint256) public credits;
+    /// @notice Sites paid for, by name and by content hash of the CID.
+    ///
+    ///         Single-use falls out of the shape: a given CID on a given name is paid for
+    ///         exactly once, and the second attempt is refused rather than charged. The
+    ///         gateway pins when this reads true, which needs no cooperation from us.
+    mapping(bytes32 node => mapping(bytes32 cidHash => bool)) public paidFor;
 
-    /// @notice Publishes the gateway has pinned, per name. Only the gateway's own
-    ///         recorder may raise this; it is what makes a credit single-use.
-    mapping(bytes32 node => uint256) public spent;
-
-    /// @notice Whether a name has ever been published. Decides first price vs republish.
-    mapping(bytes32 node => bool) public published;
+    /// @notice How many sites have been published on a name. Zero means the next one is
+    ///         the first, which is what separates the two prices.
+    mapping(bytes32 node => uint256) public publishes;
 
     mapping(bytes32 templateId => Template) public templates;
 
@@ -82,10 +93,6 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
     ///         who owns the contract's balance.
     mapping(address payee => uint256) public owedEth;
     mapping(address payee => uint256) public owedUsdg;
-
-    /// @notice Address allowed to mark a credit spent. The gateway, which is the only
-    ///         thing that can actually pin a site.
-    address public recorder;
 
     /// @notice Price of the first publish on a name, and of every one after.
     ///         Both launch at zero: the paid path runs from day one with nothing to pay,
@@ -105,7 +112,6 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     event PausedSet(bool paused);
-    event RecorderUpdated(address recorder);
     event TreasuryUpdated(address treasury);
     event UsdgUpdated(address usdg);
     event TemplateUpdated(
@@ -118,11 +124,11 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
         bytes32 indexed node,
         bytes32 indexed templateId,
         address indexed payer,
+        string cid,
         uint256 price,
         bool paidInUsdg,
         uint256 partnerShare
     );
-    event CreditSpent(bytes32 indexed node, uint256 spentTotal);
     event Withdrawn(address indexed payee, uint256 eth, uint256 usdg);
 
     /*//////////////////////////////////////////////////////////////
@@ -138,18 +144,16 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
     error UsdgNotConfigured();
     error ShareTooHigh(uint16 shareBps, uint16 max);
     error PayeeRequired();
-    error NotRecorder();
-    error NoCreditToSpend(bytes32 node);
+    error EmptyCid();
+    error CidTooLong(uint256 length, uint256 max);
+    error AlreadyPaid(bytes32 node, string cid);
     error NothingOwed();
     error RefundFailed();
     error WithdrawFailed();
 
-    constructor(address _registry, address _treasury, address _recorder, address _owner)
-        Ownable(_owner)
-    {
+    constructor(address _registry, address _treasury, address _owner) Ownable(_owner) {
         registry = IL2Registry(_registry);
         treasury = _treasury;
-        recorder = _recorder;
         // Every price starts at zero. See the note on the price fields.
     }
 
@@ -160,43 +164,38 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
     /// @notice Buy a publish on `node` using `templateId`, paying in ETH.
     /// @dev Excess is refunded, which matters most when the price is zero: a wallet that
     ///      guesses at value should not silently donate it.
-    function publish(bytes32 node, bytes32 templateId) external payable nonReentrant {
-        (uint256 price, Template memory t) = _check(node, templateId, false);
+    function publish(bytes32 node, bytes32 templateId, string calldata cid)
+        external
+        payable
+        nonReentrant
+    {
+        (uint256 price, Template memory t) = _check(node, templateId, cid, false);
         if (msg.value < price) revert InsufficientPayment(price, msg.value);
 
-        uint256 partnerShare = _credit(node, t, price, false);
+        uint256 partnerShare = _record(node, t, cid, price, false);
 
         if (msg.value > price) {
             (bool ok,) = msg.sender.call{value: msg.value - price}("");
             if (!ok) revert RefundFailed();
         }
 
-        emit Published(node, templateId, msg.sender, price, false, partnerShare);
+        emit Published(node, templateId, msg.sender, cid, price, false, partnerShare);
     }
 
     /// @notice Buy a publish on `node` using `templateId`, paying in USDG.
-    function publishWithUsdg(bytes32 node, bytes32 templateId) external nonReentrant {
+    function publishWithUsdg(bytes32 node, bytes32 templateId, string calldata cid)
+        external
+        nonReentrant
+    {
         if (address(usdg) == address(0)) revert UsdgNotConfigured();
-        (uint256 price, Template memory t) = _check(node, templateId, true);
+        (uint256 price, Template memory t) = _check(node, templateId, cid, true);
 
         // Pulled into the contract rather than split at the door, so both currencies
         // settle through the same withdraw path.
         if (price > 0) usdg.safeTransferFrom(msg.sender, address(this), price);
 
-        uint256 partnerShare = _credit(node, t, price, true);
-        emit Published(node, templateId, msg.sender, price, true, partnerShare);
-    }
-
-    /// @notice Mark one credit spent. Called by the gateway when a site is actually
-    ///         pinned, which is the moment the thing being sold is delivered.
-    /// @dev Deliberately not callable by the name owner. If it were, a publish could be
-    ///      consumed by anyone willing to spend gas, and a paid credit would evaporate.
-    function recordPublish(bytes32 node) external {
-        if (msg.sender != recorder) revert NotRecorder();
-        uint256 used = spent[node] + 1;
-        if (used > credits[node]) revert NoCreditToSpend(node);
-        spent[node] = used;
-        emit CreditSpent(node, used);
+        uint256 partnerShare = _record(node, t, cid, price, true);
+        emit Published(node, templateId, msg.sender, cid, price, true, partnerShare);
     }
 
     /// @notice Withdraw everything owed to the caller, in both currencies.
@@ -230,14 +229,24 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
     function quote(bytes32 node, bytes32 templateId, address buyer)
         external
         view
-        returns (uint256 weiPrice, uint256 usdgPrice, bool eligible, uint256 creditsLeft)
+        returns (uint256 weiPrice, uint256 usdgPrice, bool eligible, uint256 publishCount)
     {
         Template memory t = templates[templateId];
-        bool first = !published[node];
+        bool first = publishes[node] == 0;
         weiPrice = first ? firstPriceWei : republishPriceWei;
         usdgPrice = first ? firstPriceUsdg : republishPriceUsdg;
         eligible = t.active && (t.collection == address(0) || _holds(t.collection, buyer));
-        creditsLeft = credits[node] - spent[node];
+        publishCount = publishes[node];
+    }
+
+    /// @notice Whether this exact site has been paid for on this name.
+    ///
+    ///         The gateway's whole authorisation check, and a plain read — no signature,
+    ///         no shared secret, no cooperation from us. Anyone can verify that a pinned
+    ///         site was paid for, which is a property the credit-counter design did not
+    ///         have.
+    function isPaid(bytes32 node, string calldata cid) external view returns (bool) {
+        return paidFor[node][keccak256(bytes(cid))];
     }
 
     /// @notice Whether `buyer` may use `templateId`. Drives the auto-detect on connect,
@@ -290,11 +299,6 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
         emit PausedSet(_paused);
     }
 
-    function setRecorder(address _recorder) external onlyOwner {
-        recorder = _recorder;
-        emit RecorderUpdated(_recorder);
-    }
-
     function setTreasury(address _treasury) external onlyOwner {
         treasury = _treasury;
         emit TreasuryUpdated(_treasury);
@@ -311,12 +315,20 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
 
     /// @dev Every condition that must hold before money moves, in one place so the ETH
     ///      and USDG paths cannot drift apart.
-    function _check(bytes32 node, bytes32 templateId, bool usdgPath)
+    function _check(bytes32 node, bytes32 templateId, string calldata cid, bool usdgPath)
         internal
         view
         returns (uint256 price, Template memory t)
     {
         if (paused) revert PublishingPaused();
+
+        uint256 cidLength = bytes(cid).length;
+        if (cidLength == 0) revert EmptyCid();
+        if (cidLength > MAX_CID_LENGTH) revert CidTooLong(cidLength, MAX_CID_LENGTH);
+        // Paying twice for the same site is always a mistake — a double-submit, or a
+        // retry of a transaction that already landed. Refusing costs the sender gas;
+        // accepting costs them the price of a publish they already own.
+        if (paidFor[node][keccak256(bytes(cid))]) revert AlreadyPaid(node, cid);
 
         // Owning the name is the whole basis of the purchase. Without this, anyone could
         // buy credits against someone else's name — harmless in itself, but it would let
@@ -334,20 +346,23 @@ contract HoodfiSites is Ownable, ReentrancyGuard {
             revert CollectionRequired(templateId, t.collection);
         }
 
-        bool first = !published[node];
+        bool first = publishes[node] == 0;
         price = usdgPath
             ? (first ? firstPriceUsdg : republishPriceUsdg)
             : (first ? firstPriceWei : republishPriceWei);
     }
 
-    /// @dev Credits the node and splits the proceeds. Effects only — no transfers out,
-    ///      so the caller can finish its checks-effects-interactions ordering.
-    function _credit(bytes32 node, Template memory t, uint256 price, bool usdgPath)
-        internal
-        returns (uint256 partnerShare)
-    {
-        credits[node] += 1;
-        published[node] = true;
+    /// @dev Records the paid site and splits the proceeds. Effects only — no transfers
+    ///      out, so the caller can finish its checks-effects-interactions ordering.
+    function _record(
+        bytes32 node,
+        Template memory t,
+        string calldata cid,
+        uint256 price,
+        bool usdgPath
+    ) internal returns (uint256 partnerShare) {
+        paidFor[node][keccak256(bytes(cid))] = true;
+        publishes[node] += 1;
 
         if (price == 0) return 0;
 

@@ -19,7 +19,6 @@ contract HoodfiSitesTest is Test {
 
     address public admin = makeAddr("admin");
     address public treasury = makeAddr("treasury");
-    address public recorder = makeAddr("recorder");
     address public partner = makeAddr("partner");
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
@@ -45,7 +44,7 @@ contract HoodfiSitesTest is Test {
         registry.addRegistrar(address(registrar));
 
         usdg = new MockUsdc();
-        sites = new HoodfiSites(address(registry), treasury, recorder, admin);
+        sites = new HoodfiSites(address(registry), treasury, admin);
         sites.setUsdg(address(usdg));
 
         hoodies = new MockCollection();
@@ -73,6 +72,14 @@ contract HoodfiSitesTest is Test {
         return registry.makeNode(registry.baseNode(), label);
     }
 
+    /// Each publish needs its own CID now — the same one twice is refused on purpose.
+    uint256 internal cidNonce;
+
+    function _cid() internal returns (string memory) {
+        cidNonce += 1;
+        return string.concat("bafybeigdyrzt5sfp7udm7hu76uh7y26nf", vm.toString(cidNonce));
+    }
+
     function _priced() internal {
         vm.prank(admin);
         sites.setPrices(FIRST_WEI, REPUB_WEI, FIRST_USDG, REPUB_USDG);
@@ -89,17 +96,16 @@ contract HoodfiSitesTest is Test {
         bytes32 node = _node("alice");
 
         vm.prank(alice);
-        sites.publish{value: 0}(node, HOUSE);
+        sites.publish{value: 0}(node, HOUSE, _cid());
 
-        assertEq(sites.credits(node), 1, "credit not granted");
-        assertTrue(sites.published(node), "not marked published");
+        assertEq(sites.publishes(node), 1, "publish not recorded");
         assertEq(sites.owedEth(treasury), 0, "treasury owed something at price zero");
     }
 
     function test_freePublishStillMovesToRepublishPrice() public {
         bytes32 node = _node("alice");
         vm.prank(alice);
-        sites.publish(node, HOUSE);
+        sites.publish(node, HOUSE, _cid());
 
         _priced();
         (uint256 weiPrice,,,) = sites.quote(node, HOUSE, alice);
@@ -118,14 +124,14 @@ contract HoodfiSitesTest is Test {
         assertEq(first, FIRST_WEI);
 
         vm.prank(alice);
-        sites.publish{value: FIRST_WEI}(node, HOUSE);
+        sites.publish{value: FIRST_WEI}(node, HOUSE, _cid());
 
         (uint256 second,,,) = sites.quote(node, HOUSE, alice);
         assertEq(second, REPUB_WEI);
 
         vm.prank(alice);
-        sites.publish{value: REPUB_WEI}(node, HOUSE);
-        assertEq(sites.credits(node), 2);
+        sites.publish{value: REPUB_WEI}(node, HOUSE, _cid());
+        assertEq(sites.publishes(node), 2);
     }
 
     function test_underpaymentReverts() public {
@@ -137,7 +143,7 @@ contract HoodfiSitesTest is Test {
                 HoodfiSites.InsufficientPayment.selector, FIRST_WEI, FIRST_WEI - 1
             )
         );
-        sites.publish{value: FIRST_WEI - 1}(node, HOUSE);
+        sites.publish{value: FIRST_WEI - 1}(node, HOUSE, _cid());
     }
 
     function test_excessIsRefunded() public {
@@ -146,7 +152,7 @@ contract HoodfiSitesTest is Test {
         uint256 before = alice.balance;
 
         vm.prank(alice);
-        sites.publish{value: 1 ether}(node, HOUSE);
+        sites.publish{value: 1 ether}(node, HOUSE, _cid());
 
         assertEq(before - alice.balance, FIRST_WEI, "overpayment was not refunded");
     }
@@ -162,7 +168,7 @@ contract HoodfiSitesTest is Test {
         bytes32 node = _node("alice");
         vm.prank(bob);
         vm.expectRevert(abi.encodeWithSelector(HoodfiSites.NotNameOwner.selector, node));
-        sites.publish(node, HOUSE);
+        sites.publish(node, HOUSE, _cid());
     }
 
     /// An unlock belongs to the name, so it survives a sale — the new holder inherits
@@ -172,18 +178,18 @@ contract HoodfiSitesTest is Test {
         bytes32 node = _node("alice");
 
         vm.prank(alice);
-        sites.publish{value: FIRST_WEI}(node, HOUSE);
+        sites.publish{value: FIRST_WEI}(node, HOUSE, _cid());
 
         vm.prank(alice);
         registry.transferFrom(alice, bob, uint256(node));
 
-        assertEq(sites.credits(node), 1, "credit did not survive the transfer");
+        assertEq(sites.publishes(node), 1, "publish history did not survive the transfer");
         (uint256 price,,,) = sites.quote(node, HOUSE, bob);
         assertEq(price, REPUB_WEI, "new owner should be on the republish price");
 
         vm.prank(bob);
-        sites.publish{value: REPUB_WEI}(node, HOUSE);
-        assertEq(sites.credits(node), 2);
+        sites.publish{value: REPUB_WEI}(node, HOUSE, _cid());
+        assertEq(sites.publishes(node), 2);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -198,7 +204,7 @@ contract HoodfiSitesTest is Test {
                 HoodfiSites.CollectionRequired.selector, PARTNER_TPL, address(hoodies)
             )
         );
-        sites.publish(node, PARTNER_TPL);
+        sites.publish(node, PARTNER_TPL, _cid());
     }
 
     function test_holderMayUsePartnerTemplate() public {
@@ -206,8 +212,8 @@ contract HoodfiSitesTest is Test {
         bytes32 node = _node("alice");
 
         vm.prank(alice);
-        sites.publish(node, PARTNER_TPL);
-        assertEq(sites.credits(node), 1);
+        sites.publish(node, PARTNER_TPL, _cid());
+        assertEq(sites.publishes(node), 1);
     }
 
     function test_partnerEarnsThirtyPercentInEth() public {
@@ -216,7 +222,7 @@ contract HoodfiSitesTest is Test {
         bytes32 node = _node("alice");
 
         vm.prank(alice);
-        sites.publish{value: FIRST_WEI}(node, PARTNER_TPL);
+        sites.publish{value: FIRST_WEI}(node, PARTNER_TPL, _cid());
 
         uint256 expected = (FIRST_WEI * 3000) / 10_000;
         assertEq(sites.owedEth(partner), expected, "partner share wrong");
@@ -232,8 +238,8 @@ contract HoodfiSitesTest is Test {
         bytes32 node = _node("alice");
 
         vm.startPrank(alice);
-        sites.publish{value: FIRST_WEI}(node, PARTNER_TPL);
-        sites.publish{value: REPUB_WEI}(node, PARTNER_TPL);
+        sites.publish{value: FIRST_WEI}(node, PARTNER_TPL, _cid());
+        sites.publish{value: REPUB_WEI}(node, PARTNER_TPL, _cid());
         vm.stopPrank();
 
         uint256 expected = ((FIRST_WEI + REPUB_WEI) * 3000) / 10_000;
@@ -244,7 +250,7 @@ contract HoodfiSitesTest is Test {
         _priced();
         bytes32 node = _node("alice");
         vm.prank(alice);
-        sites.publish{value: FIRST_WEI}(node, HOUSE);
+        sites.publish{value: FIRST_WEI}(node, HOUSE, _cid());
 
         assertEq(sites.owedEth(treasury), FIRST_WEI);
         assertEq(sites.owedEth(partner), 0);
@@ -260,7 +266,7 @@ contract HoodfiSitesTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(HoodfiSites.TemplateInactive.selector, PARTNER_TPL)
         );
-        sites.publish(node, PARTNER_TPL);
+        sites.publish(node, PARTNER_TPL, _cid());
     }
 
     function test_unknownTemplateReverts() public {
@@ -268,7 +274,7 @@ contract HoodfiSitesTest is Test {
         bytes32 ghost = keccak256("never-registered");
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(HoodfiSites.UnknownTemplate.selector, ghost));
-        sites.publish(node, ghost);
+        sites.publish(node, ghost, _cid());
     }
 
     function test_shareIsCapped() public {
@@ -307,13 +313,13 @@ contract HoodfiSitesTest is Test {
                 HoodfiSites.CollectionRequired.selector, CODELESS_TPL, makeAddr("not-a-contract")
             )
         );
-        sites.publish(aliceNode, CODELESS_TPL);
+        sites.publish(aliceNode, CODELESS_TPL, _cid());
 
         // And the house template still works while those are registered.
         bytes32 node = _node("alice");
         vm.prank(alice);
-        sites.publish(node, HOUSE);
-        assertEq(sites.credits(node), 1);
+        sites.publish(node, HOUSE, _cid());
+        assertEq(sites.publishes(node), 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -340,7 +346,7 @@ contract HoodfiSitesTest is Test {
 
         vm.startPrank(alice);
         usdg.approve(address(sites), FIRST_USDG);
-        sites.publishWithUsdg(node, PARTNER_TPL);
+        sites.publishWithUsdg(node, PARTNER_TPL, _cid());
         vm.stopPrank();
 
         uint256 expected = (FIRST_USDG * 3000) / 10_000;
@@ -353,45 +359,67 @@ contract HoodfiSitesTest is Test {
                              SPENDING CREDITS
     //////////////////////////////////////////////////////////////*/
 
-    /// Only the gateway may consume a credit. If the owner could, anyone willing to
-    /// spend gas could burn a publish somebody paid for.
-    function test_onlyRecorderMaySpendACredit() public {
+    function test_quoteReportsPublishCount() public {
         bytes32 node = _node("alice");
-        vm.prank(alice);
-        sites.publish(node, HOUSE);
+        (,,, uint256 before) = sites.quote(node, HOUSE, alice);
+        assertEq(before, 0);
 
         vm.prank(alice);
-        vm.expectRevert(HoodfiSites.NotRecorder.selector);
-        sites.recordPublish(node);
+        sites.publish(node, HOUSE, _cid());
 
-        vm.prank(recorder);
-        sites.recordPublish(node);
-        assertEq(sites.spent(node), 1);
+        (,,, uint256 after_) = sites.quote(node, HOUSE, alice);
+        assertEq(after_, 1);
     }
 
-    function test_creditIsSingleUse() public {
-        bytes32 node = _node("alice");
-        vm.prank(alice);
-        sites.publish(node, HOUSE);
+    /*//////////////////////////////////////////////////////////////
+                          THE CID IS THE RECEIPT
+    //////////////////////////////////////////////////////////////*/
 
-        vm.startPrank(recorder);
-        sites.recordPublish(node);
-        vm.expectRevert(abi.encodeWithSelector(HoodfiSites.NoCreditToSpend.selector, node));
-        sites.recordPublish(node);
+    /// The gateway's entire authorisation check, and a plain read anyone can make.
+    function test_isPaidIsTrueOnlyForTheSitePaidFor() public {
+        bytes32 node = _node("alice");
+        string memory mine = "bafybeialpha";
+
+        assertFalse(sites.isPaid(node, mine), "nothing paid for yet");
+
+        vm.prank(alice);
+        sites.publish(node, HOUSE, mine);
+
+        assertTrue(sites.isPaid(node, mine), "paid site should read as paid");
+        assertFalse(sites.isPaid(node, "bafybeibeta"), "a different CID is not paid for");
+        assertFalse(
+            sites.isPaid(_node("bobby"), mine), "the same CID on another name is not paid for"
+        );
+    }
+
+    /// Paying twice for the same site is always a mistake — a double submit, or a retry
+    /// of a transaction that already landed. Refusing costs gas; accepting costs the
+    /// price of a publish they already own.
+    function test_payingTwiceForTheSameSiteIsRefused() public {
+        _priced();
+        bytes32 node = _node("alice");
+        string memory cid = "bafybeisamesite";
+
+        vm.startPrank(alice);
+        sites.publish{value: FIRST_WEI}(node, HOUSE, cid);
+        vm.expectRevert(abi.encodeWithSelector(HoodfiSites.AlreadyPaid.selector, node, cid));
+        sites.publish{value: REPUB_WEI}(node, HOUSE, cid);
         vm.stopPrank();
     }
 
-    function test_quoteReportsCreditsLeft() public {
+    function test_emptyCidIsRefused() public {
         bytes32 node = _node("alice");
         vm.prank(alice);
-        sites.publish(node, HOUSE);
-        (,,, uint256 left) = sites.quote(node, HOUSE, alice);
-        assertEq(left, 1);
+        vm.expectRevert(HoodfiSites.EmptyCid.selector);
+        sites.publish(node, HOUSE, "");
+    }
 
-        vm.prank(recorder);
-        sites.recordPublish(node);
-        (,,, uint256 after_) = sites.quote(node, HOUSE, alice);
-        assertEq(after_, 0);
+    function test_overlongCidIsRefused() public {
+        bytes32 node = _node("alice");
+        string memory long = new string(129);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HoodfiSites.CidTooLong.selector, 129, 128));
+        sites.publish(node, HOUSE, long);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -404,7 +432,7 @@ contract HoodfiSitesTest is Test {
         bytes32 node = _node("alice");
 
         vm.prank(alice);
-        sites.publish{value: FIRST_WEI}(node, PARTNER_TPL);
+        sites.publish{value: FIRST_WEI}(node, PARTNER_TPL, _cid());
 
         uint256 share = (FIRST_WEI * 3000) / 10_000;
 
@@ -436,7 +464,7 @@ contract HoodfiSitesTest is Test {
         bytes32 node = _node("alice");
         vm.prank(alice);
         vm.expectRevert(HoodfiSites.PublishingPaused.selector);
-        sites.publish(node, HOUSE);
+        sites.publish(node, HOUSE, _cid());
     }
 
     function test_onlyOwnerMayConfigure() public {

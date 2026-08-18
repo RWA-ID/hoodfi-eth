@@ -41,12 +41,8 @@ contract DeploySites is Script {
         address registry = vm.envOr("REGISTRY", REGISTRY);
         address treasury = vm.envOr("TREASURY", TREASURY);
         address usdg = vm.envOr("USDG", USDG);
-        // Whoever may mark a credit spent. The gateway will take this over once it does
-        // the pinning; until then it is the deployer, and it is owner-settable.
-        address recorder = vm.envOr("RECORDER", deployer);
-
         vm.startBroadcast(pk);
-        HoodfiSites sites = new HoodfiSites(registry, treasury, recorder, deployer);
+        HoodfiSites sites = new HoodfiSites(registry, treasury, deployer);
         sites.setUsdg(usdg);
 
         // payee 0, collection 0, share 0: open to everyone, earning nobody a cut.
@@ -60,7 +56,6 @@ contract DeploySites is Script {
         console.log("HoodfiSites:", address(sites));
         console.log("registry:   ", registry);
         console.log("treasury:   ", treasury);
-        console.log("recorder:   ", recorder);
         console.log("usdg:       ", usdg);
         console.log("owner:      ", deployer);
         console.log("prices:      all zero (setPrices to go live)");
