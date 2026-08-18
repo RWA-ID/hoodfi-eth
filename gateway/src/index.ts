@@ -12,6 +12,7 @@ import { getVoucher } from './handlers/getVoucher'
 import { postAvatar } from './handlers/postAvatar'
 import { postEvent } from './handlers/postEvent'
 import { postPartner } from './handlers/postPartner'
+import { postSite, postSiteConfirm, sweepUnpaidSites } from './handlers/postSite'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -72,4 +73,31 @@ app.post('/e', async (c) => postEvent(c.req.raw, c.env))
 // caller-supplied one — see the handler for why that constraint is the whole design.
 app.post('/partner', async (c) => postPartner(c.req.raw, c.env))
 
-export default app
+// Publishing, in two phases. The site is pinned first — a CID cannot be paid for
+// before it exists — then confirmed against the chain once HoodfiSites says that exact
+// CID was paid for on that name. See the handler for why the receipt is the CID.
+app.post('/site/:label', async (c) => postSite(c.req.param('label'), c.req.raw, c.env))
+app.post('/site/:label/confirm', async (c) =>
+  postSiteConfirm(c.req.param('label'), c.req.raw, c.env)
+)
+
+/**
+ * Hono's app is the fetch handler; the object below adds the scheduled one.
+ *
+ * `export default app` alone gives Workers no `scheduled` export, and a cron trigger
+ * configured against a worker that has none fails silently — the schedule fires, finds
+ * nothing to call, and unpaid pins accumulate forever with nothing to show it.
+ */
+export default {
+  fetch: app.fetch,
+  // Typed structurally rather than with ScheduledController/ExecutionContext, because
+  // @cloudflare/workers-types is not a dependency here and adding one for three names
+  // this file uses once would be the tail wagging the dog.
+  async scheduled(_event: unknown, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }) {
+    ctx.waitUntil(
+      sweepUnpaidSites(env).then(({ checked, removed }) => {
+        console.log(`sweep: checked ${checked} unpaid pins, removed ${removed}`)
+      })
+    )
+  },
+}

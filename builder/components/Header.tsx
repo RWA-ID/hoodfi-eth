@@ -17,7 +17,7 @@ import { MANAGE_URL, MINT_URL } from "@/lib/site";
  * at .16em tracking needs more width than a phone has.
  */
 const NAV = [
-  { href: "/#templates", label: "Templates" },
+  { href: "/build/", label: "Build" },
   { href: "/#how", label: "How it works" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/#faq", label: "FAQ" },

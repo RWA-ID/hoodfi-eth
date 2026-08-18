@@ -15,6 +15,12 @@ export interface Env {
   DONATIONS_DEPLOY_BLOCK?: string
   /** HoodfiRegistrar on Robinhood Chain — bound into the voucher digest. */
   REGISTRAR_ADDRESS?: Hex
+  /**
+   * HoodfiSites on Robinhood Chain. Read to answer "was this exact CID paid for on this
+   * name" before a pinned site is kept. Without it, /site/:label/confirm refuses rather
+   * than assuming — an unset address must never read as "yes, paid".
+   */
+  SITES_ADDRESS?: Hex
   /** Public origin the share pages link back to. Defaults to the hosted domain. */
   SITE_URL?: string
   /** Pinata JWT for avatar uploads. Secret — it must never reach the bundle. */

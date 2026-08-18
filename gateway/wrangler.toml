@@ -21,6 +21,9 @@ dataset = "HoodFi_Names"
 # plain var of the same name would shadow that secret on every deploy. The public
 # endpoint it used to hold is now the built-in fallback in src/chains.ts.
 L2_REGISTRY_ADDRESS = "0xf2bABA012244bdD7445129597350054E1B3aEe5C"
+# HoodfiSites — read to confirm a pinned site was paid for. A plain var, not a
+# secret: it is a public address and the site lists it for anyone to check.
+SITES_ADDRESS = "0x90517237F52caC977398CA1391b3B006bA028c99"
 # Public information, so a plain var — only the RPC URL behind it is secret.
 DONATIONS_DEPLOY_BLOCK = "25698544"
 
@@ -32,3 +35,10 @@ PARTNER_NOTIFY_TO = "hector@rwa-id.com"
 # Must be on the exact verified Resend domain. `mail.onchain-id.id` is verified;
 # `onchain-id.id` is a different domain to Resend and would be rejected.
 PARTNER_FROM = "HoodFi Names <partners@mail.onchain-id.id>"
+
+# Nightly at 03:10 UTC. Phase one of publishing pins before payment by necessity —
+# someone has to see the finished site before buying it — so abandoned drafts have to be
+# cleaned up by something. Only touches pins this worker made, marked unpaid, older than
+# a day; see sweepUnpaidSites.
+[triggers]
+crons = ["10 3 * * *"]

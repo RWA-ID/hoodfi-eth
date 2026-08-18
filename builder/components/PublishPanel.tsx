@@ -1,0 +1,223 @@
+"use client";
+
+import { useState } from "react";
+import { keccak256, sha256, stringToBytes, toBytes, type Hex } from "viem";
+import {
+  useAccount,
+  usePublicClient,
+  useSignMessage,
+  useSwitchChain,
+  useWalletClient,
+} from "wagmi";
+import { ArrowNE } from "./ArrowNE";
+import { robinhoodChain } from "@/lib/chains";
+import { L2_REGISTRY_ADDRESS, SITES_ADDRESS, registryAbi, sitesAbi } from "@/lib/contracts";
+import {
+  SIGNATURE_LIFETIME_MS,
+  confirmSite,
+  pinSite,
+  publishedUrl,
+  sitePublishMessage,
+} from "@/lib/publish";
+import { encodeContenthash } from "@/shared/contenthash";
+import type { OwnedName } from "./useMyNames";
+import type { TemplateId } from "@/lib/templates/index.ts";
+
+type Props = {
+  name: OwnedName;
+  templateId: TemplateId;
+  html: string;
+};
+
+type Step = "idle" | "signing" | "pinning" | "paying" | "confirming" | "linking" | "done";
+
+const LABELS: Record<Step, string> = {
+  idle: "",
+  signing: "Waiting for your signature…",
+  pinning: "Pinning your site to IPFS…",
+  paying: "Confirm the payment in your wallet…",
+  confirming: "Checking the payment on chain…",
+  linking: "Point your name at the site…",
+  done: "Live.",
+};
+
+/**
+ * Publishing, as four things the owner does and two the gateway does.
+ *
+ * The sequence is fixed by the fact that a payment names a CID: pin, pay, confirm, then
+ * write the record. The last step is the owner's own transaction on their own name —
+ * this app never holds a key to it, and that is the property worth protecting even
+ * though it costs a second signature.
+ *
+ * Every step is reported by name. A single spinner over a flow with two wallet prompts
+ * and a chain read is how somebody ends up paying twice.
+ */
+export function PublishPanel({ name, templateId, html }: Props) {
+  const { address, chainId } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const { switchChainAsync } = useSwitchChain();
+  const { data: wallet } = useWalletClient();
+  const client = usePublicClient({ chainId: robinhoodChain.id });
+
+  const [step, setStep] = useState<Step>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [cid, setCid] = useState<string | null>(null);
+
+  const configured = Boolean(SITES_ADDRESS && L2_REGISTRY_ADDRESS);
+
+  async function run() {
+    if (!address || !wallet || !client || !SITES_ADDRESS || !L2_REGISTRY_ADDRESS) return;
+    setError(null);
+
+    try {
+      // Both writes are on Robinhood Chain. Switching inside the same try as the writes
+      // matters: a rejected switch escapes an async onClick as an unhandled promise and
+      // the button silently does nothing.
+      if (chainId !== robinhoodChain.id) {
+        setStep("signing");
+        await switchChainAsync({ chainId: robinhoodChain.id });
+      }
+
+      // ── 1. Sign, so the gateway will pin for this name ──────────────────────
+      setStep("signing");
+      const bytes = new TextEncoder().encode(html);
+      const expiry = Date.now() + SIGNATURE_LIFETIME_MS;
+      const signature = await signMessageAsync({
+        message: sitePublishMessage(`${name.label}.hoodfi.eth`, sha256(bytes), expiry),
+      });
+
+      // ── 2. Pin, which is what gives the payment something to name ───────────
+      setStep("pinning");
+      const pinned = await pinSite({
+        label: name.label,
+        html,
+        templateId,
+        signature: signature as Hex,
+        expiry,
+      });
+      setCid(pinned.cid);
+
+      // ── 3. Pay for that exact CID ───────────────────────────────────────────
+      setStep("paying");
+      const templateHash = keccak256(stringToBytes(templateId));
+
+      // Simulate against our own RPC first. A wallet that estimates on its own node can
+      // drop the revert payload entirely — that is the Brave signature — and the person
+      // is then asked to sign a transaction that was always going to fail.
+      const { request } = await client.simulateContract({
+        address: SITES_ADDRESS,
+        abi: sitesAbi,
+        functionName: "publish",
+        args: [name.node, templateHash, pinned.cid],
+        account: address,
+        value: 0n,
+      });
+      const payHash = await wallet.writeContract(request);
+      await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
+
+      // ── 4. Tell the gateway to keep it. Retried, because isPaid cannot see the
+      //       payment until it is mined and a wallet returns before that. ───────
+      setStep("confirming");
+      let confirmed = false;
+      for (let attempt = 0; attempt < 5 && !confirmed; attempt++) {
+        try {
+          await confirmSite(name.label, pinned.cid);
+          confirmed = true;
+        } catch (err) {
+          if (attempt === 4) throw err;
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
+
+      // ── 5. The owner points their own name at it ────────────────────────────
+      setStep("linking");
+      const encoded = encodeContenthash(`ipfs://${pinned.cid}`);
+      if (!encoded) throw new Error("Could not encode the contenthash for that CID.");
+
+      const linkHash = await wallet.writeContract({
+        address: L2_REGISTRY_ADDRESS,
+        abi: registryAbi,
+        functionName: "setContenthash",
+        args: [name.node, encoded],
+        chain: robinhoodChain,
+        account: address,
+      });
+      await client.waitForTransactionReceipt({ hash: linkHash, timeout: 180_000 });
+
+      setStep("done");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Never echo a raw viem error: they embed the full RPC URL, key included.
+      setError(
+        /user rejected|denied/i.test(message)
+          ? "You cancelled that in your wallet."
+          : message.split("\n")[1]?.trim() || message.split("\n")[0]?.trim() || "That didn't work."
+      );
+      setStep("idle");
+    }
+  }
+
+  if (step === "done") {
+    return (
+      <div className="on-ink panel-ink shadow-hero border border-[var(--ink)] p-7">
+        <span className="label">Published</span>
+        <p className="mt-4 text-[19px] font-semibold leading-[1.35] tracking-[-0.02em] text-[var(--fg)]">
+          {name.label}.hoodfi.eth is a website.
+        </p>
+        <a
+          className="btn btn-lime mt-6 w-full"
+          href={publishedUrl(name.label)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Open it <ArrowNE />
+        </a>
+        <p className="mt-4 break-all text-[12px] leading-[1.6] text-[var(--faint)]">
+          <span className="data">ipfs://{cid}</span>
+        </p>
+        <p className="mt-3 text-[13px] leading-[1.6] text-[var(--faint)]">
+          Gateways cache aggressively, so the first load can take a minute. Nothing else
+          is needed from you — the record is written.
+        </p>
+      </div>
+    );
+  }
+
+  const busy = step !== "idle";
+
+  return (
+    <div className="on-ink panel-ink shadow-hero border border-[var(--ink)] p-7">
+      <span className="label">Publish</span>
+      <p className="mt-4 max-w-[40ch] text-[15px] leading-[1.6] text-[var(--dim)]">
+        Two signatures: one to pay, one to point your name at the finished site. The
+        record is written by you, from your wallet — we never hold a key to your name.
+      </p>
+
+      {!configured ? (
+        <p className="mt-6 text-[14px] leading-[1.6] text-[var(--warn)]">
+          Publishing isn&rsquo;t configured in this deployment yet.
+        </p>
+      ) : null}
+
+      <button
+        className="btn btn-lime mt-6 w-full"
+        disabled={busy || !configured || !wallet}
+        onClick={run}
+        type="button"
+      >
+        {busy ? LABELS[step] : "Publish this site"}
+        {busy ? null : <ArrowNE />}
+      </button>
+
+      {error ? (
+        <p className="mt-4 text-[14px] leading-[1.6] text-[var(--bad)]">{error}</p>
+      ) : null}
+
+      {cid && step !== "idle" ? (
+        <p className="data mt-4 break-all text-[11.5px] leading-[1.6] text-[var(--faint)]">
+          {cid}
+        </p>
+      ) : null}
+    </div>
+  );
+}

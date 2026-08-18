@@ -24,5 +24,5 @@ export function getTemplate(id: string): Template | undefined {
   return TEMPLATES.find((t) => t.id === id);
 }
 
-export type { SiteData, Template, TemplateId } from "./types.ts";
+export type { SiteData, SiteLink, Template, TemplateId } from "./types.ts";
 export { EMPTY_SITE } from "./types.ts";

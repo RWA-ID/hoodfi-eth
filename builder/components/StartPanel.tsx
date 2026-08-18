@@ -120,13 +120,15 @@ export function StartPanel({ selected, onSelect }: Props) {
                 })}
               </div>
 
-              <button
-                className="btn btn-lime mt-7 w-full"
-                disabled={!selected}
-                type="button"
-              >
-                {selected ? `Build on ${selected.label}` : "Pick a name to continue"}
-              </button>
+              {selected ? (
+                <a className="btn btn-lime mt-7 w-full" href="/build/">
+                  Build on {selected.label} <ArrowNE />
+                </a>
+              ) : (
+                <button className="btn btn-lime mt-7 w-full" disabled type="button">
+                  Pick a name to continue
+                </button>
+              )}
 
               {selected ? (
                 <p className="mt-4 text-[13px] leading-[1.6] text-[var(--faint)]">

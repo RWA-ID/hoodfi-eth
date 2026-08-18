@@ -134,3 +134,109 @@ export const registryAbi = [
   },
   ...registryErrors,
 ] as const;
+
+/**
+ * HoodfiSites — the publish paywall.
+ *
+ * Errors carry a sentence each. An ABI without them leaves viem only a selector, and a
+ * refused publish then reads as "reverted with the following signature: 0x…" — which is
+ * the exact bug the mint page shipped with for weeks.
+ */
+export const sitesAbi = [
+  {
+    type: "function",
+    name: "publish",
+    stateMutability: "payable",
+    inputs: [
+      { name: "node", type: "bytes32" },
+      { name: "templateId", type: "bytes32" },
+      { name: "cid", type: "string" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "publishWithUsdg",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "node", type: "bytes32" },
+      { name: "templateId", type: "bytes32" },
+      { name: "cid", type: "string" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "quote",
+    stateMutability: "view",
+    inputs: [
+      { name: "node", type: "bytes32" },
+      { name: "templateId", type: "bytes32" },
+      { name: "buyer", type: "address" },
+    ],
+    outputs: [
+      { name: "weiPrice", type: "uint256" },
+      { name: "usdgPrice", type: "uint256" },
+      { name: "eligible", type: "bool" },
+      { name: "publishCount", type: "uint256" },
+    ],
+  },
+  {
+    type: "function",
+    name: "isPaid",
+    stateMutability: "view",
+    inputs: [
+      { name: "node", type: "bytes32" },
+      { name: "cid", type: "string" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "canUseTemplate",
+    stateMutability: "view",
+    inputs: [
+      { name: "templateId", type: "bytes32" },
+      { name: "buyer", type: "address" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+  { type: "error", name: "PublishingPaused", inputs: [] },
+  { type: "error", name: "NotNameOwner", inputs: [{ name: "node", type: "bytes32" }] },
+  { type: "error", name: "UnknownTemplate", inputs: [{ name: "templateId", type: "bytes32" }] },
+  { type: "error", name: "TemplateInactive", inputs: [{ name: "templateId", type: "bytes32" }] },
+  {
+    type: "error",
+    name: "CollectionRequired",
+    inputs: [
+      { name: "templateId", type: "bytes32" },
+      { name: "collection", type: "address" },
+    ],
+  },
+  {
+    type: "error",
+    name: "InsufficientPayment",
+    inputs: [
+      { name: "required", type: "uint256" },
+      { name: "provided", type: "uint256" },
+    ],
+  },
+  { type: "error", name: "UsdgNotConfigured", inputs: [] },
+  { type: "error", name: "EmptyCid", inputs: [] },
+  {
+    type: "error",
+    name: "CidTooLong",
+    inputs: [
+      { name: "length", type: "uint256" },
+      { name: "max", type: "uint256" },
+    ],
+  },
+  {
+    type: "error",
+    name: "AlreadyPaid",
+    inputs: [
+      { name: "node", type: "bytes32" },
+      { name: "cid", type: "string" },
+    ],
+  },
+] as const;
