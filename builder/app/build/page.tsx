@@ -38,11 +38,20 @@ export default function BuildPage() {
 
   const { prefill } = useNameRecords(name?.node);
 
-  // Pick the first name automatically. One name is the common case and making someone
-  // click it is asking them to confirm a fact they already know.
+  // Honour ?name= from the homepage panel before falling back to the first entry.
+  //
+  // The list is sorted alphabetically, so "pick the first" silently meant gm whenever
+  // someone had chosen test1000 — they clicked one name and landed on another's editor,
+  // which reads as the app losing their data rather than as a routing bug.
   useEffect(() => {
-    if (!name && names.length > 0) setName(names[0]);
-    if (name && !names.some((n) => n.node === name.node)) setName(null);
+    if (names.length === 0) return;
+    if (!name) {
+      const wanted = new URLSearchParams(window.location.search).get("name");
+      const match = wanted ? names.find((n) => n.label === wanted) : undefined;
+      setName(match ?? names[0]);
+      return;
+    }
+    if (!names.some((n) => n.node === name.node)) setName(null);
   }, [names, name]);
 
   // Load whatever exists for this name: a saved draft first, then the chain records,

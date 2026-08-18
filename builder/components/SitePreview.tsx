@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { BrowserFrame, PhoneFrame } from "./DeviceFrame";
 
 type Props = {
   html: string;
@@ -11,6 +12,10 @@ const WIDTHS = [
   { id: "desktop", label: "Desktop", width: 1280 },
   { id: "phone", label: "Phone", width: 390 },
 ] as const;
+
+/** Frame heights. Shorter than the old bare box, per the brief. */
+const DESKTOP_H = "h-[min(58vh,560px)]";
+const PHONE_H = 620;
 
 /**
  * The site, as it will actually be.
@@ -32,7 +37,7 @@ export function SitePreview({ html, label }: Props) {
   const [mode, setMode] = useState<(typeof WIDTHS)[number]["id"]>("desktop");
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const [boxHeight, setBoxHeight] = useState(560);
+  const [innerHeight, setInnerHeight] = useState(560);
 
   const width = WIDTHS.find((w) => w.id === mode)!.width;
 
@@ -48,13 +53,35 @@ export function SitePreview({ html, label }: Props) {
     if (!el) return;
     const measure = () => {
       setScale(Math.min(1, el.clientWidth / width));
-      setBoxHeight(el.clientHeight);
+      setInnerHeight(el.clientHeight);
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, [width]);
+
+  const frameUrl = `${label}.hoodfi.eth.link`;
+
+  const frame = (
+    <iframe
+      title={`${label}.hoodfi.eth preview`}
+      srcDoc={html}
+      sandbox="allow-scripts allow-same-origin"
+      /* Never loading="lazy": an iframe outside the initial viewport with lazy set
+         never loads at all, which is how the site's phone-frame preview shipped
+         invisible once. */
+      style={{
+        width: `${width}px`,
+        height: `${Math.round(innerHeight / scale)}px`,
+        border: 0,
+        transform: `scale(${scale})`,
+        transformOrigin: "top left",
+        background: "#fff",
+        display: "block",
+      }}
+    />
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -77,30 +104,22 @@ export function SitePreview({ html, label }: Props) {
         </div>
       </div>
 
-      {/* A definite height, not a min-height: the frame inside is sized against this,
-          and `flex-1` on a parent that is itself auto-height gives it nothing to
-          resolve against. Tall enough to judge a hero, short enough to keep the form
-          beside it in view. */}
-      <div
-        ref={box}
-        className="mt-4 h-[min(72vh,760px)] overflow-hidden border border-[var(--line)] bg-[var(--paper-alt)]"
-      >
-        <iframe
-          title={`${label}.hoodfi.eth preview`}
-          srcDoc={html}
-          sandbox="allow-scripts allow-same-origin"
-          /* Never loading="lazy": an iframe outside the initial viewport with lazy set
-             never loads at all, which is how the site's phone-frame preview shipped
-             invisible once. */
-          style={{
-            width: `${width}px`,
-            height: `${Math.round(boxHeight / scale)}px`,
-            border: 0,
-            transform: `scale(${scale})`,
-            transformOrigin: "top left",
-            background: "#fff",
-          }}
-        />
+      <div className="mt-5">
+        {mode === "desktop" ? (
+          <BrowserFrame url={frameUrl}>
+            {/* Measured here, not on an ancestor: the scale is a ratio of THIS box's
+                width to the page's 1280, and the height the iframe needs is this box's
+                height divided by that scale. A percentage would resolve against an auto
+                height and collapse the frame — it shipped at 96px once. */}
+            <div ref={box} className={`${DESKTOP_H} overflow-hidden bg-white`}>{frame}</div>
+          </BrowserFrame>
+        ) : (
+          <PhoneFrame>
+            <div ref={box} style={{ width: 390 * scale, height: PHONE_H }} className="overflow-hidden bg-white">
+              {frame}
+            </div>
+          </PhoneFrame>
+        )}
       </div>
     </div>
   );

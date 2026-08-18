@@ -1,4 +1,5 @@
 import { ARCHIVO_400, ARCHIVO_800 } from "./fonts.ts";
+import { ICON_CSS, keyed, sprite, type IconId } from "./icons.ts";
 import {
   ANCHOR_SCRIPT,
   COPY_SCRIPT,
@@ -8,18 +9,19 @@ import {
   paragraphs,
   safeImage,
   safeUrl,
-  shortAddress,
 } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
 /**
- * Editorial — the house look, one step away from the house.
+ * Editorial — type filling the lime band edge to edge, the portrait cutting up into it.
  *
- * Paper ground, one lime field, Archivo at full height, radius zero, hairlines instead
- * of shadows. Deliberately *not* a copy of hoodfi.name: the hero puts the name across a
- * lime band with the portrait breaking into it, where the site runs a two-column hero
- * with a dark panel. A personal page that mirrors the official one too closely reads as
- * an official page, which is a problem the moment someone puts an address on it.
+ * The negative margin on the portrait is the whole design: it lifts the picture into the
+ * headline's own space so the two overlap rather than sit in tidy columns. Below the
+ * fold an ink marquee cuts the page in half, which is what keeps a paper-coloured
+ * layout from reading as a document.
+ *
+ * Deliberately not a copy of hoodfi.name. A personal page that mirrors the official one
+ * too closely reads as official, which matters the moment someone puts an address on it.
  */
 function renderEditorial(data: SiteData): string {
   const name = esc(data.displayName || data.label);
@@ -28,28 +30,24 @@ function renderEditorial(data: SiteData): string {
   const site = safeUrl(data.website);
   const opensea = safeUrl(data.opensea);
 
-  const socials = (
-    [
-      data.x ? ["X", `https://x.com/${handle(data.x)}`] : null,
-      data.github ? ["GitHub", `https://github.com/${handle(data.github)}`] : null,
-      data.telegram ? ["Telegram", `https://t.me/${handle(data.telegram)}`] : null,
-      data.discord ? ["Discord", `https://discord.gg/${handle(data.discord)}`] : null,
-      site ? ["Website", site] : null,
-      opensea ? ["OpenSea", opensea] : null,
-    ].filter(Boolean) as [string, string][]
-  );
-
-  const addresses = (
-    [
-      data.ethAddress ? ["Ethereum", data.ethAddress.trim()] : null,
-      data.btcAddress ? ["Bitcoin", data.btcAddress.trim()] : null,
-      data.solAddress ? ["Solana", data.solAddress.trim()] : null,
-    ].filter(Boolean) as [string, string][]
-  );
+  const rows: { id?: IconId; k: string; v: string; url?: string; copy?: string }[] = [];
+  if (data.x) rows.push({ id: "x", k: "X", v: `x.com/${handle(data.x)}`, url: `https://x.com/${handle(data.x)}` });
+  if (data.github)
+    rows.push({ id: "gh", k: "GitHub", v: `github.com/${handle(data.github)}`, url: `https://github.com/${handle(data.github)}` });
+  if (data.telegram) rows.push({ k: "Telegram", v: `t.me/${handle(data.telegram)}`, url: `https://t.me/${handle(data.telegram)}` });
+  if (data.discord) rows.push({ k: "Discord", v: `discord.gg/${handle(data.discord)}`, url: `https://discord.gg/${handle(data.discord)}` });
+  if (site) rows.push({ k: "Website", v: site.replace(/^https?:\/\//, ""), url: site });
+  if (opensea) rows.push({ id: "os", k: "OpenSea", v: opensea.replace(/^https?:\/\//, ""), url: opensea });
+  if (data.ethAddress) rows.push({ id: "eth", k: "Ethereum", v: data.ethAddress.trim(), copy: data.ethAddress.trim() });
+  if (data.btcAddress) rows.push({ id: "btc", k: "Bitcoin", v: data.btcAddress.trim(), copy: data.btcAddress.trim() });
+  if (data.solAddress) rows.push({ id: "sol", k: "Solana", v: data.solAddress.trim(), copy: data.solAddress.trim() });
 
   const links = data.links
     .map((l) => ({ label: l.label.trim(), url: safeUrl(l.url) }))
     .filter((l) => l.label && l.url);
+
+  const marquee = ["■ " + label + ".hoodfi.eth", "■ served from IPFS", "■ no renewals", "■ owned outright"];
+  const usedIcons = [...(rows.map((r) => r.id).filter(Boolean) as IconId[]), "rh" as IconId];
 
   return `<!doctype html>
 <html lang="en">
@@ -66,72 +64,84 @@ ${avatar ? `<meta property="og:image" content="${attr(avatar)}">` : ""}
 <style>
 @font-face{font-family:'Archivo';src:url(data:font/woff2;base64,${ARCHIVO_400}) format('woff2');font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:'Archivo';src:url(data:font/woff2;base64,${ARCHIVO_800}) format('woff2');font-weight:800;font-style:normal;font-display:swap}
-:root{--paper:#f1f1ea;--paper-alt:#e9eae1;--ink:#0b0e08;--lime:#c6f702;--dim:rgba(11,14,8,.66);--label:rgba(11,14,8,.55);--faint:rgba(11,14,8,.45);--line:rgba(11,14,8,.18)}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
-body{background:var(--paper);color:var(--ink);font-family:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16.5px;line-height:1.6;overflow-x:hidden}
-a{color:inherit}
-.shell{max-width:1180px;margin:0 auto;padding:0 clamp(20px,4vw,40px)}
-.band{background:var(--lime);border-bottom:1px solid var(--ink)}
-.hero{display:grid;gap:clamp(24px,4vw,56px);padding:clamp(40px,6vw,72px) 0 0;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));align-items:end}
-.headcol{container-type:inline-size}
-.eyebrow{font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:rgba(11,14,8,.66)}
-h1{font-weight:800;font-size:clamp(44px,15cqi,132px);line-height:.86;letter-spacing:-.035em;text-transform:uppercase;margin-top:18px;overflow-wrap:anywhere}
-.tagline{margin-top:22px;font-size:clamp(16px,2vw,21px);font-weight:400;line-height:1.4;max-width:34ch;padding-bottom:clamp(28px,4vw,44px)}
-.portrait{width:100%;max-width:360px;aspect-ratio:1;border:1px solid var(--ink);overflow:hidden;justify-self:end;margin-bottom:-1px}
-.portrait img{display:block;width:100%;height:100%;object-fit:cover}
-section{padding:clamp(48px,7vw,88px) 0 0}
-.marker{font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--label)}
-h2{font-weight:800;font-size:clamp(28px,4vw,52px);line-height:.94;letter-spacing:-.04em;margin-top:16px}
-.bio{margin-top:26px;max-width:62ch;color:var(--dim);font-size:17px}
-.bio p+p{margin-top:16px}
-.rows{margin-top:34px;border-top:1px solid var(--line)}
-.row{display:grid;grid-template-columns:minmax(0,140px) minmax(0,1fr);gap:20px;align-items:baseline;padding:18px 0;border-bottom:1px solid var(--line)}
-.row .k{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--label)}
-.row .v{min-width:0;word-break:break-word;font-size:16px}
-button.v{background:none;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;padding:0;text-decoration:underline;text-underline-offset:3px}
-.cards{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
-.card{flex:1 1 260px;min-width:0;border:1px solid var(--line);background:var(--paper-alt);padding:22px;text-decoration:none;box-shadow:10px 10px 0 rgba(11,14,8,.08)}
-.card .k{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--label)}
-.card .t{margin-top:10px;font-weight:800;font-size:20px;letter-spacing:-.02em}
-.card .u{margin-top:6px;font-size:14px;color:var(--faint);word-break:break-all}
-footer{margin-top:clamp(56px,8vw,104px);background:var(--ink);color:rgba(241,241,234,.85)}
-footer .shell{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;padding-top:26px;padding-bottom:34px;font-size:12.5px;letter-spacing:.06em}
-@media(max-width:640px){.row{grid-template-columns:1fr;gap:6px}}
+body{background:#f1f1ea;color:#0b0e08;font-family:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16.5px;line-height:1.6;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+${ICON_CSS}
+.shell{max-width:1280px;margin:0 auto;padding:0 clamp(20px,4vw,34px)}
+.band{background:#c6f702;border-bottom:1px solid #0b0e08;overflow:hidden}
+.band .shell{padding-top:30px}
+.top{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(11,14,8,.62)}
+h1{font-size:clamp(56px,13vw,158px);font-weight:800;line-height:.82;letter-spacing:-.05em;text-transform:uppercase;margin-top:26px;overflow-wrap:anywhere}
+.lower{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:32px;margin-top:22px}
+.tag{font-size:clamp(17px,2.2vw,20px);line-height:1.35;max-width:32ch;padding-bottom:34px;font-weight:500;min-width:0;flex:1 1 280px}
+/* Lifts the portrait up into the headline. The overlap IS the layout — without it this
+   is two tidy columns and the band stops feeling composed. Clamped so it never eats the
+   headline on a narrow screen, where the two stack instead. */
+.port{width:min(250px,42vw);aspect-ratio:1;border:1px solid #0b0e08;overflow:hidden;flex:none;margin-bottom:34px}
+@media(min-width:900px){.port{margin-top:-152px}}
+.port img{width:100%;height:100%;object-fit:cover;display:block}
+.marq{background:#0b0e08;color:#f1f1ea;font-size:11px;letter-spacing:.3em;text-transform:uppercase;padding:11px 0;white-space:nowrap;overflow:hidden}
+.marq .row{display:inline-block;animation:slide 30s linear infinite}
+.marq span{padding-right:40px}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.marq .row{animation:none}}
+section{padding-top:clamp(44px,7vw,64px)}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:24px 44px}
+@media(min-width:820px){.duo{grid-template-columns:200px minmax(0,1fr)}}
+.mk{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(11,14,8,.5)}
+.lead{font-size:clamp(21px,2.6vw,26px);line-height:1.35;letter-spacing:-.02em;max-width:30ch;font-weight:500}
+.body{margin-top:18px;font-size:16px;line-height:1.7;color:rgba(11,14,8,.68);max-width:58ch}
+.body p+p{margin-top:16px}
+.links{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px}
+.link{flex:1 1 260px;min-width:0;border:1px solid rgba(11,14,8,.2);background:#e9eae1;padding:22px;box-shadow:9px 9px 0 rgba(11,14,8,.09);min-height:132px;display:flex;flex-direction:column;justify-content:space-between}
+.link .t{font-size:21px;font-weight:800;letter-spacing:-.02em}
+.link .u{font-size:12.5px;color:rgba(11,14,8,.45);word-break:break-all}
+.rows{margin-top:8px;border-top:1px solid rgba(11,14,8,.16)}
+.row{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr) auto;gap:14px 20px;align-items:baseline;padding:16px 0;border-bottom:1px solid rgba(11,14,8,.16)}
+@media(max-width:640px){.row{grid-template-columns:1fr auto}}
+.row .k{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(11,14,8,.5)}
+.row .v{font-size:15.5px;min-width:0;word-break:break-all}
+.row .c{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(11,14,8,.4)}
+button.v{background:none;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;padding:0}
+footer{margin-top:clamp(48px,8vw,64px);background:#0b0e08;color:rgba(241,241,234,.8)}
+footer .shell{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;padding-top:26px;padding-bottom:34px;font-size:12px}
 </style>
 </head>
 <body>
+${sprite(usedIcons)}
 <div class="band"><div class="shell">
-  <div class="hero">
-    <div class="headcol">
-      <div class="eyebrow">${label}.hoodfi.eth</div>
-      <h1>${name}</h1>
-      ${data.tagline ? `<p class="tagline">${esc(data.tagline)}</p>` : '<div class="tagline"></div>'}
-    </div>
-    ${avatar ? `<div class="portrait"><img src="${attr(avatar)}" alt="${attr(name)}"></div>` : ""}
+  <div class="top"><span>${label}.hoodfi.eth</span>${keyed("rh", "Robinhood Chain · lifetime")}</div>
+  <h1>${name}</h1>
+  <div class="lower">
+    <div class="tag">${esc(data.tagline)}</div>
+    ${avatar ? `<div class="port"><img src="${attr(avatar)}" alt="${attr(name)}"></div>` : ""}
   </div>
 </div></div>
+
+<div class="marq"><div class="row">${[...marquee, ...marquee].map((m) => `<span>${esc(m)}</span>`).join("")}</div></div>
 
 <div class="shell">
   ${
     data.bio
-      ? `<section>
-    <div class="marker">01 — about</div>
-    <div class="bio">${paragraphs(data.bio)}</div>
-  </section>`
+      ? `<section><div class="duo">
+    <div class="mk">01 — About</div>
+    <div><div class="body">${paragraphs(data.bio)}</div></div>
+  </div></section>`
       : ""
   }
 
   ${
     links.length
       ? `<section id="links">
-    <div class="marker">02 — links</div>
-    <h2>Things worth opening.</h2>
-    <div class="cards">
+    <div class="mk">02 — Links</div>
+    <div class="lead" style="margin-top:12px">Things worth opening.</div>
+    <div class="links" style="margin-top:26px">
       ${links
         .map(
           (l) =>
-            `<a class="card" href="${attr(l.url)}" target="_blank" rel="noreferrer"><div class="k">Link</div><div class="t">${esc(l.label)}</div><div class="u">${esc(l.url.replace(/^https?:\/\//, ""))}</div></a>`
+            `<a class="link" href="${attr(l.url)}" target="_blank" rel="noreferrer"><div class="t">${esc(l.label)}</div><div class="u">${esc(l.url.replace(/^https?:\/\//, ""))}</div></a>`
         )
         .join("\n      ")}
     </div>
@@ -140,31 +150,18 @@ footer .shell{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between
   }
 
   ${
-    socials.length
-      ? `<section>
-    <div class="marker">03 — elsewhere</div>
-    <div class="rows">
-      ${socials
-        .map(
-          ([k, u]) =>
-            `<div class="row"><div class="k">${esc(k)}</div><a class="v" href="${attr(u)}" target="_blank" rel="noreferrer">${esc(u.replace(/^https?:\/\//, ""))}</a></div>`
-        )
-        .join("\n      ")}
-    </div>
-  </section>`
-      : ""
-  }
-
-  ${
-    addresses.length
+    rows.length
       ? `<section id="addresses">
-    <div class="marker">04 — addresses</div>
-    <div class="rows">
-      ${addresses
-        .map(
-          ([k, v]) =>
-            `<div class="row"><div class="k">${esc(k)}</div><button class="v" data-copy="${attr(v)}" title="${attr(v)}">${esc(shortAddress(v))}</button></div>`
-        )
+    <div class="mk">03 — Elsewhere</div>
+    <div class="rows" style="margin-top:26px">
+      ${rows
+        .map((r) => {
+          const key = r.id ? keyed(r.id, esc(r.k)) : esc(r.k);
+          const value = r.url
+            ? `<a class="v" href="${attr(r.url)}" target="_blank" rel="noreferrer">${esc(r.v)}</a>`
+            : `<button class="v" data-copy="${attr(r.copy ?? "")}" title="${attr(r.copy ?? "")}">${esc(r.v)}</button>`;
+          return `<div class="row"><div class="k">${key}</div>${value}<div class="c">${r.url ? "open" : "copy"}</div></div>`;
+        })
         .join("\n      ")}
     </div>
   </section>`
@@ -172,10 +169,7 @@ footer .shell{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between
   }
 </div>
 
-<footer><div class="shell">
-  <span>${label}.hoodfi.eth</span>
-  <span>Built with HoodFi Sites</span>
-</div></footer>
+<footer><div class="shell"><span>${label}.hoodfi.eth</span><span>Built with HoodFi Sites</span></div></footer>
 <script>${COPY_SCRIPT}
 ${ANCHOR_SCRIPT}</script>
 </body>
@@ -185,7 +179,7 @@ ${ANCHOR_SCRIPT}</script>
 export const editorial: Template = {
   id: "editorial",
   name: "Editorial",
-  blurb: "Paper ground, one lime field, display type at full height.",
+  blurb: "Paper and lime, type edge to edge, your picture cutting into the headline.",
   audience: "Personal identity",
   render: renderEditorial,
 };

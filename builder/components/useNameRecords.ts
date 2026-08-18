@@ -34,10 +34,13 @@ export function useNameRecords(node: `0x${string}` | undefined) {
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
-    if (!node || !client || !L2_REGISTRY_ADDRESS) {
-      setPrefill(null);
-      return;
-    }
+    // Drop the previous name's records BEFORE the new read starts. Without this the
+    // hook keeps answering with the last name's data while the next read is in flight,
+    // and the editor happily prefills one name's avatar and bio onto another — which
+    // looks exactly like "it shows the wrong avatar".
+    setPrefill(null);
+
+    if (!node || !client || !L2_REGISTRY_ADDRESS) return;
     setLoading(true);
     try {
       const results = await client.multicall({

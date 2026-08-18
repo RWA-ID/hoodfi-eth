@@ -128,7 +128,10 @@ export function StartPanel({ selected, onSelect }: Props) {
               </div>
 
               {selected ? (
-                <a className="btn btn-lime mt-7 w-full" href="/build/">
+                <a
+                  className="btn btn-lime mt-7 w-full"
+                  href={`/build/?name=${encodeURIComponent(selected.label)}`}
+                >
                   Build on {selected.label} <ArrowNE />
                 </a>
               ) : (

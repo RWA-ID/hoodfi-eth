@@ -1,31 +1,20 @@
 import { MANROPE_400, MANROPE_700 } from "./fonts.ts";
-import {
-  ANCHOR_SCRIPT,
-  COPY_SCRIPT,
-  attr,
-  esc,
-  handle,
-  paragraphs,
-  safeImage,
-  safeUrl,
-  shortAddress,
-} from "./html.ts";
+import { ICON_CSS, icon, sprite, type IconId } from "./icons.ts";
+import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, handle, paragraphs, safeImage, safeUrl, shortAddress } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
 /**
- * Product — light, generous, a generative field behind the headline.
+ * Product — the generative field as the hero backdrop, with a glass card floating over it.
  *
- * The only warm one in the set: white ground, Manrope's soft terminals, pill buttons and
- * rounded corners. It exists because three of the four are hard-edged and the audience
- * that wants a page for a small team or a tool is not served by any of them.
+ * The only warm one in the set: white ground, Manrope's soft terminals, pill buttons,
+ * rounded corners. It exists because the other three are hard-edged, and someone making
+ * a page for a small team or a tool is not served by any of them.
  *
- * The dot field is drawn as an inline SVG pattern rather than an image — it tiles at any
- * size, weighs a few hundred bytes, and stays crisp on a retina screen. Seeded off the
- * name so two sites do not get an identical field, but deterministic, because a pattern
- * that changes on reload reads as a rendering fault.
+ * The field is an inline SVG generated from the name — deterministic, so it never changes
+ * on reload, but two sites never get the same arrangement. Drawn rather than shipped as
+ * an image: it tiles at any size, weighs a few hundred bytes, and stays crisp on retina.
  */
 function dotField(seed: string): string {
-  // Cheap deterministic hash — this decides arrangement, not anything that matters.
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
     h ^= seed.charCodeAt(i);
@@ -39,26 +28,26 @@ function dotField(seed: string): string {
   };
 
   const cells: string[] = [];
-  const cols = 14;
-  const rows = 9;
+  const cols = 10;
+  const rows = 5;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const r = rnd();
-      // Density rises to the right, so the field reads as moving rather than as noise.
-      if (r > 0.25 + (1 - x / cols) * 0.55) {
-        const cx = x * 28 + 14;
-        const cy = y * 28 + 14;
+      // Density rises to the right so the field reads as moving rather than as noise.
+      if (r > 0.2 + (1 - x / cols) * 0.5) {
+        const cx = x * 56 + 40;
+        const cy = y * 56 + 30;
         const kind = rnd();
-        const fill = kind > 0.82 ? "#c6f702" : kind > 0.4 ? "#2f6bff" : "#9db8ff";
+        const fill = kind > 0.85 ? "#c6f702" : kind > 0.45 ? "#2f6bff" : "#9db8ff";
         cells.push(
           kind > 0.6
-            ? `<path d="M${cx - 7} ${cy + 7}a14 14 0 0 1 14-14v14z" fill="${fill}"/>`
-            : `<circle cx="${cx}" cy="${cy}" r="5" fill="${fill}"/>`
+            ? `<path d="M${cx - 12} ${cy + 6}a12 12 0 0 1 12-12v12z" fill="${fill}"/>`
+            : `<circle cx="${cx}" cy="${cy}" r="6" fill="${fill}"/>`
         );
       }
     }
   }
-  return `<svg viewBox="0 0 ${cols * 28} ${rows * 28}" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${cells.join("")}</svg>`;
+  return `<svg class="field" viewBox="0 0 560 300" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${cells.join("")}</svg>`;
 }
 
 function renderProduct(data: SiteData): string {
@@ -68,30 +57,19 @@ function renderProduct(data: SiteData): string {
   const site = safeUrl(data.website);
   const opensea = safeUrl(data.opensea);
 
-  const socials = (
-    [
-      data.x ? ["X", `https://x.com/${handle(data.x)}`] : null,
-      data.github ? ["GitHub", `https://github.com/${handle(data.github)}`] : null,
-      data.telegram ? ["Telegram", `https://t.me/${handle(data.telegram)}`] : null,
-      data.discord ? ["Discord", `https://discord.gg/${handle(data.discord)}`] : null,
-      site ? ["Website", site] : null,
-      opensea ? ["OpenSea", opensea] : null,
-    ].filter(Boolean) as [string, string][]
-  );
+  const rows: { id?: IconId; k: string; v: string; url?: string; copy?: string }[] = [];
+  if (data.x) rows.push({ id: "x", k: "X", v: `x.com/${handle(data.x)}`, url: `https://x.com/${handle(data.x)}` });
+  if (data.github) rows.push({ id: "gh", k: "GitHub", v: `github.com/${handle(data.github)}`, url: `https://github.com/${handle(data.github)}` });
+  if (data.telegram) rows.push({ k: "Telegram", v: `t.me/${handle(data.telegram)}`, url: `https://t.me/${handle(data.telegram)}` });
+  if (data.discord) rows.push({ k: "Discord", v: `discord.gg/${handle(data.discord)}`, url: `https://discord.gg/${handle(data.discord)}` });
+  if (opensea) rows.push({ id: "os", k: "OpenSea", v: opensea.replace(/^https?:\/\//, ""), url: opensea });
+  if (data.ethAddress) rows.push({ id: "eth", k: "Ethereum", v: `${shortAddress(data.ethAddress.trim())} · copy`, copy: data.ethAddress.trim() });
+  if (data.btcAddress) rows.push({ id: "btc", k: "Bitcoin", v: `${shortAddress(data.btcAddress.trim())} · copy`, copy: data.btcAddress.trim() });
+  if (data.solAddress) rows.push({ id: "sol", k: "Solana", v: `${shortAddress(data.solAddress.trim())} · copy`, copy: data.solAddress.trim() });
 
-  const addresses = (
-    [
-      data.ethAddress ? ["Ethereum", data.ethAddress.trim()] : null,
-      data.btcAddress ? ["Bitcoin", data.btcAddress.trim()] : null,
-      data.solAddress ? ["Solana", data.solAddress.trim()] : null,
-    ].filter(Boolean) as [string, string][]
-  );
-
-  const links = data.links
-    .map((l) => ({ label: l.label.trim(), url: safeUrl(l.url) }))
-    .filter((l) => l.label && l.url);
-
+  const links = data.links.map((l) => ({ label: l.label.trim(), url: safeUrl(l.url) })).filter((l) => l.label && l.url);
   const primary = links[0];
+  const usedIcons = [...(rows.map((r) => r.id).filter(Boolean) as IconId[]), "rh" as IconId, ...(opensea ? (["os"] as IconId[]) : [])];
 
   return `<!doctype html>
 <html lang="en">
@@ -108,74 +86,84 @@ ${avatar ? `<meta property="og:image" content="${attr(avatar)}">` : ""}
 <style>
 @font-face{font-family:'Manrope';src:url(data:font/woff2;base64,${MANROPE_400}) format('woff2');font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:'Manrope';src:url(data:font/woff2;base64,${MANROPE_700}) format('woff2');font-weight:700;font-style:normal;font-display:swap}
-:root{--ink:#0d1117;--paper:#fff;--soft:#f6f8fc;--blue:#2f6bff;--lime:#c6f702;--dim:#4a5568;--faint:#8a94a6;--line:#e4e9f2}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
-body{background:var(--paper);color:var(--ink);font-family:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.65;overflow-x:hidden}
+body{background:#fff;color:#0d1117;font-family:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.65;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
-.shell{max-width:1160px;margin:0 auto;padding:0 clamp(20px,4vw,40px)}
-header{border-bottom:1px solid var(--line)}
-header .shell{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:68px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
-.brand .dot{width:26px;height:26px;border-radius:8px;background:var(--blue);overflow:hidden;flex:none}
-.brand .dot img{width:100%;height:100%;object-fit:cover;display:block}
-.pill{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:999px;font-weight:700;font-size:14px;background:var(--blue);color:#fff;white-space:nowrap}
-.pill.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
-.hero{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:36px;align-items:center;padding:clamp(44px,6vw,80px) 0}
-h1{font-weight:700;font-size:clamp(34px,5vw,58px);line-height:1.08;letter-spacing:-.03em;overflow-wrap:anywhere}
-.tagline{margin-top:20px;font-size:clamp(16px,1.8vw,19px);color:var(--dim);max-width:40ch}
-.cta{margin-top:30px;display:flex;flex-wrap:wrap;gap:12px}
-.field{min-width:0}
-.field svg{display:block;width:100%;height:auto;opacity:.9}
-.statcard{margin-top:22px;background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
-.statcard .k{font-size:12px;font-weight:700;color:var(--faint);letter-spacing:.04em;text-transform:uppercase}
-.statcard .v{margin-top:6px;font-size:15px;word-break:break-all}
-section{padding:clamp(40px,5vw,72px) 0;border-top:1px solid var(--line)}
-.marker{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
-h2{margin-top:12px;font-weight:700;font-size:clamp(24px,3vw,36px);letter-spacing:-.025em;line-height:1.15}
-.bio{margin-top:20px;max-width:62ch;color:var(--dim)}
-.bio p+p{margin-top:14px}
-.cards{display:flex;flex-wrap:wrap;gap:14px;margin-top:28px}
-.card{flex:1 1 250px;min-width:0;border:1px solid var(--line);border-radius:16px;padding:20px 22px;background:var(--paper);transition:border-color .15s ease,transform .15s ease}
-.card:hover{border-color:var(--blue);transform:translateY(-2px)}
-.card .t{font-weight:700;font-size:17px}
-.card .u{margin-top:6px;font-size:14px;color:var(--faint);word-break:break-all}
-.rows{margin-top:24px}
-.row{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline;justify-content:space-between;padding:15px 0;border-bottom:1px solid var(--line)}
-.row .k{font-weight:700;font-size:14px}
-.row .v{min-width:0;color:var(--dim);font-size:14.5px;word-break:break-all}
-button.v{background:none;border:0;font:inherit;cursor:pointer;color:var(--blue);padding:0}
-footer{border-top:1px solid var(--line);background:var(--soft)}
-footer .shell{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;padding-top:26px;padding-bottom:34px;font-size:14px;color:var(--faint)}
+${ICON_CSS}
+.shell{max-width:1220px;margin:0 auto;padding:0 clamp(20px,4vw,34px)}
+header{border-bottom:1px solid #e4e9f2}
+header .shell{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;min-height:70px;padding-top:12px;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;font-size:16.5px;min-width:0}
+.brand .d{width:30px;height:30px;border-radius:9px;overflow:hidden;background:#2f6bff;flex:none}
+.brand .d img{width:100%;height:100%;object-fit:cover;display:block}
+.pill{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 19px;border-radius:999px;font-weight:700;font-size:14px;background:#2f6bff;color:#fff;white-space:nowrap}
+.pill.g{background:transparent;color:#0d1117;border:1px solid #e4e9f2}
+.hero{position:relative;padding:52px 0 70px;overflow:hidden}
+.field{position:absolute;right:-30px;top:14px;width:min(620px,60vw);opacity:.95;pointer-events:none}
+@media(max-width:820px){.field{opacity:.35;right:-80px}}
+.pfp{position:relative;width:108px;height:108px;border-radius:26px;overflow:hidden;background:#2f6bff;box-shadow:0 0 0 5px #fff,0 18px 34px -20px rgba(13,17,23,.45);margin-bottom:24px}
+.pfp img{width:100%;height:100%;object-fit:cover;display:block}
+h1{font-size:clamp(36px,5.4vw,56px);font-weight:700;line-height:1.05;letter-spacing:-.035em;max-width:14ch;position:relative}
+.tag{margin-top:20px;font-size:clamp(16.5px,2vw,18.5px);line-height:1.6;color:#4a5568;max-width:38ch;position:relative}
+.cta{margin-top:30px;display:flex;flex-wrap:wrap;gap:12px;position:relative}
+.card{position:relative;margin-top:40px;width:min(340px,100%);background:rgba(255,255,255,.86);backdrop-filter:blur(9px);border:1px solid #e4e9f2;border-radius:18px;padding:22px;box-shadow:0 22px 44px -26px rgba(13,17,23,.4)}
+@media(min-width:900px){.card{position:absolute;right:0;bottom:0;margin-top:0}}
+.card .t{font-weight:700;font-size:15.5px}
+.card .s{margin-top:7px;font-size:13.5px;color:#4a5568;line-height:1.55}
+.chain{margin-top:12px;display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#2f6bff;background:#eef3ff;border-radius:999px;padding:6px 11px}
+.stats{margin-top:20px;display:flex;flex-wrap:wrap;gap:20px 30px}
+.stats .n{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.stats .l{font-size:12px;color:#8a94a6}
+section{padding-top:clamp(44px,6vw,56px);border-top:1px solid #e4e9f2;margin-top:clamp(32px,5vw,48px)}
+.mk{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8a94a6}
+h2{margin-top:11px;font-size:clamp(26px,3.6vw,34px);font-weight:700;letter-spacing:-.03em}
+.body{margin-top:20px;max-width:62ch;color:#4a5568}
+.body p+p{margin-top:14px}
+.cards{margin-top:26px;display:flex;flex-wrap:wrap;gap:15px}
+.c{flex:1 1 250px;min-width:0;border:1px solid #e4e9f2;border-radius:16px;padding:21px;min-height:116px;display:flex;flex-direction:column;justify-content:space-between;transition:border-color .15s ease,transform .15s ease}
+.c:hover{border-color:#2f6bff;transform:translateY(-2px)}
+.c .t{font-weight:700;font-size:17px}
+.c .u{font-size:13.5px;color:#8a94a6;word-break:break-all}
+.rows{margin-top:26px}
+.row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 20px;padding:15px 0;border-bottom:1px solid #e4e9f2;font-size:14.5px}
+.row .k{font-weight:700}
+.row .v{color:#4a5568;min-width:0;word-break:break-all;text-align:right}
+button.v{background:none;border:0;font:inherit;cursor:pointer;color:#2f6bff;padding:0}
+footer{margin-top:clamp(40px,6vw,56px);background:#f6f8fc;border-top:1px solid #e4e9f2}
+footer .shell{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;padding-top:26px;padding-bottom:34px;font-size:14px;color:#8a94a6}
 </style>
 </head>
 <body>
+${sprite(usedIcons)}
 <header><div class="shell">
   <span class="brand">
-    <span class="dot">${avatar ? `<img src="${attr(avatar)}" alt="">` : ""}</span>
-    ${name}
+    <span class="d">${avatar ? `<img src="${attr(avatar)}" alt="">` : ""}</span>${name}
   </span>
   <span style="display:flex;gap:10px;flex-wrap:wrap">
-    ${opensea ? `<a class="pill ghost" href="${attr(opensea)}" target="_blank" rel="noreferrer">OpenSea</a>` : ""}
+    ${opensea ? `<a class="pill g" href="${attr(opensea)}" target="_blank" rel="noreferrer">${icon("os", "width:16px;height:16px")}OpenSea</a>` : ""}
     ${site ? `<a class="pill" href="${attr(site)}" target="_blank" rel="noreferrer">Visit site</a>` : ""}
   </span>
 </div></header>
 
 <div class="shell">
   <div class="hero">
-    <div>
-      <h1>${name}</h1>
-      ${data.tagline ? `<p class="tagline">${esc(data.tagline)}</p>` : ""}
-      <div class="cta">
-        ${primary ? `<a class="pill" href="${attr(primary.url)}" target="_blank" rel="noreferrer">${esc(primary.label)}</a>` : ""}
-        ${links.length ? '<a class="pill ghost" href="#links">All links</a>' : ""}
-      </div>
+    ${dotField(data.label || "hoodfi")}
+    ${avatar ? `<div class="pfp"><img src="${attr(avatar)}" alt="${attr(name)}"></div>` : ""}
+    <h1>${name}</h1>
+    ${data.tagline ? `<p class="tag">${esc(data.tagline)}</p>` : ""}
+    <div class="cta">
+      ${primary ? `<a class="pill" href="${attr(primary.url)}" target="_blank" rel="noreferrer">${esc(primary.label)} →</a>` : ""}
+      ${links.length ? '<a class="pill g" href="#links">All links</a>' : ""}
     </div>
-    <div class="field">
-      ${dotField(data.label || "hoodfi")}
-      <div class="statcard">
-        <div class="k">HoodFi name</div>
-        <div class="v">${label}.hoodfi.eth</div>
+    <div class="card">
+      <div class="t">${label}.hoodfi.eth</div>
+      <div class="s">A lifetime name on Robinhood Chain, serving this site straight from IPFS.</div>
+      <div class="chain">${icon("rh", "width:15px;height:15px")}Robinhood Chain · 4663</div>
+      <div class="stats">
+        <div><div class="n">∞</div><div class="l">Expiry</div></div>
+        <div><div class="n">$0</div><div class="l">Renewals</div></div>
+        <div><div class="n">4663</div><div class="l">Chain</div></div>
       </div>
     </div>
   </div>
@@ -183,9 +171,9 @@ footer .shell{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between
   ${
     data.bio
       ? `<section>
-    <div class="marker">About</div>
+    <div class="mk">About</div>
     <h2>What this is.</h2>
-    <div class="bio">${paragraphs(data.bio)}</div>
+    <div class="body">${paragraphs(data.bio)}</div>
   </section>`
       : ""
   }
@@ -193,13 +181,13 @@ footer .shell{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between
   ${
     links.length
       ? `<section id="links">
-    <div class="marker">Links</div>
+    <div class="mk">Links</div>
     <h2>Everything in one place.</h2>
     <div class="cards">
       ${links
         .map(
           (l) =>
-            `<a class="card" href="${attr(l.url)}" target="_blank" rel="noreferrer"><div class="t">${esc(l.label)}</div><div class="u">${esc(l.url.replace(/^https?:\/\//, ""))}</div></a>`
+            `<a class="c" href="${attr(l.url)}" target="_blank" rel="noreferrer"><div class="t">${esc(l.label)}</div><div class="u">${esc(l.url.replace(/^https?:\/\//, ""))}</div></a>`
         )
         .join("\n      ")}
     </div>
@@ -208,21 +196,20 @@ footer .shell{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between
   }
 
   ${
-    socials.length || addresses.length
+    rows.length
       ? `<section id="addresses">
-    <div class="marker">Reach and receive</div>
+    <div class="mk">Reach and receive</div>
     <div class="rows">
-      ${socials
-        .map(
-          ([k, u]) =>
-            `<div class="row"><span class="k">${esc(k)}</span><a class="v" href="${attr(u)}" target="_blank" rel="noreferrer">${esc(u.replace(/^https?:\/\//, ""))}</a></div>`
-        )
-        .join("\n      ")}
-      ${addresses
-        .map(
-          ([k, v]) =>
-            `<div class="row"><span class="k">${esc(k)}</span><button class="v" data-copy="${attr(v)}" title="${attr(v)}">${esc(shortAddress(v))} · copy</button></div>`
-        )
+      ${rows
+        .map((r) => {
+          const key = r.id
+            ? `<span class="k kk">${icon(r.id)}${esc(r.k)}</span>`
+            : `<span class="k">${esc(r.k)}</span>`;
+          const value = r.url
+            ? `<a class="v" href="${attr(r.url)}" target="_blank" rel="noreferrer">${esc(r.v)}</a>`
+            : `<button class="v" data-copy="${attr(r.copy ?? "")}" title="${attr(r.copy ?? "")}">${esc(r.v)}</button>`;
+          return `<div class="row">${key}${value}</div>`;
+        })
         .join("\n      ")}
     </div>
   </section>`
@@ -230,10 +217,7 @@ footer .shell{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between
   }
 </div>
 
-<footer><div class="shell">
-  <span>${label}.hoodfi.eth</span>
-  <span>Built with HoodFi Sites</span>
-</div></footer>
+<footer><div class="shell"><span>${label}.hoodfi.eth</span><span>Built with HoodFi Sites</span></div></footer>
 <script>${COPY_SCRIPT}
 ${ANCHOR_SCRIPT}</script>
 </body>
@@ -243,7 +227,7 @@ ${ANCHOR_SCRIPT}</script>
 export const product: Template = {
   id: "product",
   name: "Product",
-  blurb: "Light, generous, a generative field behind the headline.",
+  blurb: "Light and generous, with a generative field behind the headline.",
   audience: "Teams and tools",
   render: renderProduct,
 };
