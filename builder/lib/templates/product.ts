@@ -27,27 +27,41 @@ function dotField(seed: string): string {
     return Math.abs(h % 1000) / 1000;
   };
 
+  // A dense field rather than scattered dots. Density and saturation both climb to the
+  // right, which is what makes it read as motion across the hero instead of noise laid
+  // over it — sparse pale marks on the left where the headline sits, solid colour on the
+  // right where nothing does.
+  const cols = 30;
+  const rows = 13;
+  const step = 34;
   const cells: string[] = [];
-  const cols = 10;
-  const rows = 5;
+
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
+      const t = x / (cols - 1);
+      const cx = x * step + 18;
+      const cy = y * step + 18;
       const r = rnd();
-      // Density rises to the right so the field reads as moving rather than as noise.
-      if (r > 0.2 + (1 - x / cols) * 0.5) {
-        const cx = x * 56 + 40;
-        const cy = y * 56 + 30;
+      // Left third is mostly the faint plus, so the headline always has quiet ground.
+      if (r > 0.15 + (1 - t) * 0.5) {
         const kind = rnd();
-        const fill = kind > 0.85 ? "#c6f702" : kind > 0.45 ? "#2f6bff" : "#9db8ff";
+        const warm = rnd();
+        const fill = warm > 0.88 ? "#c6f702" : t > 0.55 && warm > 0.45 ? "#2f6bff" : t > 0.3 ? "#7ea4ff" : "#c8d6ff";
         cells.push(
-          kind > 0.6
-            ? `<path d="M${cx - 12} ${cy + 6}a12 12 0 0 1 12-12v12z" fill="${fill}"/>`
-            : `<circle cx="${cx}" cy="${cy}" r="6" fill="${fill}"/>`
+          kind > 0.55
+            ? `<path d="M${cx - 9} ${cy + 9}a18 18 0 0 1 18-18v18z" fill="${fill}"/>`
+            : `<circle cx="${cx}" cy="${cy}" r="4.6" fill="${fill}"/>`
+        );
+      } else if (r > 0.06) {
+        // The plus marks: registration ticks that keep the empty half from reading blank.
+        const o = t > 0.4 ? 0.5 : 0.32;
+        cells.push(
+          `<path d="M${cx - 4} ${cy}h8M${cx} ${cy - 4}v8" stroke="#9db8ff" stroke-width="1.2" opacity="${o}"/>`
         );
       }
     }
   }
-  return `<svg class="field" viewBox="0 0 560 300" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${cells.join("")}</svg>`;
+  return `<svg class="field" viewBox="0 0 ${cols * step} ${rows * step}" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${cells.join("")}</svg>`;
 }
 
 function renderProduct(data: SiteData): string {
@@ -99,10 +113,10 @@ header .shell{display:flex;flex-wrap:wrap;align-items:center;justify-content:spa
 .brand .d img{width:100%;height:100%;object-fit:cover;display:block}
 .pill{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 19px;border-radius:999px;font-weight:700;font-size:14px;background:#2f6bff;color:#fff;white-space:nowrap}
 .pill.g{background:transparent;color:#0d1117;border:1px solid #e4e9f2}
-.hero{position:relative;padding:52px 0 70px;overflow:hidden}
+.hero{position:relative;padding:56px 0 76px;overflow:hidden}
 .field{position:absolute;right:-30px;top:14px;width:min(620px,60vw);opacity:.95;pointer-events:none}
 @media(max-width:820px){.field{opacity:.35;right:-80px}}
-.pfp{position:relative;width:108px;height:108px;border-radius:26px;overflow:hidden;background:#2f6bff;box-shadow:0 0 0 5px #fff,0 18px 34px -20px rgba(13,17,23,.45);margin-bottom:24px}
+.pfp{position:relative;width:clamp(96px,13vw,150px);aspect-ratio:1;border-radius:clamp(24px,3.4vw,34px);overflow:hidden;background:#2f6bff;box-shadow:0 0 0 6px #fff,0 20px 38px -20px rgba(13,17,23,.45);margin-bottom:28px}
 .pfp img{width:100%;height:100%;object-fit:cover;display:block}
 h1{font-size:clamp(36px,5.4vw,56px);font-weight:700;line-height:1.05;letter-spacing:-.035em;max-width:14ch;position:relative}
 .tag{margin-top:20px;font-size:clamp(16.5px,2vw,18.5px);line-height:1.6;color:#4a5568;max-width:38ch;position:relative}

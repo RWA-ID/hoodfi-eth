@@ -62,6 +62,7 @@ export function PublishPanel({ name, templateId, html }: Props) {
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
   const [cid, setCid] = useState<string | null>(null);
+  const [needsReset, setNeedsReset] = useState(false);
 
   const configured = Boolean(SITES_ADDRESS && L2_REGISTRY_ADDRESS);
 
@@ -89,11 +90,12 @@ export function PublishPanel({ name, templateId, html }: Props) {
       return;
     }
     if (!wallet) {
-      // Reached when the connector is attached but cannot hand over a client — the
-      // phantom-session shape. Point at the fix rather than failing mutely.
-      setError(
-        "Your wallet session isn't responding. Use the Reset connection banner at the top, then reconnect."
-      );
+      // The connector is attached but cannot hand over a client — the phantom-session
+      // shape. The banner that detects this only fires on one specific pair of
+      // localStorage keys and clearly does not catch every case, so the recovery is
+      // offered HERE, at the point of failure, instead of being pointed at elsewhere.
+      setNeedsReset(true);
+      setError("Your wallet session isn't responding — it's attached but not answering.");
       return;
     }
 
@@ -185,6 +187,17 @@ export function PublishPanel({ name, templateId, html }: Props) {
     }
   }
 
+  function resetSession() {
+    try {
+      Object.keys(window.localStorage)
+        .filter((k) => /^(@appkit\/|wagmi\.|wc@|walletconnect)/i.test(k))
+        .forEach((k) => window.localStorage.removeItem(k));
+    } catch {
+      // Private mode; the reload below still helps more often than not.
+    }
+    window.location.reload();
+  }
+
   if (step === "done") {
     return (
       <div className="on-ink panel-ink shadow-hero border border-[var(--ink)] p-7">
@@ -237,6 +250,18 @@ export function PublishPanel({ name, templateId, html }: Props) {
 
       {error ? (
         <p className="mt-4 text-[14px] leading-[1.6] text-[var(--bad)]">{error}</p>
+      ) : null}
+
+      {needsReset ? (
+        <>
+          <button className="btn btn-ghost btn-sm mt-4 w-full" onClick={resetSession} type="button">
+            Reset wallet session and reload
+          </button>
+          <p className="mt-3 text-[12.5px] leading-[1.6] text-[var(--faint)]">
+            This clears the stored session only. It cannot touch your wallet, your names or
+            your draft — the draft is saved and will still be here.
+          </p>
+        </>
       ) : null}
 
       {cid && step !== "idle" ? (
