@@ -7,7 +7,7 @@ import {
   usePublicClient,
   useSignMessage,
   useSwitchChain,
-  useWalletClient,
+  useWriteContract,
 } from "wagmi";
 import { ArrowNE } from "./ArrowNE";
 import { robinhoodChain } from "@/lib/chains";
@@ -56,7 +56,21 @@ export function PublishPanel({ name, templateId, html }: Props) {
   const { address, chainId, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { switchChainAsync } = useSwitchChain();
-  const { data: wallet } = useWalletClient({ chainId: robinhoodChain.id });
+  /**
+   * Writes go through wagmi's connector, not through a viem wallet client we hold.
+   *
+   * useWalletClient has to obtain a provider from the WalletConnect connector, and when
+   * the relay socket to the phone is not live at that instant it resolves to undefined —
+   * while every stored record still says connected. Captured state from a real failure
+   * showed exactly that: status connected, a live wagmi connection on 4663, both chains
+   * in requestedChains, nothing in the disconnected list, and still no client. Gating on
+   * it produced a dead button, and reporting it produced a true but useless sentence.
+   *
+   * writeContractAsync asks the connector at the moment of the write, which is also what
+   * wakes the session and deep-links the wallet app. There is nothing to hold and
+   * nothing to be stale.
+   */
+  const { writeContractAsync } = useWriteContract();
   const client = usePublicClient({ chainId: robinhoodChain.id });
 
   const [step, setStep] = useState<Step>("idle");
@@ -87,15 +101,6 @@ export function PublishPanel({ name, templateId, html }: Props) {
 
     if (!address || !client) {
       setError("Your wallet isn't connected. Reconnect and try again.");
-      return;
-    }
-    if (!wallet) {
-      // The connector is attached but cannot hand over a client — the phantom-session
-      // shape. The banner that detects this only fires on one specific pair of
-      // localStorage keys and clearly does not catch every case, so the recovery is
-      // offered HERE, at the point of failure, instead of being pointed at elsewhere.
-      setNeedsReset(true);
-      setError("Your wallet session isn't responding — it's attached but not answering.");
       return;
     }
 
@@ -148,14 +153,13 @@ export function PublishPanel({ name, templateId, html }: Props) {
         account: address,
         value: 0n,
       });
-      const payHash = await wallet.writeContract({
+      const payHash = await writeContractAsync({
         address: SITES_ADDRESS,
         abi: sitesAbi,
         functionName: "publish",
         args: [name.node, templateHash, pinned.cid],
         value: 0n,
-        chain: robinhoodChain,
-        account: address,
+        chainId: robinhoodChain.id,
       });
       await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
 
@@ -178,13 +182,12 @@ export function PublishPanel({ name, templateId, html }: Props) {
       const encoded = encodeContenthash(`ipfs://${pinned.cid}`);
       if (!encoded) throw new Error("Could not encode the contenthash for that CID.");
 
-      const linkHash = await wallet.writeContract({
+      const linkHash = await writeContractAsync({
         address: L2_REGISTRY_ADDRESS,
         abi: registryAbi,
         functionName: "setContenthash",
         args: [name.node, encoded],
-        chain: robinhoodChain,
-        account: address,
+        chainId: robinhoodChain.id,
       });
       await client.waitForTransactionReceipt({ hash: linkHash, timeout: 180_000 });
 
@@ -192,10 +195,15 @@ export function PublishPanel({ name, templateId, html }: Props) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // Never echo a raw viem error: they embed the full RPC URL, key included.
+      const cancelled = /user rejected|denied/i.test(message);
+      const unreachable = /timeout|no matching key|session|expired|not connected|provider/i.test(message);
+      if (unreachable && !cancelled) setNeedsReset(true);
       setError(
-        /user rejected|denied/i.test(message)
+        cancelled
           ? "You cancelled that in your wallet."
-          : message.split("\n")[1]?.trim() || message.split("\n")[0]?.trim() || "That didn't work."
+          : unreachable
+            ? "Your wallet didn't answer. Open the wallet app so it can receive the request, then try again."
+            : message.split("\n")[1]?.trim() || message.split("\n")[0]?.trim() || "That didn't work."
       );
       setStep("idle");
     }
