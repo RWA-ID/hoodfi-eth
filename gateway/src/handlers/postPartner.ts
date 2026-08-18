@@ -44,7 +44,7 @@ const MIN_FILL_MS = 3_000
 const MAX_FILL_MS = 12 * 60 * 60 * 1000
 
 /** Mirrors the toggle on the form. An unknown value is recorded as "other". */
-const TOPICS = new Set(['integration', 'distribution', 'press', 'other'])
+const TOPICS = new Set(['integration', 'distribution', 'press', 'template', 'other'])
 
 const LIMITS = {
   name: 80,
@@ -52,6 +52,15 @@ const LIMITS = {
   org: 100,
   website: 200,
   message: 2_000,
+  /* Template submissions carry three extra identifiers. Capped like every other
+     single-line field, and never trusted as addresses here — they are printed into an
+     email a human reads before doing anything, and validating an address in a mail
+     handler would only give a false sense that it had been checked on-chain. The form
+     does that check against the registry, where it means something. */
+  collection: 60,
+  opensea: 200,
+  payee: 60,
+  cover: 300,
 } as const
 
 type Body = {
@@ -61,6 +70,11 @@ type Body = {
   website?: unknown
   topic?: unknown
   message?: unknown
+  /** Template submissions only: the NFT contract, its OpenSea page, and who gets paid. */
+  collection?: unknown
+  opensea?: unknown
+  payee?: unknown
+  cover?: unknown
   /** Honeypot. A real browser never fills this — it is hidden and off the tab order. */
   hp?: unknown
   /** Milliseconds the form was open before submit, measured client-side. See MIN_FILL_MS. */
@@ -110,6 +124,10 @@ function composeEmail(fields: {
   topic: string
   message: string
   country: string
+  collection: string
+  opensea: string
+  payee: string
+  cover: string
 }): string {
   const rows: [string, string][] = [
     ['From', `${fields.name} <${fields.email}>`],
@@ -118,6 +136,15 @@ function composeEmail(fields: {
     ['Topic', fields.topic],
     ['Country', fields.country || '—'],
   ]
+  // Only on a template submission, so an ordinary enquiry does not gain three empty rows.
+  if (fields.topic === 'template') {
+    rows.push(
+      ['Collection', fields.collection || '—'],
+      ['OpenSea', fields.opensea || '—'],
+      ['Payee', fields.payee || '—'],
+      ['Cover art', fields.cover || '—'],
+    )
+  }
   const header = rows.map(([key, value]) => `${key.padEnd(13)}${value}`).join('\n')
   return `${header}\n\n${'-'.repeat(56)}\n\n${fields.message}\n`
 }
@@ -153,6 +180,10 @@ export async function postPartner(request: Request, env: Env) {
   const message = multiLine(body.message, LIMITS.message)
   const rawTopic = oneLine(body.topic, 16).toLowerCase()
   const topic = TOPICS.has(rawTopic) ? rawTopic : 'other'
+  const collection = oneLine(body.collection, LIMITS.collection)
+  const opensea = oneLine(body.opensea, LIMITS.opensea)
+  const payee = oneLine(body.payee, LIMITS.payee)
+  const cover = oneLine(body.cover, LIMITS.cover)
 
   if (!name) return fail('Tell us who you are.', 400)
   if (!looksLikeEmail(email)) return fail('That email address looks wrong.', 400)
@@ -169,9 +200,12 @@ export async function postPartner(request: Request, env: Env) {
   const to = envVar('PARTNER_NOTIFY_TO', env)
   const from = envVarOptional('PARTNER_FROM', env) ?? DEFAULT_FROM
 
+  // A template submission needs a subject that says so — these go into a review queue
+  // with a different shape of work behind them than a general enquiry.
+  const label = topic === 'template' ? 'template submission' : 'partner enquiry'
   const subject = org
-    ? `HoodFi partner enquiry — ${name} (${org})`
-    : `HoodFi partner enquiry — ${name}`
+    ? `HoodFi ${label} — ${name} (${org})`
+    : `HoodFi ${label} — ${name}`
 
   let response: Response
   try {
@@ -196,6 +230,10 @@ export async function postPartner(request: Request, env: Env) {
           message,
           // Cloudflare's own geo header. No IP is read or stored.
           country: request.headers.get('cf-ipcountry') ?? '',
+          collection,
+          opensea,
+          payee,
+          cover,
         }),
       }),
     })

@@ -17,10 +17,11 @@ import { MANAGE_URL, MINT_URL } from "@/lib/site";
  * at .16em tracking needs more width than a phone has.
  */
 const NAV = [
-  { href: "#templates", label: "Templates" },
-  { href: "#how", label: "How it works" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#templates", label: "Templates" },
+  { href: "/#how", label: "How it works" },
+  { href: "/#pricing", label: "Pricing" },
+  { href: "/#faq", label: "FAQ" },
+  { href: "/partner/", label: "Partners" },
 ];
 
 const DRAWER_EXTRA = [
@@ -89,7 +90,7 @@ export function Header() {
     <>
       <header className="sticky top-0 z-40 border-b border-[var(--line-soft)] bg-[rgba(241,241,234,0.92)] backdrop-blur-[10px]">
         <div className="shell flex min-h-[68px] items-center justify-between gap-6">
-          <a href="#top" className="flex shrink-0 items-center gap-2.5" aria-label="HoodFi Sites — home">
+          <a href="/" className="flex shrink-0 items-center gap-2.5" aria-label="HoodFi Sites — home">
             {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
             <img src="/hoodfi-h.png" alt="" width={26} height={26} className="block h-[26px] w-[26px]" />
             <span className="data text-[16px] font-semibold tracking-[0.18em]">

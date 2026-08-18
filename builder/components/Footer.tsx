@@ -7,10 +7,11 @@ const COLUMNS: { title: string; links: Link[] }[] = [
   {
     title: "Build",
     links: [
-      { label: "Templates", href: "#templates" },
-      { label: "How it works", href: "#how" },
-      { label: "Pricing", href: "#pricing" },
-      { label: "FAQ", href: "#faq" },
+      { label: "Templates", href: "/#templates" },
+      { label: "How it works", href: "/#how" },
+      { label: "Pricing", href: "/#pricing" },
+      { label: "FAQ", href: "/#faq" },
+      { label: "Partner with us", href: "/partner/" },
     ],
   },
   {

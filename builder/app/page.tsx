@@ -224,8 +224,13 @@ export default function Home() {
             </p>
           </div>
 
+          {/* `.panel` supplies the --paper-alt fill and it cannot be overridden with a
+              `bg-*` utility here: globals.css is unlayered and Tailwind's utilities sit
+              in a layer, so the bare class wins regardless of source order. The alt fill
+              is the right ground under a lime shadow anyway — on flat --paper the card
+              would be defined by its shadow alone. */}
           <div className="cells mt-[52px] gap-6">
-            <div className="panel shadow-card min-w-0 flex-[1_1_320px] p-8">
+            <div className="panel shadow-lime min-w-0 flex-[1_1_320px] p-8">
               <div className="label">First site on a name</div>
               <div className="mt-4 flex items-baseline gap-3">
                 <span className="h-panel">{FIRST_USD}</span>
@@ -238,7 +243,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="panel shadow-card min-w-0 flex-[1_1_320px] p-8">
+            <div className="panel shadow-lime min-w-0 flex-[1_1_320px] p-8">
               <div className="label">Rebuild</div>
               <div className="mt-4 flex items-baseline gap-3">
                 <span className="h-panel">{REBUILD_USD}</span>

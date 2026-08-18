@@ -18,3 +18,15 @@ export const MINT_URL = "https://www.hoodfi.name/mint/";
 
 /** Where an owner manages records by hand, for anything this builder doesn't cover. */
 export const MANAGE_URL = "https://www.hoodfi.name/manage/";
+
+/**
+ * Template submissions post here — the same worker endpoint the site's partner form
+ * uses, distinguished by `topic: "template"`. One handler, one mail credential, one
+ * place spam defence has to be right.
+ */
+export const PARTNER_URL =
+  process.env.NEXT_PUBLIC_PARTNER_URL ??
+  "https://hoodfi-gateway.dmpay.workers.dev/partner";
+
+/** The partner share of every publish on a partner template. */
+export const PARTNER_SHARE = "30%";
