@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ConnectButton } from "./ConnectButton";
 import { XLogo } from "./XLogo";
+import { ConnectionGuard } from "./ConnectionGuard";
 import { MANAGE_URL, MINT_URL } from "@/lib/site";
 
 /**
@@ -88,6 +89,8 @@ export function Header() {
 
   return (
     <>
+      {/* Above the bar, so it cannot be missed and cannot be scrolled past. */}
+      <ConnectionGuard />
       <header className="sticky top-0 z-40 border-b border-[var(--line-soft)] bg-[rgba(241,241,234,0.92)] backdrop-blur-[10px]">
         <div className="shell flex min-h-[68px] items-center justify-between gap-6">
           <a href="/" className="flex shrink-0 items-center gap-2.5" aria-label="HoodFi Sites — home">

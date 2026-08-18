@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createAppKit } from "@reown/appkit/react";
-import { mainnet } from "@reown/appkit/networks";
+import { robinhoodChain } from "@/lib/chains";
 import { config, networks, projectId, wagmiAdapter } from "@/lib/wagmi";
 import { SITE } from "@/lib/site";
 
@@ -16,7 +16,14 @@ import { SITE } from "@/lib/site";
 createAppKit({
   adapters: [wagmiAdapter],
   networks,
-  defaultNetwork: mainnet,
+  // Robinhood Chain, not mainnet — copied from the site originally, where mainnet is
+  // right because donations live there. Everything in THIS app is on 4663: reading
+  // names, paying, writing the contenthash. Defaulting to mainnet meant every session
+  // opened on the wrong chain and then needed a switch, and a WalletConnect session
+  // approved for eip155:1 alone has nothing to switch within — `requestedChains` comes
+  // back empty and the switch quietly fails. Starting on the right chain removes the
+  // step rather than handling it.
+  defaultNetwork: robinhoodChain,
   projectId,
   metadata: {
     name: SITE.name,

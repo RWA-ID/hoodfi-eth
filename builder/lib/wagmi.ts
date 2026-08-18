@@ -4,7 +4,13 @@ import type { AppKitNetwork } from "@reown/appkit/networks";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { createPublicClient, defineChain as viemDefineChain } from "viem";
 import { mainnet as viemMainnet } from "viem/chains";
-import { robinhoodChain, ROBINHOOD_CHAIN_ID, ROBINHOOD_RPC, ROBINHOOD_EXPLORER } from "./chains";
+import {
+  MULTICALL3_ADDRESS,
+  robinhoodChain,
+  ROBINHOOD_CHAIN_ID,
+  ROBINHOOD_RPC,
+  ROBINHOOD_EXPLORER,
+} from "./chains";
 
 /**
  * Reown AppKit + wagmi config — Ethereum mainnet (donations) + Robinhood Chain
@@ -51,6 +57,8 @@ const viemRobinhood = viemDefineChain({
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   rpcUrls: { default: { http: [ROBINHOOD_RPC] } },
   blockExplorers: { default: { name: "Blockscout", url: ROBINHOOD_EXPLORER } },
+  // Same reason as in chains.ts: without this viem throws rather than batching.
+  contracts: { multicall3: { address: MULTICALL3_ADDRESS } },
 });
 
 /** Standalone Robinhood Chain client for availability checks pre-connect. */
