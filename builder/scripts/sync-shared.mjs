@@ -27,19 +27,35 @@ const BANNER = `// GENERATED FILE — do not edit.
 // Edit the original; a change made here is silently overwritten on the next build.
 `;
 
+// The copies are committed, so a build that cannot see ../frontend has everything it
+// needs already. That matters because a Vercel project with a Root Directory may or may
+// not be given the rest of the repo depending on a setting that has moved around the
+// dashboard and is absent from some accounts — and "the deploy works only if a checkbox
+// I cannot see is ticked" is not a property worth having.
+//
+// Regeneration is therefore a local convenience, not a build step that can fail. What
+// keeps the copy honest is that it is TRACKED: edit frontend/shared and the next build
+// here rewrites the copy, git reports a diff, and the change has to be committed
+// deliberately. Drift becomes visible rather than possible.
 if (!existsSync(source)) {
-  console.error(
-    `sync-shared: ${source} not found.\n` +
-      `On Vercel this means "Include source files outside of the Root Directory in the ` +
-      `Build Step" is off — the container only has builder/, so the codec cannot be copied.`
+  const haveCopies = FILES.every((f) => existsSync(join(dest, f)));
+  console.log(
+    haveCopies
+      ? `sync-shared: ${source} not reachable — using the committed copies.`
+      : `sync-shared: ${source} not reachable and no committed copy exists.`
   );
-  process.exit(1);
+  process.exit(haveCopies ? 0 : 1);
 }
 
 mkdirSync(dest, { recursive: true });
 
 for (const file of FILES) {
   const body = readFileSync(join(source, file), "utf8");
-  writeFileSync(join(dest, file), BANNER + body);
-  console.log(`sync-shared: ${file} (${body.length} bytes)`);
+  const next = BANNER + body;
+  const path = join(dest, file);
+  const changed = !existsSync(path) || readFileSync(path, "utf8") !== next;
+  if (changed) writeFileSync(path, next);
+  console.log(
+    `sync-shared: ${file} (${body.length} bytes)${changed ? " — updated, commit it" : ""}`
+  );
 }
