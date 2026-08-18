@@ -1,0 +1,36 @@
+{
+  "name": "hoodfi-builder",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prebuild": "node scripts/sync-shared.mjs",
+    "dev": "npm run prebuild && next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "//deps": "Pinned exact, not caret-ranged, and matched to the versions the site actually builds with. A fresh caret resolve here picked up @wagmi/connectors 8.1.0, whose bundled Coinbase SDK imports @x402/* packages that nothing installs — eight module-not-found errors from a dependency this app never calls. The site is on 8.0.22 via its lockfile and builds clean; there is no reason for the two apps to be on different wallet stacks.",
+  "dependencies": {
+    "@reown/appkit": "1.8.22",
+    "@reown/appkit-adapter-wagmi": "1.8.22",
+    "@tanstack/react-query": "5.101.2",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "viem": "2.55.0",
+    "wagmi": "3.7.1"
+  },
+  "//overrides": "All three are transitive, none is called by this app, and all three exist only to reach the Base Account connector we never surface. They are pinned to what the site resolves because that tree is known to build; left to float, @coinbase/cdp-sdk 1.55 imports @x402/* packages nothing installs and the build dies with eight module-not-found errors in a dependency of a dependency.",
+  "overrides": {
+    "@wagmi/connectors": "8.0.22",
+    "@base-org/account": "2.5.7",
+    "@coinbase/cdp-sdk": "1.52.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

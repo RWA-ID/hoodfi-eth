@@ -1,0 +1,705 @@
+@import "tailwindcss";
+
+/* ── hoodfi.eth — paper-ledger theme ────────────────────────────────────────
+   Off-white paper ground, near-black ink panels, one acid-lime accent.
+   Hairlines instead of shadows, zero radius everywhere, oversized tight-set
+   Archivo for structure and IBM Plex Mono for anything that is data. */
+
+:root {
+  /* grounds */
+  --paper: #f1f1ea;
+  --paper-alt: #e9eae1; /* card fill, hover fill on grid cells */
+  --mark-tile: #f0efe8; /* matches the mark PNGs' own ground */
+  --ink: #0b0e08;
+  --ink-hover: #2a3318;
+
+  /* accents */
+  --lime: #c6f702;
+  --lime-hover: #d6ff3a;
+  --olive: #4a5a18; /* lime is unreadable as text on paper — this is its stand-in */
+  --resolving: #7a9b0e;
+
+  /* status — same three states the registrar reports */
+  --status-ok: #c6f702;
+  --status-bad: #ff8a6b;
+  --status-warn: #f2d14b;
+
+  /* ── role tokens ──
+     Everything in the markup reads these, never the raw palette above, so a
+     block can be moved onto an ink panel by wrapping it in `.on-ink` and
+     nothing inside has to change. */
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --dim: rgba(11, 14, 8, 0.66);
+  --label: rgba(11, 14, 8, 0.55);
+  --faint: rgba(11, 14, 8, 0.45);
+  --line: rgba(11, 14, 8, 0.18);
+  --line-soft: rgba(11, 14, 8, 0.14);
+  --line-card: rgba(11, 14, 8, 0.2);
+  --hover-fill: rgba(11, 14, 8, 0.06);
+  /* Accent as *text*: olive on paper, lime on ink. Both clear AA on their ground. */
+  --accent: var(--olive);
+  /* Accent as a *fill*: lime on both grounds, because ink text sits on it. */
+  --accent-fill: var(--lime);
+  --accent-fill-hover: var(--lime-hover);
+  --ok: var(--olive);
+  --warn: #8a6a04;
+  --bad: #b03a1a;
+}
+
+/* Dark panels. Sets the ground *and* re-points every role token at the
+   on-ink alpha ramp from the design tokens. */
+.on-ink {
+  --bg: var(--ink);
+  --fg: #f1f1ea;
+  --dim: rgba(241, 241, 234, 0.68);
+  --label: rgba(241, 241, 234, 0.5);
+  --faint: rgba(241, 241, 234, 0.42);
+  --line: rgba(241, 241, 234, 0.16);
+  --line-soft: rgba(241, 241, 234, 0.12);
+  --line-card: rgba(241, 241, 234, 0.2);
+  --hover-fill: rgba(241, 241, 234, 0.08);
+  --accent: var(--lime);
+  --ok: var(--lime);
+  --warn: var(--status-warn);
+  --bad: var(--status-bad);
+
+  background: var(--ink);
+  color: rgba(241, 241, 234, 0.85);
+}
+
+/* Lime panels are ink-on-lime: text roles stay dark, but a lime "accent" would
+   vanish, so the accent inverts to ink. */
+.on-lime {
+  --bg: var(--lime);
+  --fg: var(--ink);
+  --dim: rgba(11, 14, 8, 0.72);
+  --label: rgba(11, 14, 8, 0.66);
+  --faint: rgba(11, 14, 8, 0.5);
+  --line: rgba(11, 14, 8, 0.24);
+  --line-soft: rgba(11, 14, 8, 0.16);
+  --line-card: var(--ink);
+  --hover-fill: rgba(11, 14, 8, 0.07);
+  --accent: var(--ink);
+
+  background: var(--lime);
+  color: var(--ink);
+}
+
+/* Type roles must be declared on <body>, not :root — next/font puts
+   --font-archivo/--font-mono on the body element, and a var() inside a custom
+   property resolves against the element it's declared on. At :root those
+   lookups come back empty and every role silently falls back to a system face. */
+body {
+  --font-display: var(--font-archivo);
+  --font-data: var(--font-mono);
+}
+
+* {
+  min-width: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-display), Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip; /* kills sideways scroll on phones */
+}
+
+::selection {
+  background: var(--lime);
+  color: var(--ink);
+}
+
+/* ── layout ── */
+/* One content measure for the whole site. The design's 1360px, with the same
+   clamp()ed gutter, so every section's left edge lines up down the page. */
+.shell {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding-left: clamp(20px, 4vw, 40px);
+  padding-right: clamp(20px, 4vw, 40px);
+}
+
+/* Section vertical rhythm. */
+.section {
+  padding-top: clamp(72px, 9vw, 112px);
+  scroll-margin-top: 80px;
+}
+
+/* Full-bleed out of a centered container, without 100vw — which includes the
+   scrollbar and so overflows by ~15px on desktop Windows/Linux. */
+.bleed {
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding-left: calc(50vw - 50%);
+  padding-right: calc(50vw - 50%);
+}
+
+/* ── type roles ── */
+/* Hero. Uppercase, set tight enough that two words read as one block.
+   Sized in `cqi` — a percentage of the hero column, not of the viewport — because
+   the headline breaks where the markup says (`Your name` / `forever`) and nowhere
+   else. Off a viewport unit the type outgrows its column somewhere between phone
+   and desktop and "YOUR NAME" wraps to a line of its own, which turns a two-line
+   headline into three and costs the design its shape.
+
+   16.5cqi is measured, not guessed: "YOUR NAME" in Archivo 600 advances 6.04em,
+   less 0.035em of tracking per character, so it fills a line at 17.5% of the column
+   width — this sits under that with enough slack to survive a font swap. The
+   container is declared on the column itself in the markup. */
+.h-hero {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 600;
+  font-size: clamp(44px, 16.5cqi, 152px);
+  line-height: 0.86;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+}
+
+/* Section heading — sentence case with a period, always. */
+.h-section {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-size: clamp(38px, 5.4vw, 80px);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+}
+
+/* The same voice inside a dark panel, one step down so it doesn't outshout the
+   section heading that introduced it. */
+.h-panel {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-size: clamp(36px, 4.6vw, 66px);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+}
+
+.h-cta {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 900;
+  font-size: clamp(40px, 6.6vw, 110px);
+  line-height: 0.88;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+}
+
+/* Page titles on the inner routes: the section voice, one size smaller, so a
+   route that is mostly reading doesn't open at homepage scale. */
+.h-page {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-size: clamp(34px, 4.6vw, 62px);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+}
+
+.h-sub {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: clamp(20px, 2.2vw, 26px);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.data {
+  font-family: var(--font-data), monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Numbered section opener — `01 / PICK A NAME`. */
+.eyebrow {
+  font-family: var(--font-data), monospace;
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+/* Smaller cousin, for labelling a cell rather than a section. */
+.label {
+  font-family: var(--font-data), monospace;
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--label);
+  line-height: 1.5;
+}
+
+/* A number that is the point of its cell. */
+.stat {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.lede {
+  font-size: 16.5px;
+  line-height: 1.6;
+  color: var(--dim);
+  text-wrap: pretty;
+}
+
+/* ── links ── */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--line-card);
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+.link:hover {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}
+
+/* ── surfaces ── */
+/* Every bordered group in this design is flex-wrap with grown children, never
+   auto-fit columns: with a fixed item count auto-fit resolves to a column count
+   that doesn't divide evenly at intermediate widths, leaving the bordered
+   rectangle open on its last row. Flex children grow to fill their row, so the
+   rectangle always closes. */
+.cells {
+  display: flex;
+  flex-wrap: wrap;
+}
+.cells > * {
+  min-width: 0;
+}
+
+/* Two-column section body: two items, so no ragged-row problem to solve. */
+.duo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 56px;
+}
+
+.panel {
+  border: 1px solid var(--line-card);
+  background: var(--paper-alt);
+}
+
+.panel-ink {
+  background: var(--ink);
+}
+
+/* Every shadow in the design: hard offsets, no blur. */
+.shadow-hero {
+  box-shadow: 16px 16px 0 rgba(11, 14, 8, 0.18);
+}
+.shadow-card {
+  box-shadow: 14px 14px 0 rgba(11, 14, 8, 0.1);
+}
+/* Same geometry as .shadow-card, in the accent. Reserved for the one block on
+   the page that is about somebody else — the offset reads as a second edge, so
+   the co-brand gets a lime frame without a lime fill competing with the CTA
+   band above it. */
+.shadow-lime {
+  box-shadow: 14px 14px 0 var(--lime);
+}
+
+.hairline-t {
+  border-top: 1px solid var(--line);
+}
+
+/* Key/value rows down a hairline-divided list. */
+.ledger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: baseline;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Compact variant for inside a panel, where the key is short and the value is
+   a figure rather than a sentence. */
+.ledger-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.ledger-line:last-child {
+  border-bottom: none;
+}
+
+/* ── controls ── */
+/* Kill native button chrome — macOS paints white ButtonFace over transparent
+   backgrounds when appearance isn't reset, so <button> and <a> diverge.
+ *
+ * `@layer base` is load-bearing, not tidiness. Tailwind's utilities live in
+ * `@layer utilities`, and an UNLAYERED rule beats every layered one whatever the
+ * specificity — so this reset written at the top level silently defeated
+ * `bg-…`/`border-…` on every <button> in the app: the pay-method toggle lost its
+ * border and its selected lime fill, the name picker lost its selected state, and
+ * each read as a styling mistake rather than as a dead rule. Inside `base` it
+ * ranks below utilities, which is where a reset belongs. */
+@layer base {
+  button {
+    appearance: none;
+    -webkit-appearance: none;
+    background: none;
+    border: none;
+    border-radius: 0;
+    font: inherit;
+    color: inherit;
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 22px;
+  border-radius: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.on-ink .btn:focus-visible {
+  outline-color: var(--lime);
+}
+/* A disabled control goes inert, it does not go faint. Fading a lime button to 45%
+   over ink lands on a muddy olive that reads as a rendering fault rather than as a
+   button waiting for input — and the empty state of the mint card is the first thing
+   anyone sees. */
+.btn:disabled {
+  cursor: not-allowed;
+}
+.btn-lime:disabled {
+  background: rgba(241, 241, 234, 0.12);
+  color: rgba(241, 241, 234, 0.55);
+}
+.btn-ink:disabled {
+  background: rgba(11, 14, 8, 0.28);
+}
+.btn-ghost:disabled {
+  color: var(--faint);
+  border-color: var(--line);
+}
+
+/* Primary on paper: ink fill. */
+.btn-ink {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn-ink:hover:not(:disabled) {
+  background: var(--ink-hover);
+}
+
+/* Primary on ink: lime fill. Always ink text — lime is a ground, never a label. */
+.btn-lime {
+  background: var(--lime);
+  color: var(--ink);
+  font-weight: 700;
+}
+.btn-lime:hover:not(:disabled) {
+  background: var(--lime-hover);
+}
+
+.btn-ghost {
+  border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
+  color: var(--fg);
+}
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--fg);
+  background: var(--hover-fill);
+}
+/* On ink the ghost lights up lime rather than filling — a fill this size would
+   read as a second primary. */
+.on-ink .btn-ghost:hover:not(:disabled) {
+  border-color: var(--lime);
+  color: var(--lime);
+  background: transparent;
+}
+
+.btn-sm {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+.btn-lg {
+  height: 52px;
+  padding: 0 26px;
+  font-size: 15px;
+}
+
+.input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line-card);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-data), monospace;
+  font-size: 16px; /* ≥16px kills iOS focus-zoom */
+  transition: border-color 0.15s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--fg);
+}
+.input::placeholder {
+  color: var(--faint);
+}
+.on-ink .input:focus {
+  border-color: var(--lime);
+}
+
+/* The multi-line sibling of .input.
+ *
+ * A class of its own rather than `.input` plus a couple of height utilities, because
+ * every rule in this file is UNLAYERED and an unlayered rule beats every Tailwind
+ * utility whatever the specificity — so `h-auto` and `py-3` on a `.input` textarea both
+ * lose, and the field renders as a 48px slot with no vertical padding and its own text
+ * scrolling behind the border. Same trap as the button reset above. */
+.textarea {
+  width: 100%;
+  min-height: 152px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-card);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-data), monospace;
+  font-size: 16px; /* ≥16px kills iOS focus-zoom */
+  line-height: 1.65;
+  resize: vertical;
+  transition: border-color 0.15s ease;
+}
+.textarea:focus {
+  outline: none;
+  border-color: var(--fg);
+}
+.textarea::placeholder {
+  color: var(--faint);
+}
+.on-ink .textarea:focus {
+  border-color: var(--lime);
+}
+
+/* ── status colors ── */
+.ok {
+  color: var(--ok);
+}
+.warn {
+  color: var(--warn);
+}
+.bad {
+  color: var(--bad);
+}
+
+/* The 8×8 square that marks a live or guaranteed thing. Squares, not dots —
+   the only circle in this design is the tier-select control. */
+.chip-square {
+  display: block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: var(--lime);
+}
+
+/* ── ticker ── */
+.ticker {
+  overflow: hidden;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.ticker-row {
+  display: flex;
+  width: max-content;
+  animation: ticker 42s linear infinite;
+}
+/* The list is rendered twice, so -50% lands exactly on the second copy's start
+   and the loop has no seam. */
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ── century ruler ── */
+.ruler-box {
+  position: relative;
+  height: 26px;
+  border: 1px solid var(--line-card);
+}
+.ruler-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--lime);
+  transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ruler-decade {
+  font-family: var(--font-data), monospace;
+  font-size: 9.5px;
+  color: var(--faint);
+  border-left: 1px solid var(--line-card);
+  padding-left: 5px;
+  line-height: 1.4;
+}
+
+/* ── grids of marks ── */
+/* Border-top + border-left on the container, right + bottom on each cell: the
+   only combination that leaves no doubled hairline at any wrap point. */
+.mark-grid {
+  display: flex;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+/* Basis 300px, not the 210px a cell actually needs: eight cells at 210px fit six to
+   a 1360px row and leave the last two stretched to double width. At 300px the row
+   count steps 4 → 2 → 1 as the page narrows, so both groups always wrap into even
+   rows — which is the point of there being eight of them. */
+.mark-cell {
+  flex: 1 1 300px;
+  min-width: 0;
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transition: background 0.15s ease;
+}
+.mark-cell:hover {
+  background: var(--paper-alt);
+}
+.mark-tile {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border: 1px solid var(--line-soft);
+  background-color: var(--mark-tile);
+  background-size: cover;
+  background-position: center;
+}
+
+/* ── wallet lockup ──
+   The band's own ground, one step under the page. See the note in
+   `components/WalletLockup.tsx` for why this section alone gets it. */
+.wallet-band {
+  background: var(--paper-alt);
+}
+
+/* The co-brand coda above the footer. Both signs are the same glyph at two jobs:
+   in the heading it is punctuation between two names, in the lockup it is the
+   join between two marks.
+
+   The opening `/*` here had been lost, which is not a cosmetic problem: the orphaned
+   prose parsed as part of the next selector, so `.lockup-x` was an invalid rule and got
+   dropped entirely — the separator in the wallet lockup lost its spacing and its
+   colour, silently, on every page carrying the band. */
+.lockup-x {
+  /* A real word space sits either side of this in the markup — the break
+     opportunity the heading needs — so the padding only tops it up. */
+  padding: 0 0.16em;
+  color: var(--faint);
+  font-weight: 600;
+}
+.lockup-sign {
+  font-family: var(--font-display), sans-serif;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--faint);
+}
+
+/* Apple and Google both require their badge unmodified — no recolour, no
+   stroke on the art. The ring is held off the badge in its own clear space,
+   which is why the padding is here and not inside the image. */
+.store-badge {
+  display: inline-flex;
+  padding: 5px;
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+.store-badge img {
+  display: block;
+  width: 148px;
+  height: auto;
+}
+.store-badge:hover {
+  border-color: var(--line-card);
+}
+.store-badge:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ── in-flight read ──
+   An indeterminate sweep, because a name lookup has no measurable progress: it is one
+   round trip to the registry and it either lands or it doesn't. */
+.hf-track {
+  height: 2px;
+  overflow: hidden;
+  background: var(--line);
+}
+.hf-track > span {
+  display: block;
+  height: 100%;
+  width: 30%;
+  background: var(--lime);
+  animation: hf-bar 1s linear infinite;
+}
+@keyframes hf-bar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hf-track > span {
+    animation: none;
+    width: 100%;
+  }
+  .ticker-row {
+    animation: none;
+  }
+  .ruler-fill {
+    transition: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
