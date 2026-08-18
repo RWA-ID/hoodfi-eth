@@ -20,11 +20,26 @@ export const REGISTRAR_ADDRESS = addressEnv(process.env.NEXT_PUBLIC_REGISTRAR_AD
 export const USDG_ADDRESS = addressEnv(process.env.NEXT_PUBLIC_USDC_ADDRESS);
 
 /**
- * The publishing paywall. Undefined until deployed, which is the normal state during
- * Phase 0 — every surface that needs it degrades rather than throwing, the same way the
- * site handled its own pre-deploy period.
+ * The publishing paywall, for reads and writes. Env-driven so a preview deployment can
+ * point at a different one.
  */
 export const SITES_ADDRESS = addressEnv(process.env.NEXT_PUBLIC_SITES_ADDRESS);
+
+/**
+ * The same contract, as a fixed constant, for anything that merely *shows* the address.
+ *
+ * Deliberately not the env var. This is listed publicly as something to go and check,
+ * and a "verify us" link that silently disappears when a variable is unset defeats its
+ * own purpose — the site's contracts table hardcodes its resolver for exactly this
+ * reason. Keep the two in step when the contract is redeployed.
+ */
+export const SITES_ADDRESS_PUBLIC =
+  "0x90517237F52caC977398CA1391b3B006bA028c99" as const;
+
+/** Where a Robinhood Chain address can be read by anyone. */
+export const EXPLORER = "https://robinhoodchain.blockscout.com";
+
+export const REPO_URL = "https://github.com/RWA-ID/hoodfi-eth";
 
 export const L2_DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_L2_DEPLOY_BLOCK ?? "0");
 

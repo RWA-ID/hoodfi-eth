@@ -6,6 +6,12 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    /* lib/templates/* import each other with explicit .ts extensions so the render
+       functions can be exercised by `node --experimental-strip-types` directly — the
+       templates are the one part of this app whose output is a file someone pays to pin
+       permanently, and being able to render and screenshot one without a 3-minute Next
+       build is what makes checking them affordable. Legal only alongside noEmit. */
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

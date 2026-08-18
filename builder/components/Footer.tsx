@@ -1,5 +1,11 @@
 import { XLogo } from "./XLogo";
 import { MANAGE_URL, MINT_URL } from "@/lib/site";
+import {
+  EXPLORER,
+  L2_REGISTRY_ADDRESS,
+  REPO_URL,
+  SITES_ADDRESS_PUBLIC,
+} from "@/lib/contracts";
 
 type Link = { label: string; href: string; external?: boolean };
 
@@ -20,6 +26,14 @@ const COLUMNS: { title: string; links: Link[] }[] = [
       { label: "Get a name", href: MINT_URL, external: true },
       { label: "Manage records", href: MANAGE_URL, external: true },
       { label: "hoodfi.name", href: "https://www.hoodfi.name/", external: true },
+    ],
+  },
+  {
+    title: "Source",
+    links: [
+      { label: "Sites contract", href: `${EXPLORER}/address/${SITES_ADDRESS_PUBLIC}`, external: true },
+      { label: "Name registry", href: `${EXPLORER}/address/${L2_REGISTRY_ADDRESS ?? ""}`, external: true },
+      { label: "GitHub", href: REPO_URL, external: true },
     ],
   },
   {
@@ -57,11 +71,19 @@ export function Footer() {
             itself — no hosting bill and nothing to renew.
           </p>
           <a
+            className="data mt-5 block w-fit break-all text-[11.5px] leading-[1.6] text-[rgba(241,241,234,0.55)] transition-colors hover:text-[var(--lime)]"
+            href={`${EXPLORER}/address/${SITES_ADDRESS_PUBLIC}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {SITES_ADDRESS_PUBLIC}
+          </a>
+          <a
             href="https://x.com/hoodfieth"
             target="_blank"
             rel="noreferrer"
             aria-label="HoodFi on X"
-            className="mt-5 grid h-9 w-9 place-items-center border border-[rgba(241,241,234,0.28)] transition-colors hover:bg-[rgba(241,241,234,0.08)]"
+            className="mt-4 grid h-9 w-9 place-items-center border border-[rgba(241,241,234,0.28)] transition-colors hover:bg-[rgba(241,241,234,0.08)]"
           >
             <XLogo size={13} />
           </a>
