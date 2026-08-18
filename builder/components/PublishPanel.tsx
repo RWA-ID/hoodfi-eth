@@ -53,7 +53,7 @@ const LABELS: Record<Step, string> = {
  * and a chain read is how somebody ends up paying twice.
  */
 export function PublishPanel({ name, templateId, html }: Props) {
-  const { address, chainId } = useAccount();
+  const { address, chainId, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { switchChainAsync } = useSwitchChain();
   const { data: wallet } = useWalletClient();
@@ -65,9 +65,37 @@ export function PublishPanel({ name, templateId, html }: Props) {
 
   const configured = Boolean(SITES_ADDRESS && L2_REGISTRY_ADDRESS);
 
+  /**
+   * Why the button is off, in words, or null when it is on.
+   *
+   * Gating on `wallet` was wrong: useWalletClient is chain-scoped and resolves
+   * asynchronously, so it is undefined for a moment on every load and indefinitely if the
+   * connector is in a bad state — and the only signal was a button that would not light
+   * up. A disabled control that cannot say why is the same failure as an error message
+   * that says nothing, which this project has now hit several times.
+   */
+  const blocked: string | null = !configured
+    ? "Publishing isn't configured in this deployment yet."
+    : !isConnected
+      ? "Connect the wallet holding this name to publish."
+      : null;
+
   async function run() {
-    if (!address || !wallet || !client || !SITES_ADDRESS || !L2_REGISTRY_ADDRESS) return;
+    if (!SITES_ADDRESS || !L2_REGISTRY_ADDRESS) return;
     setError(null);
+
+    if (!address || !client) {
+      setError("Your wallet isn't connected. Reconnect and try again.");
+      return;
+    }
+    if (!wallet) {
+      // Reached when the connector is attached but cannot hand over a client — the
+      // phantom-session shape. Point at the fix rather than failing mutely.
+      setError(
+        "Your wallet session isn't responding. Use the Reset connection banner at the top, then reconnect."
+      );
+      return;
+    }
 
     try {
       // Both writes are on Robinhood Chain. Switching inside the same try as the writes
@@ -193,15 +221,13 @@ export function PublishPanel({ name, templateId, html }: Props) {
         record is written by you, from your wallet — we never hold a key to your name.
       </p>
 
-      {!configured ? (
-        <p className="mt-6 text-[14px] leading-[1.6] text-[var(--warn)]">
-          Publishing isn&rsquo;t configured in this deployment yet.
-        </p>
+      {blocked ? (
+        <p className="mt-6 text-[14px] leading-[1.6] text-[var(--warn)]">{blocked}</p>
       ) : null}
 
       <button
         className="btn btn-lime mt-6 w-full"
-        disabled={busy || !configured || !wallet}
+        disabled={busy || blocked !== null}
         onClick={run}
         type="button"
       >
