@@ -23,6 +23,16 @@ export type MyNamesState = {
   loading: boolean;
   /** Set only when we could not find out. Never set to mean "you own none". */
   error: string | null;
+  /**
+   * True when this deployment has no registry address configured.
+   *
+   * Distinct from `error` and from an empty list, because it is a deployment fault
+   * rather than anything about the visitor's wallet — and conflating it with "you own
+   * no names" is precisely how a misconfigured build tells a holder their name is gone.
+   * That happened: the Vercel project shipped without NEXT_PUBLIC_L2_REGISTRY_ADDRESS
+   * and the editor calmly invited the owner of two names to go and mint one.
+   */
+  unconfigured: boolean;
   reload: () => void;
 };
 
@@ -46,6 +56,7 @@ export function useMyNames(address: Address | undefined): MyNamesState {
   const [names, setNames] = useState<OwnedName[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const unconfigured = !L2_REGISTRY_ADDRESS;
 
   const load = useCallback(async () => {
     if (!address || !client || !L2_REGISTRY_ADDRESS) {
@@ -159,5 +170,5 @@ export function useMyNames(address: Address | undefined): MyNamesState {
     void load();
   }, [load]);
 
-  return { names, loading, error, reload: load };
+  return { names, loading, error, unconfigured, reload: load };
 }

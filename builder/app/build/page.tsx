@@ -25,7 +25,7 @@ import { PublishPanel } from "@/components/PublishPanel";
  */
 export default function BuildPage() {
   const { address, isConnected } = useAccount();
-  const { names, loading, error } = useMyNames(address);
+  const { names, loading, error, unconfigured } = useMyNames(address);
 
   const [name, setName] = useState<OwnedName | null>(null);
   const [templateId, setTemplateId] = useState<TemplateId>("terminal");
@@ -147,6 +147,14 @@ export default function BuildPage() {
           <div className="shell section">
             <p className="lede max-w-[46ch]">
               Connect the wallet holding your name to start building.
+            </p>
+          </div>
+        ) : unconfigured ? (
+          <div className="shell section">
+            <p className="warn max-w-[54ch]">
+              This deployment isn&rsquo;t configured to read names yet, so we can&rsquo;t
+              tell what you hold. This is our problem, not your wallet&rsquo;s — nothing
+              is wrong with your name.
             </p>
           </div>
         ) : error ? (

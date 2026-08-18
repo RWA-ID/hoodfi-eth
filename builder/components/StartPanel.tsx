@@ -24,7 +24,7 @@ type Props = {
 export function StartPanel({ selected, onSelect }: Props) {
   const { address, isConnected } = useAccount();
   const { open } = useAppKit();
-  const { names, loading, error, reload } = useMyNames(address);
+  const { names, loading, error, unconfigured, reload } = useMyNames(address);
 
   // A name that leaves the list — disconnect, account switch, sold mid-session — must
   // not stay selected. Everything downstream treats this as proof of ownership.
@@ -84,7 +84,14 @@ export function StartPanel({ selected, onSelect }: Props) {
             </div>
           ) : null}
 
-          {!loading && !error && names.length === 0 ? (
+          {unconfigured ? <div className="mt-4">
+              <p className="text-[15px] leading-[1.6] text-[var(--bad)]">
+                This deployment isn&rsquo;t configured to read names yet, so we can&rsquo;t
+                tell what you hold. This is our problem, not your wallet&rsquo;s.
+              </p>
+            </div> : null}
+
+          {!unconfigured && !loading && !error && names.length === 0 ? (
             <div className="mt-4">
               <p className="text-[15px] leading-[1.6] text-[var(--dim)]">
                 This wallet doesn&rsquo;t hold a HoodFi name yet. You can design the whole
