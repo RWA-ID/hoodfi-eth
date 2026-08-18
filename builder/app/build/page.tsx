@@ -206,7 +206,11 @@ export default function BuildPage() {
                     never scrolled off. Below `lg` it sits under the form instead —
                     a sticky preview on a phone would eat the viewport it needs. */}
                 <div className="min-w-0 lg:sticky lg:top-[84px]">
-                  <SitePreview html={html} label={data.label || name?.label || "yourname"} />
+                  <SitePreview
+                    html={html}
+                    instantKey={templateId}
+                    label={data.label || name?.label || "yourname"}
+                  />
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <span className="data text-[11.5px] text-[var(--faint)]">
                       {sizeKb} KB · one file · fonts embedded

@@ -53,7 +53,7 @@ const LABELS: Record<Step, string> = {
  * and a chain read is how somebody ends up paying twice.
  */
 export function PublishPanel({ name, templateId, html }: Props) {
-  const { address, chainId, isConnected } = useAccount();
+  const { address, chainId, isConnected, connector } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { switchChainAsync } = useSwitchChain();
   /**
@@ -89,11 +89,20 @@ export function PublishPanel({ name, templateId, html }: Props) {
    * up. A disabled control that cannot say why is the same failure as an error message
    * that says nothing, which this project has now hit several times.
    */
+  // A rehydrated connector stub has no methods on it — see ConnectionGuard. Catching it
+  // here means the failure is named before a signature is requested, rather than
+  // surfacing as "connector.getChainId is not a function" halfway through publishing.
+  const stubConnector = Boolean(
+    isConnected && connector && typeof connector.getChainId !== "function"
+  );
+
   const blocked: string | null = !configured
     ? "Publishing isn't configured in this deployment yet."
     : !isConnected
       ? "Connect the wallet holding this name to publish."
-      : null;
+      : stubConnector
+        ? "Your wallet session was restored without a working link. Reset it below, then reconnect."
+        : null;
 
   async function run() {
     if (!SITES_ADDRESS || !L2_REGISTRY_ADDRESS) return;
@@ -196,7 +205,10 @@ export function PublishPanel({ name, templateId, html }: Props) {
       const message = err instanceof Error ? err.message : String(err);
       // Never echo a raw viem error: they embed the full RPC URL, key included.
       const cancelled = /user rejected|denied/i.test(message);
-      const unreachable = /timeout|no matching key|session|expired|not connected|provider/i.test(message);
+      const unreachable =
+        /timeout|no matching key|session|expired|not connected|provider|is not a function/i.test(
+          message
+        );
       if (unreachable && !cancelled) setNeedsReset(true);
       setError(
         cancelled
@@ -274,7 +286,7 @@ export function PublishPanel({ name, templateId, html }: Props) {
         <p className="mt-4 text-[14px] leading-[1.6] text-[var(--bad)]">{error}</p>
       ) : null}
 
-      {needsReset ? (
+      {needsReset || stubConnector ? (
         <>
           <button className="btn btn-ghost btn-sm mt-4 w-full" onClick={resetSession} type="button">
             Reset wallet session and reload

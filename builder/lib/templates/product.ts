@@ -27,41 +27,47 @@ function dotField(seed: string): string {
     return Math.abs(h % 1000) / 1000;
   };
 
-  // A dense field rather than scattered dots. Density and saturation both climb to the
-  // right, which is what makes it read as motion across the hero instead of noise laid
-  // over it — sparse pale marks on the left where the headline sits, solid colour on the
-  // right where nothing does.
-  const cols = 30;
-  const rows = 13;
-  const step = 34;
-  const cells: string[] = [];
+  /*
+   * A FULL grid — every cell carries a mark. An earlier version skipped cells at random,
+   * which produced scattered clumps instead of a field: the regularity is what makes the
+   * left-to-right ramp read as one gradient rather than as noise that happens to thin
+   * out. What varies across the grid is the KIND of mark and its colour, never whether
+   * there is one.
+   *
+   * Left: faint registration crosses, quiet enough to sit under the headline.
+   * Right: solid quarter-discs in blue, with lime landing occasionally.
+   * The seed only decides where the transition wobbles and where lime falls, so two
+   * names differ without either stopping looking like the same system.
+   */
+  const cols = 34;
+  const rows = 14;
+  const step = 44;
+  const marks: string[] = [];
 
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const t = x / (cols - 1);
-      const cx = x * step + 18;
-      const cy = y * step + 18;
-      const r = rnd();
-      // Left third is mostly the faint plus, so the headline always has quiet ground.
-      if (r > 0.15 + (1 - t) * 0.5) {
-        const kind = rnd();
-        const warm = rnd();
-        const fill = warm > 0.88 ? "#c6f702" : t > 0.55 && warm > 0.45 ? "#2f6bff" : t > 0.3 ? "#7ea4ff" : "#c8d6ff";
-        cells.push(
-          kind > 0.55
-            ? `<path d="M${cx - 9} ${cy + 9}a18 18 0 0 1 18-18v18z" fill="${fill}"/>`
-            : `<circle cx="${cx}" cy="${cy}" r="4.6" fill="${fill}"/>`
+      const cx = x * step + 22;
+      const cy = y * step + 22;
+
+      // Wobble the boundary per cell so the transition is a soft diagonal, not a wall.
+      const disc = t + (rnd() - 0.5) * 0.38 > 0.16;
+
+      if (!disc) {
+        const o = (0.4 + t * 0.35).toFixed(2);
+        marks.push(
+          `<path d="M${cx - 5} ${cy}h10M${cx} ${cy - 5}v10" stroke="#9db8ff" stroke-width="1.3" opacity="${o}"/>`
         );
-      } else if (r > 0.06) {
-        // The plus marks: registration ticks that keep the empty half from reading blank.
-        const o = t > 0.4 ? 0.5 : 0.32;
-        cells.push(
-          `<path d="M${cx - 4} ${cy}h8M${cx} ${cy - 4}v8" stroke="#9db8ff" stroke-width="1.2" opacity="${o}"/>`
-        );
+        continue;
       }
+
+      const lime = rnd() > 0.9 && t > 0.35;
+      const fill = lime ? "#c6f702" : t > 0.66 ? "#2f6bff" : t > 0.42 ? "#5f8cff" : t > 0.2 ? "#a8c2ff" : "#cfdcff";
+      marks.push(`<path d="M${cx - 11} ${cy + 11}a22 22 0 0 1 22-22v22z" fill="${fill}"/>`);
     }
   }
-  return `<svg class="field" viewBox="0 0 ${cols * step} ${rows * step}" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${cells.join("")}</svg>`;
+
+  return `<svg class="field" viewBox="0 0 ${cols * step} ${rows * step}" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${marks.join("")}</svg>`;
 }
 
 function renderProduct(data: SiteData): string {

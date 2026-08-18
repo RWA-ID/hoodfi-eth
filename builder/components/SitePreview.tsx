@@ -6,6 +6,8 @@ import { BrowserFrame, PhoneFrame } from "./DeviceFrame";
 type Props = {
   html: string;
   label: string;
+  /** Changes to this apply immediately; only content edits are debounced. */
+  instantKey?: string;
 };
 
 const WIDTHS = [
@@ -33,7 +35,7 @@ const PHONE_H = 620;
  * allow-popups, so nothing inside can move the builder out from under someone — which
  * matters more here than usual, since template HTML will eventually come from partners.
  */
-export function SitePreview({ html, label }: Props) {
+export function SitePreview({ html, label, instantKey }: Props) {
   const [mode, setMode] = useState<(typeof WIDTHS)[number]["id"]>("desktop");
 
   /**
@@ -54,19 +56,32 @@ export function SitePreview({ html, label }: Props) {
   const [front, setFront] = useState(0);
   const pending = useRef<number | null>(null);
 
+  const lastKey = useRef(instantKey);
+
   useEffect(() => {
     if (html === docs[front]) return;
     if (pending.current) window.clearTimeout(pending.current);
-    // 220ms: past a fast typist's inter-key gap, under the point where the preview feels
-    // detached from the field being edited.
-    pending.current = window.setTimeout(() => {
+
+    const apply = () => {
       const back = front === 0 ? 1 : 0;
       setDocs((d) => (back === 0 ? [html, d[1]] : [d[0], html]));
-    }, 220);
+    };
+
+    // A template change is a deliberate click, not typing — waiting on it reads as the
+    // picker being slow. Only content edits get the settle delay.
+    if (instantKey !== lastKey.current) {
+      lastKey.current = instantKey;
+      apply();
+      return;
+    }
+
+    // 220ms: past a fast typist's inter-key gap, under the point where the preview feels
+    // detached from the field being edited.
+    pending.current = window.setTimeout(apply, 220);
     return () => {
       if (pending.current) window.clearTimeout(pending.current);
     };
-  }, [html, docs, front]);
+  }, [html, docs, front, instantKey]);
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [innerHeight, setInnerHeight] = useState(560);
