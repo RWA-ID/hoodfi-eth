@@ -91,12 +91,17 @@ export function SiteForm({ data, onChange }: Props) {
   return (
     <div className="grid gap-7">
       <Group title="Identity">
-        <Field label="Name" hint="Shown big at the top. Defaults to your HoodFi label.">
+        {/* Not defaulted to the HoodFi label. Putting the label in as a silent fallback
+            meant the biggest thing on the page was chosen for you and looked finished, so
+            most people would never think to change it. The headline is the one line worth
+            deciding, so it is asked for rather than assumed — publishing is blocked until
+            it has one. */}
+        <Field label="Headline" hint="The big line at the top. Yours to pick — it doesn't have to be your name.">
           <input
             className="input"
             maxLength={MAX.displayName}
             onChange={(e) => set("displayName", e.target.value)}
-            placeholder={data.label}
+            placeholder="Anything you like"
             value={data.displayName}
           />
         </Field>

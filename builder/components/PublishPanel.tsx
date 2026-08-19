@@ -27,6 +27,14 @@ type Props = {
   name: OwnedName;
   templateId: TemplateId;
   html: string;
+  /**
+   * The headline as typed, which is empty until the owner chooses one.
+   *
+   * Passed separately rather than sniffed out of `html`, because by the time it reaches
+   * `html` the editor has already substituted its stand-in and the two are
+   * indistinguishable — which is exactly the string that must never be pinned.
+   */
+  displayName: string;
 };
 
 type Step = "idle" | "signing" | "pinning" | "paying" | "confirming" | "linking" | "done";
@@ -52,7 +60,7 @@ const LABELS: Record<Step, string> = {
  * Every step is reported by name. A single spinner over a flow with two wallet prompts
  * and a chain read is how somebody ends up paying twice.
  */
-export function PublishPanel({ name, templateId, html }: Props) {
+export function PublishPanel({ name, templateId, html, displayName }: Props) {
   const { address, chainId, isConnected, connector } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { switchChainAsync } = useSwitchChain();
@@ -103,7 +111,9 @@ export function PublishPanel({ name, templateId, html }: Props) {
       ? "Connect the wallet holding this name to publish."
       : stubConnector
         ? "Your wallet session was restored without a working link. Reset it below, then reconnect."
-        : null;
+        : !displayName.trim()
+          ? "Give your site a headline first — it's the big line at the top, and it's yours to choose."
+          : null;
 
   async function run() {
     if (!SITES_ADDRESS || !L2_REGISTRY_ADDRESS) return;

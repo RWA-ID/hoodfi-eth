@@ -58,12 +58,38 @@ export function SitePreview({ html, label, instantKey }: Props) {
 
   const lastKey = useRef(instantKey);
 
+  /**
+   * Which buffer, if any, is waiting to be revealed once it paints.
+   *
+   * Without this the reveal was "any hidden frame that fires `load` and holds something",
+   * and a hidden frame holds the PREVIOUS template. Two ways that fired wrongly, both
+   * reported:
+   *
+   * 1. Switching device toggles the whole frame between BrowserFrame and PhoneFrame —
+   *    different component types, so React unmounts and remounts both iframes and BOTH
+   *    fire `load` again. The stale one won, and the phone frame showed the template you
+   *    had been on before. Terminal's preview arriving in Archivo bold was the same bug
+   *    wearing a different template.
+   * 2. Picking A, then B, then A again before B painted: the effect saw the wanted html
+   *    already in the front buffer and returned early, leaving B's swap armed. B landed a
+   *    moment later and the picker and the preview disagreed.
+   */
+  const awaiting = useRef<number | null>(null);
+
   useEffect(() => {
-    if (html === docs[front]) return;
+    if (html === docs[front]) {
+      // Already showing what was asked for, so any armed swap is stale by definition.
+      // Disarming here is the whole of case 2 above.
+      awaiting.current = null;
+      if (pending.current) window.clearTimeout(pending.current);
+      lastKey.current = instantKey;
+      return;
+    }
     if (pending.current) window.clearTimeout(pending.current);
 
     const apply = () => {
       const back = front === 0 ? 1 : 0;
+      awaiting.current = back;
       setDocs((d) => (back === 0 ? [html, d[1]] : [d[0], html]));
     };
 
@@ -133,8 +159,14 @@ export function SitePreview({ html, label, instantKey }: Props) {
              never loads at all, which is how the site's phone-frame preview shipped
              invisible once. */
           onLoad={() => {
-            // Reveal only once this frame has something painted in it.
-            if (doc && i !== front) setFront(i);
+            // Reveal only the frame that was armed for it, and only once. A `load` from
+            // anything else — a remount, an about:blank after the clear below — is noise.
+            if (awaiting.current !== i) return;
+            awaiting.current = null;
+            setFront(i);
+            // Empty the frame we just left. It holds a render nobody will see again, and
+            // an empty buffer cannot be mistaken for a current one on the next remount.
+            setDocs((d) => (i === 0 ? [d[0], ""] : ["", d[1]]));
           }}
           style={{
             ...frameStyle,

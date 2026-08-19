@@ -19,8 +19,20 @@ export type Draft = {
   version: number;
   templateId: TemplateId;
   data: SiteData;
-  /** Set once a draft has been touched, so we know not to re-prefill over it. */
+  /** Set once a draft has been touched. Drives the "Draft saved" line and autosave. */
   edited: boolean;
+  /**
+   * The fields the visitor has actually typed in, so the ones they haven't can keep
+   * following their records.
+   *
+   * `edited` used to do this job alone, and it is far too coarse: one character anywhere
+   * froze every field, so changing an avatar on /manage never reached a draft that
+   * existed — the editor showed the old picture for good and looked like it had lost the
+   * update. Absent on drafts written before this existed, and read as "nothing typed":
+   * those get re-synced from the chain once, which is the behaviour that was expected all
+   * along.
+   */
+  touched?: (keyof SiteData)[];
   savedAt: number;
 };
 

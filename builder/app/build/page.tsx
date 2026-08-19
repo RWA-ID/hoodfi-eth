@@ -36,6 +36,10 @@ export default function BuildPage() {
   const loadedFor = useRef<string>("");
   const [edited, setEdited] = useState(false);
 
+  // The fields typed in by hand. Everything else is still following the name's records,
+  // and must keep following them — see the note on Draft.touched.
+  const [touched, setTouched] = useState<Set<keyof SiteData>>(new Set());
+
   const { prefill } = useNameRecords(name?.node);
 
   // Honour ?name= from the homepage panel before falling back to the first entry.
@@ -65,44 +69,72 @@ export default function BuildPage() {
       setTemplateId(draft.templateId);
       setData({ ...draft.data, label: name.label });
       setEdited(draft.edited);
+      setTouched(new Set(draft.touched ?? []));
       return;
     }
     setData({ ...EMPTY_SITE, label: name.label });
     setEdited(false);
+    setTouched(new Set());
   }, [name]);
 
-  // Records arrive after the draft check, so only fill fields still untouched. A
-  // prefill that overwrote an edit would be worse than no prefill at all.
+  // Records arrive after the draft check, and they own every field nobody has typed in —
+  // not merely every field that is empty. Filling only the empty ones is what left a
+  // changed avatar showing the previous picture: the field had a value, so it was skipped
+  // forever, and the editor disagreed with /manage with no way to reconcile it.
+  //
+  // An empty record still never wipes anything. "You have no avatar record" is also what
+  // a half-failed read looks like, and losing a picture to it would be unforgivable.
   useEffect(() => {
-    if (!name || !prefill || edited) return;
+    if (!name || !prefill) return;
     setData((current) => {
       const next = { ...current };
+      let changed = false;
       for (const [k, v] of Object.entries(prefill)) {
-        if (!v) continue;
         const key = k as keyof SiteData;
         if (key === "links" || key === "label") continue;
-        if (!next[key]) (next as Record<string, unknown>)[key] = v;
+        if (touched.has(key) || !v || next[key] === v) continue;
+        (next as Record<string, unknown>)[key] = v;
+        changed = true;
       }
-      return next;
+      return changed ? next : current;
     });
-  }, [prefill, name, edited]);
+  }, [prefill, name, touched]);
 
   // Autosave. Cheap, and it is the whole reason a wallet round trip on a phone does not
   // destroy the work.
   useEffect(() => {
     if (!name || !edited) return;
-    const t = setTimeout(() => saveDraft(name.node, { templateId, data, edited }), 400);
+    const t = setTimeout(
+      () => saveDraft(name.node, { templateId, data, edited, touched: [...touched] }),
+      400
+    );
     return () => clearTimeout(t);
-  }, [name, templateId, data, edited]);
+  }, [name, templateId, data, edited, touched]);
 
+  // Which keys actually changed, rather than "something changed somewhere". The form
+  // hands back a whole SiteData, so the diff is the only place that knows.
   const update = (next: SiteData) => {
-    setData(next);
+    setData((current) => {
+      const hit = (Object.keys(next) as (keyof SiteData)[]).filter((k) => next[k] !== current[k]);
+      if (hit.length) setTouched((t) => new Set([...t, ...hit]));
+      return next;
+    });
     setEdited(true);
   };
 
   const template = TEMPLATES_BY_ID[templateId];
+
+  // The headline stands in as visibly UNSET rather than falling back to the label. A
+  // preview that quietly shows your label reads as a finished page, and the one line most
+  // worth choosing gets chosen by the software. `blocked` below keeps this string from
+  // ever reaching a pin.
   const html = useMemo(
-    () => template.render({ ...data, label: data.label || name?.label || "yourname" }),
+    () =>
+      template.render({
+        ...data,
+        label: data.label || name?.label || "yourname",
+        displayName: data.displayName.trim() || "Your headline",
+      }),
     [template, data, name]
   );
 
@@ -221,7 +253,12 @@ export default function BuildPage() {
                   </div>
                   {name ? (
                     <div className="mt-6">
-                      <PublishPanel html={html} name={name} templateId={templateId} />
+                      <PublishPanel
+                        displayName={data.displayName}
+                        html={html}
+                        name={name}
+                        templateId={templateId}
+                      />
                     </div>
                   ) : null}
                 </div>

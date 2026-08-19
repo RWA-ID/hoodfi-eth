@@ -27,7 +27,15 @@ export type SiteData = {
   /** The HoodFi label, without the parent. The site's identity and its address. */
   label: string;
 
-  /** Big name at the top. Defaults to the label if left empty. */
+  /**
+   * The headline: the big line at the top.
+   *
+   * NOT defaulted to the label any more. It was, silently, and that made the largest
+   * thing on the page a choice the software made — a preview showing your own label
+   * looks finished, so nobody edits it. The editor asks for one and refuses to publish
+   * without it. Templates still fall back to the label rather than render an empty h1,
+   * but in the editor that path is unreachable.
+   */
   displayName: string;
   /** One line under it. */
   tagline: string;
