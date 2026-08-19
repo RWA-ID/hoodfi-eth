@@ -71,7 +71,7 @@ export default function HowItWorksPage() {
           </div>
           <ResolutionGrids />
           <p className="data mt-5 max-w-[88ch] text-[11.5px] leading-[1.7] text-[var(--faint)]">
-            One addr record covers Ethereum and every EVM chain. Bitcoin and Solana are
+            One address record covers Ethereum and every EVM chain. Bitcoin and Solana are
             stored as separate ENSIP-9 records in each chain&apos;s own encoding.
           </p>
         </section>

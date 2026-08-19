@@ -1,8 +1,8 @@
 const RECORDS: [string, string][] = [
   ["addr", "0x4f2c…9ab1"],
   ["avatar", "ipfs://bafy…"],
-  ["com.twitter", "@blake"],
-  ["url", "blake.xyz"],
+  ["com.twitter", "@cannacatmeme"],
+  ["url", "https://cannacat.fun"],
 ];
 
 /**
@@ -10,9 +10,12 @@ const RECORDS: [string, string][] = [
  *
  * Deliberately an illustration rather than a live read: it sits beside the ledger of
  * what a name *is*, and a card wired to real data would be empty for anyone who hasn't
- * minted yet — the section would argue for records by showing none. The abbreviated
- * address and `bafy…` avatar are unmistakably specimens, and /search/ is where a real
- * name gets rendered.
+ * minted yet — the section would argue for records by showing none. /search/ is where a
+ * real name gets rendered.
+ *
+ * The name, handle and URL belong to a real project we're showcasing; the address and
+ * the `bafy…` avatar record stay abbreviated so they still read as specimens rather
+ * than as data anyone could try to act on.
  */
 export function IdentityCard() {
   return (
@@ -25,7 +28,7 @@ export function IdentityCard() {
       <div className="mt-5 flex items-center gap-[18px]">
         {/* eslint-disable-next-line @next/next/no-img-element -- static export, no optimizer */}
         <img
-          src="/avatars/av-blake.png"
+          src="/avatars/av-cannacat.jpg"
           alt=""
           width={96}
           height={96}
@@ -34,7 +37,12 @@ export function IdentityCard() {
         />
         <div className="min-w-0">
           <div className="break-words text-[30px] font-extrabold leading-[1.05] tracking-[-0.035em]">
-            blake<span className="text-[var(--faint)]">.hoodfi.eth</span>
+            cannacat
+            {/* The only break point in the string: at 390px the line has to wrap, and
+                without this it splits mid-word as "cannacat.ho / odfi.eth". Same fix
+                as ProfileCard. */}
+            <wbr />
+            <span className="text-[var(--faint)]">.hoodfi.eth</span>
           </div>
           <div className="data mt-2 text-[11.5px] text-[var(--dim)]">0x4f2c…9ab1</div>
         </div>
@@ -58,7 +66,7 @@ export function IdentityCard() {
           style={{ background: "var(--resolving)" }}
           aria-hidden
         />
-        resolving on ethereum mainnet
+        resolving on all evms, solana and bitcoin
       </div>
     </div>
   );

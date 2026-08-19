@@ -32,7 +32,7 @@ const FACTS: [string, string][] = [
   ["renewals", "None. There is no expiry, no grace period and nothing to forget."],
   ["records", "Address, avatar, X handle, website and bio — saved in a single signature."],
   ["control", "Owner only. The registrar has no authority over a name once it is minted."],
-  ["resolution", "Ethereum mainnet plus every EVM chain from one addr record."],
+  ["resolution", "Ethereum mainnet plus every EVM chain from one address record."],
   ["transfer", "Freely tradable. No admin burn, no reclaim, no seizure path exists."],
 ];
 
@@ -179,7 +179,7 @@ export default function Home() {
             </div>
             <ResolutionGrids />
             <p className="data mt-5 max-w-[88ch] text-[11.5px] leading-[1.7] text-[var(--faint)]">
-              One addr record covers Ethereum and every EVM chain. Bitcoin and Solana are
+              One address record covers Ethereum and every EVM chain. Bitcoin and Solana are
               stored as separate ENSIP-9 records in each chain&apos;s own encoding.
             </p>
           </section>
