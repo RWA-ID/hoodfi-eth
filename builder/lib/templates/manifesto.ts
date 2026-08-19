@@ -57,22 +57,30 @@ ${avatar ? `<meta property="og:image" content="${attr(avatar)}">` : ""}
 @font-face{font-family:'DepartureMono';src:url(data:font/woff2;base64,${DEPARTURE_MONO}) format('woff2');font-weight:400;font-style:normal;font-display:swap}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
-body{background:#000;color:#fff;font-family:'DepartureMono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;line-height:1.6;overflow-x:hidden;position:relative;min-height:100vh}
+body{background:#000;color:#fff;font-family:'DepartureMono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.6;overflow-x:hidden;position:relative;min-height:720px}
 a{color:inherit;text-decoration:none}
 ${ICON_CSS}
 .grid{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:100% 84px,84px 100%}
 .reg{position:fixed;width:11px;height:11px;border:1px solid rgba(255,255,255,.3);pointer-events:none}
-.shell{position:relative;max-width:1360px;margin:0 auto;padding:30px clamp(20px,4vw,40px) 40px;display:flex;flex-direction:column;min-height:100vh}
+.shell{position:relative;max-width:1180px;margin:0 auto;padding:30px 40px 40px;display:flex;flex-direction:column;min-height:720px}
 .top{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.42)}
 .top .id{color:#fff}
 .mid{flex:1;display:flex;flex-direction:column;justify-content:center;padding:48px 0;position:relative}
 .slash{font-size:11px;letter-spacing:.26em;color:#c6f702;text-transform:uppercase}
-h1{margin-top:30px;font-family:'ArchivoWide',system-ui,sans-serif;font-size:clamp(46px,11.5vw,132px);font-weight:800;line-height:.9;letter-spacing:-.035em;text-transform:uppercase;overflow-wrap:anywhere;max-width:14ch}
+h1{margin-top:30px;font-family:'ArchivoWide',system-ui,sans-serif;font-size:132px;font-weight:800;line-height:.9;letter-spacing:-.035em;text-transform:uppercase;overflow-wrap:anywhere}
 h1 .a{color:#c6f702;display:block}
 .tag{margin-top:40px;max-width:56ch;font-size:12.5px;line-height:1.9;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55)}
 .tag p+p{margin-top:16px}
-.face{width:clamp(96px,14vw,190px);aspect-ratio:1;border:1px solid rgba(255,255,255,.16);overflow:hidden;margin-top:40px}
-@media(min-width:1000px){.face{position:absolute;right:0;top:50%;transform:translateY(-50%);margin-top:0}}
+.face{width:190px;height:190px;border:1px solid rgba(255,255,255,.16);overflow:hidden;margin-top:26px}
+/* The portrait is taken out of flow here, so nothing below it knows it exists: a long
+   word in the headline ran straight underneath the picture. Reserving the column as
+   padding on .mid fixes it for the headline, the tagline and the links at once —
+   and it does NOT move the portrait, because right:0 resolves against the PADDING
+   box, not the content box. */
+@media(min-width:761px){
+  .face{position:absolute;right:0;top:50%;transform:translateY(-50%);margin-top:0}
+  .mid{padding-right:246px}
+}
 .face img{width:100%;height:100%;object-fit:cover;display:block}
 .links{margin-top:44px;display:flex;flex-wrap:wrap;gap:0 40px}
 .links a{padding:14px 0;border-bottom:1px solid rgba(255,255,255,.14);flex:1 1 240px;min-width:0;font-size:13px}
@@ -80,7 +88,7 @@ h1 .a{color:#c6f702;display:block}
 .links .k{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.34)}
 .links .v{margin-top:7px;word-break:break-all}
 .bot{display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-end;border-top:1px solid rgba(255,255,255,.14);padding-top:22px}
-.cols{display:flex;gap:36px 52px;flex-wrap:wrap;min-width:0}
+.cols{display:flex;gap:24px 52px;flex-wrap:wrap;min-width:0}
 .col{min-width:0}
 .col .k{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.34)}
 .col .v{margin-top:8px;font-size:13px;word-break:break-all}
@@ -88,6 +96,21 @@ h1 .a{color:#c6f702;display:block}
 button.v{background:none;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;padding:0}
 .pg:hover{color:#c6f702}
 .pg{font-size:11px;letter-spacing:.2em;color:rgba(255,255,255,.34);white-space:nowrap}
+/* One breakpoint, 760px, exactly as the handoff specifies. */
+@media(max-width:760px){
+  body{min-height:0}
+  .shell{min-height:0;padding:22px 18px 26px}
+  .grid{background-size:100% 48px,48px 100%}
+  .top{flex-direction:column;gap:7px;font-size:9.5px;letter-spacing:.16em}
+  .mid{padding:30px 0}
+  h1{font-size:52px;margin-top:20px}
+  .tag{margin-top:24px;font-size:11px;line-height:1.85;max-width:none}
+  .face{width:112px;height:112px;margin-top:26px}
+  .bot{flex-direction:column;align-items:flex-start;gap:18px;padding-top:18px}
+  .cols{gap:20px 26px}
+  .reg{display:none}
+  .links{margin-top:32px}
+}
 </style>
 </head>
 <body>
@@ -100,9 +123,8 @@ ${sprite(usedIcons)}
   <div class="top"><span class="id">${label}.HOODFI.ETH</span>${keyed("rh", "LIFETIME NAME · ROBINHOOD CHAIN")}</div>
 
   <div class="mid">
-    <div class="slash">// ${label}.hoodfi.eth</div>
+    <div class="slash">// ${data.tagline ? esc(data.tagline) : `${label}.hoodfi.eth`}</div>
     <h1>${head ? `${head}<br>` : ""}<span class="a">${accent}.</span></h1>
-    ${data.tagline ? `<div class="tag"><p>${esc(data.tagline)}</p></div>` : ""}
     ${data.bio ? `<div class="tag">${paragraphs(data.bio)}</div>` : ""}
     ${avatar ? `<div class="face"><img src="${attr(avatar)}" alt="${attr(raw)}"></div>` : ""}
     ${
