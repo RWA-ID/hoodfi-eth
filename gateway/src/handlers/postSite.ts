@@ -133,17 +133,22 @@ export async function postSite(rawLabel: string, request: Request, env: Env): Pr
   }
 
   const form = new FormData()
-  form.append('file', new Blob([bytes], { type: 'text/html' }), 'index.html')
-  // wrapWithDirectory is what makes the CID a *directory* holding index.html, which is
-  // what a contenthash has to point at for a gateway to serve the site at its root. A
-  // bare file CID renders as a download in some clients and as source in others.
-  form.append('pinataOptions', JSON.stringify({ wrapWithDirectory: true }))
+  // The filename carries a FOLDER, and that is what makes the CID a directory.
+  //
+  // `pinataOptions: { wrapWithDirectory: true }` was tried first and silently did
+  // nothing — the first real publish produced a bare file CID, and
+  // /ipfs/<cid>/index.html answered "no link". A contenthash has to point at a directory
+  // holding index.html or a gateway has no root document to serve. Giving the part a
+  // path makes Pinata build the directory, and the returned hash is that directory, so
+  // index.html sits at its root. Same shape BuildSite pins with.
+  form.append('file', new Blob([bytes], { type: 'text/html' }), 'site/index.html')
   form.append(
     'pinataMetadata',
     JSON.stringify({
       name: `hoodfi-site-${label}`,
       keyvalues: {
-        // The sweeper reads these. `paid` flips to "true" only after the chain says so.
+        // `node` is what lets the sweeper ask the chain about this pin later. `paid` is
+        // only a cheap pre-filter for the pinList query — the chain is what decides.
         node: namehash(name),
         label,
         paid: 'false',
@@ -220,19 +225,14 @@ export async function postSiteConfirm(
 
   if (!paid) return fail('No payment found on chain for this site yet.', 402)
 
-  const updated = await fetch('https://api.pinata.cloud/pinning/hashMetadata', {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${jwt}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      ipfsPinHash: cid,
-      keyvalues: { paid: 'true', confirmedAt: String(Date.now()) },
-    }),
-  }).catch(() => null)
-
-  // A failure here means the pin stays marked unpaid and the sweeper would eventually
-  // remove a site somebody paid for — so it is reported, not swallowed.
-  if (!updated?.ok) return fail('Payment confirmed but the pin could not be marked. Contact us.', 502)
-
+  // Nothing is written back to Pinata. The metadata flag existed only so the sweeper
+  // could tell a paid pin from an abandoned one — but isPaid() already says that, on
+  // chain, authoritatively, to anyone who asks. Writing it twice added a second source
+  // of truth AND a dependency on the pinning credential having metadata scope, which
+  // the shared upload-only key does not. That is what failed here, after the money had
+  // already moved: "payment confirmed but the pin could not be marked".
+  //
+  // The sweeper reads the chain instead. One source of truth, no write, no scope.
   return Response.json({ ok: true, cid, node })
 }
 
@@ -249,6 +249,10 @@ export async function postSiteConfirm(
 export async function sweepUnpaidSites(env: Env): Promise<{ checked: number; removed: number }> {
   const jwt = envVarOptional('PINATA_JWT', env)
   if (!jwt) return { checked: 0, removed: 0 }
+  const sites = envVarOptional('SITES_ADDRESS', env)
+  // Without the contract there is no way to tell paid from abandoned, and deleting on a
+  // guess would remove sites people paid for. Do nothing instead.
+  if (!sites) return { checked: 0, removed: 0 }
 
   const cutoff = Date.now() - 24 * 60 * 60 * 1000
   const query = new URLSearchParams({
@@ -275,6 +279,24 @@ export async function sweepUnpaidSites(env: Env): Promise<{ checked: number; rem
     if (!row.metadata?.name?.startsWith('hoodfi-site-')) continue
     const pinnedAt = Number(row.metadata?.keyvalues?.pinnedAt ?? '0')
     if (!pinnedAt || pinnedAt > cutoff) continue
+
+    const node = row.metadata?.keyvalues?.node
+    if (!node || !/^0x[0-9a-fA-F]{64}$/.test(node)) continue
+
+    // The chain decides. A read that fails leaves the pin alone — never unpin on a
+    // question we could not get an answer to.
+    let paid: boolean
+    try {
+      paid = (await robinhoodClient(env).readContract({
+        address: sites as Hex,
+        abi: sitesAbi,
+        functionName: 'isPaid',
+        args: [node as Hex, row.ipfs_pin_hash],
+      })) as boolean
+    } catch {
+      continue
+    }
+    if (paid) continue
 
     const gone = await fetch(`https://api.pinata.cloud/pinning/unpin/${row.ipfs_pin_hash}`, {
       method: 'DELETE',

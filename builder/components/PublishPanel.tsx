@@ -141,9 +141,24 @@ export function PublishPanel({ name, templateId, html }: Props) {
       });
       setCid(pinned.cid);
 
-      // ── 3. Pay for that exact CID ───────────────────────────────────────────
+      // ── 3. Pay for that exact CID, unless it is already paid for ────────────
+      //
+      // Resumable on purpose. A publish can fail AFTER the payment lands — the confirm
+      // step or the record write can throw, or a laptop can close — and re-running would
+      // then hit AlreadyPaid and revert, stranding somebody who has already paid with no
+      // way to finish. Identical content produces an identical CID, so asking the chain
+      // first turns a retry into a resume. It happened on the first real publish.
       setStep("paying");
       const templateHash = keccak256(stringToBytes(templateId));
+
+      const alreadyPaid = (await client.readContract({
+        address: SITES_ADDRESS,
+        abi: sitesAbi,
+        functionName: "isPaid",
+        args: [name.node, pinned.cid],
+      })) as boolean;
+
+      if (!alreadyPaid) {
 
       // Simulate against our own RPC first. A wallet that estimates on its own node can
       // drop the revert payload entirely — that is the Brave signature — and the person
@@ -154,23 +169,24 @@ export function PublishPanel({ name, templateId, html }: Props) {
       // the public client resolved to, and handing it straight over is what produced
       // "the current chain of the wallet (id: 4663) does not match the target chain for
       // the transaction (id: 1 – Ethereum)". Every write below names its chain outright.
-      await client.simulateContract({
-        address: SITES_ADDRESS,
-        abi: sitesAbi,
-        functionName: "publish",
-        args: [name.node, templateHash, pinned.cid],
-        account: address,
-        value: 0n,
-      });
-      const payHash = await writeContractAsync({
-        address: SITES_ADDRESS,
-        abi: sitesAbi,
-        functionName: "publish",
-        args: [name.node, templateHash, pinned.cid],
-        value: 0n,
-        chainId: robinhoodChain.id,
-      });
-      await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
+        await client.simulateContract({
+          address: SITES_ADDRESS,
+          abi: sitesAbi,
+          functionName: "publish",
+          args: [name.node, templateHash, pinned.cid],
+          account: address,
+          value: 0n,
+        });
+        const payHash = await writeContractAsync({
+          address: SITES_ADDRESS,
+          abi: sitesAbi,
+          functionName: "publish",
+          args: [name.node, templateHash, pinned.cid],
+          value: 0n,
+          chainId: robinhoodChain.id,
+        });
+        await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
+      }
 
       // ── 4. Tell the gateway to keep it. Retried, because isPaid cannot see the
       //       payment until it is mined and a wallet returns before that. ───────
