@@ -27,6 +27,7 @@ and app through the ENS Universal Resolver.
 | `HoodfiL1Resolver` | Ethereum mainnet | [`0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2`](https://etherscan.io/address/0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2) (verified; live resolver for hoodfi.eth) |
 | `L2Registry` (hoodfi.eth) | Robinhood Chain | [`0xf2bABA012244bdD7445129597350054E1B3aEe5C`](https://robinhoodchain.blockscout.com/address/0xf2bABA012244bdD7445129597350054E1B3aEe5C) |
 | `HoodfiRegistrar` v2 | Robinhood Chain | [`0x56be5565acc823f4195c2cf3b9046C083633209a`](https://robinhoodchain.blockscout.com/address/0x56be5565acc823f4195c2cf3b9046C083633209a) |
+| `HoodfiSites` | Robinhood Chain | [`0x90517237F52caC977398CA1391b3B006bA028c99`](https://robinhoodchain.blockscout.com/address/0x90517237F52caC977398CA1391b3B006bA028c99) (the website builder's paywall) |
 | `L2RegistryFactory` | Robinhood Chain | `0x6bA501514244D42726b12Be9f19C13AA870692B1` |
 | USDG (Paxos stablecoin) | Robinhood Chain | `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` |
 | CCIP gateway | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/v1/{sender}/{data}.json` |
@@ -36,7 +37,9 @@ and app through the ENS Universal Resolver.
 | Per-name share page | Cloudflare Workers | `https://www.hoodfi.name/{label}` → `/n/{label}` (per-name OG tags) |
 | Per-name share card | Cloudflare Workers | `https://www.hoodfi.name/card/{label}.png` (generated 1200×630) |
 | Donation ledger | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/donations` |
+| Site publishing | Cloudflare Workers | `POST /site/{label}` → pin · `POST /site/{label}/confirm` → verify payment on chain |
 | Website | hosted + IPFS | `https://www.hoodfi.name` · `https://hoodfi.eth.limo` |
+| Website builder | hosted | `https://build.hoodfi.name` |
 
 **`hoodfi.name/{label}` is a real URL** — a `vercel.json` rewrite maps it to the
 gateway's share page, restricted to the `[a-z0-9-]{1,32}` charset the registrar
@@ -124,6 +127,93 @@ any 1–3 character name **free**:
    the owner then calls `openShorts()` (one-way) and short names go on public sale
    at tier prices. Credits still mint them free afterwards.
 
+### HoodFi Sites — turning a name into a website
+
+**[build.hoodfi.name](https://build.hoodfi.name)** is a second Vercel project from this
+same repo (root directory `builder/`). A name owner picks one of four templates, fills a
+form, and publishes; the site is pinned to IPFS and their own `contenthash` record serves
+it at `<label>.hoodfi.eth.link`. No hosting, no renewals, no account.
+
+**Prices are currently ZERO.** The paid path runs in full at zero — the same transaction,
+the same records, the same code — so what ships when prices go live is a path that has
+already been exercised rather than a branch nobody took. Turning it on is one `setPrices`
+call, no redeploy.
+
+#### The payment names the site
+
+`publish(node, templateId, cid)` records `paidFor[node][keccak(cid)]`, so **the receipt is
+the CID**:
+
+- **Single-use falls out of the shape.** One CID on one name is paid for exactly once; a
+  second attempt reverts `AlreadyPaid` rather than charging for a publish already owned.
+- **Anyone can verify it.** `isPaid(node, cid)` is a public read. The gateway pins when it
+  returns true — not as a favour it does, but as a fact it checks.
+- **Rebuilds are charged because the key includes the CID.** Any content change is a new
+  CID at the republish price. Byte-identical republishing is free, because there is
+  nothing new to pin.
+- **Publishing is resumable.** It reads `isPaid` before paying, so a run that fails after
+  the payment lands — a dropped connection, a closed laptop — is retried, not restarted.
+
+The alternative was a credit counter spent by a trusted "recorder", which would have
+meant giving the gateway a funded hot key purely to write down something the payer could
+state themselves. This way nothing holds a key and nothing has to be trusted to decrement.
+
+#### Publishing, step by step
+
+1. **Sign** — proves ownership so the gateway will pin for that name
+2. **Pin** — the site is pinned unpaid; this is what gives the payment a CID to name
+3. **Pay** — `publish(node, templateId, cid)`, in ETH or USDG
+4. **Confirm** — the gateway reads `isPaid` on chain
+5. **Link** — the owner writes `setContenthash` **themselves**
+
+Step 5 costs a second signature and is the point: this service never holds a key to
+anybody's name. Anything pinned and never paid for is swept after 24 hours by a nightly
+cron, because step 2 has to be free for someone to see their site before buying it.
+
+#### The templates
+
+Four self-contained HTML documents — `terminal`, `editorial`, `manifesto`, `product` —
+with their fonts embedded as base64. **A published site fetches nothing at view time.** A
+page that silently reflows into a system face years later because a font host moved is not
+the thing someone paid for. Faces are subsetted to Latin-1 + Latin Extended-A, 5–17KB
+each; template ids are `keccak256(slug)`, matching what the deploy script registered, so
+the code and the on-chain registry cannot drift apart without the publish reverting.
+
+Every field is attacker-controlled and the output is a permanent pin on a `hoodfi.eth`
+subdomain, so all text goes through HTML escaping and every URL through a scheme
+allowlist. `data:` is refused alongside `javascript:` — a data URL carrying HTML executes
+on the visitor's origin. There is no fixing a bad CID in the next deploy.
+
+### Partner templates — NFT projects earning from their holders
+
+A template can be supplied by an NFT project rather than by us. Its holders build on it,
+and the project earns **30% of every publish**, first sites and rebuilds alike.
+
+```solidity
+struct Template { address payee; address collection; uint16 shareBps; bool active; }
+```
+
+- **Holdership is checked on chain, in `publish()`.** The collections live on Robinhood
+  Chain — the same chain as the contract — so it is a plain `balanceOf`. No attestation to
+  sign, expire or forge. (An earlier design assumed mainnet collections and needed a
+  signed voucher; being on one chain deleted it.)
+- **Payouts are pull, not push.** Shares accrue to `owedEth` / `owedUsdg` and the payee
+  calls `withdraw()`. Paying on publish would let one partner with a reverting `receive()`
+  brick publishing for their entire community — and it would present as "the builder is
+  down". The treasury is just another payee, so one accounting path covers both.
+- **Templates are curated by hand.** `setTemplate` is owner-only, we accept
+  OpenSea-verified collections only, and every design is reviewed and built by us before
+  it goes live. Only our code ever emits the published HTML: a partner-supplied script
+  would be a wallet-drainer wearing a `hoodfi.eth` subdomain. `active` retires a template
+  instantly, with no redeploy.
+- **`shareBps` is capped at 50%** — not a business rule, a fat-finger guard. An input of
+  `100000` where `10000` was meant would otherwise pay ten times the price.
+
+Submissions are open at **[build.hoodfi.name/partner](https://build.hoodfi.name/partner)**.
+The form validates the collection address against Robinhood Chain as it is typed, and
+reports "couldn't reach the chain" separately from "not a valid collection" — a read that
+did not happen is not a read that returned no.
+
 ### Label rules
 
 `a–z`, `0–9`, hyphens (not leading/trailing), 1–32 characters onchain; public
@@ -191,6 +281,7 @@ Resolution design notes:
 | `contracts/src/hoodfi/HoodfiDonations.sol` | Mainnet donations + short-name credit ledger |
 | `contracts/src/hoodfi/HoodfiRegistrar.sol` | Robinhood Chain registrar: paid mints + voucher mints |
 | `contracts/src/hoodfi/HoodfiL1Resolver.sol` | Mainnet apex + wildcard resolver |
+| `contracts/src/hoodfi/HoodfiSites.sol` | The website builder's paywall: publishes keyed by CID, partner template registry, pull payouts |
 | `contracts/src/hoodfi/LabelUtils.sol` | Shared label validation (mirrored in `frontend/lib/labels.ts`) |
 | `contracts/scripts/hoodfi/` | Deploy scripts (donations / L2 stack / L1 resolver / `UpgradeRegistrar`) |
 | `contracts/test/hoodfi/` | Unit + mainnet-fork tests, including a full rehearsal of the registrar upgrade |
@@ -200,6 +291,7 @@ Resolution design notes:
 | `gateway/src/handlers/getVoucher.ts` | Reads `shortCredits` on L1, signs the voucher the registrar accepts |
 | `gateway/src/handlers/getSharePage.ts` · `getNameCard.ts` | Per-name OG tags, and the 1200×630 card they point at (satori) |
 | `gateway/src/handlers/getDonations.ts` | The donation ledger, read with the private archive RPC |
+| `gateway/src/handlers/postSite.ts` | Pins a rendered site on an owner signature, confirms it against `isPaid`, and sweeps unpaid pins nightly. Writes nothing back to Pinata — the chain already answers whether a site was paid for |
 | `gateway/src/handlers/postPartner.ts` | Partner enquiries → one email via Resend. Delivers only to the fixed `PARTNER_NOTIFY_TO`; a caller-chosen recipient would make a public endpoint an open relay |
 | `frontend/` | Next.js 16 static export → hosted + IPFS |
 | `frontend/app/mint/` · `app/manage/` · `app/search/` | Search-and-mint, record editing for names you own, and the public name lookup |
@@ -209,6 +301,14 @@ Resolution design notes:
 | `frontend/app/partner/` | Partner enquiries. Posts to the worker, since a static export has no server of its own; `AddressToName.tsx` makes the case by typing a 42-character address out and replacing it with a name |
 | `frontend/lib/resolution.ts` | Mainnet resolution check and the mint-date lookup, shared by both pages |
 | `frontend/vercel.json` | Rewrites `/{label}`, `/n/`, `/card/` onto the worker. Not `next.config` — `rewrites` there are unsupported under `output: export` |
+| `builder/` | **HoodFi Sites** — the website builder at build.hoodfi.name. A second Next.js static export from this repo; its own Vercel project with root directory `builder/` |
+| `builder/lib/templates/` | The four templates. One render function each, used for both the live preview and the pinned file — two renderers would let the preview disagree with what someone paid for |
+| `builder/lib/templates/html.ts` | Escaping and a URL scheme allowlist. Every field is attacker-controlled and the output is a permanent pin on a `hoodfi.eth` subdomain |
+| `builder/lib/templates/fonts.ts` | Subsetted woff2 faces as base64, so a published site fetches nothing at view time. Regenerate with `scripts/build-fonts.sh`; the output is committed |
+| `builder/lib/publish.ts` | The client half of the publish protocol. `sitePublishMessage` must match `gateway/src/handlers/postSite.ts` byte for byte |
+| `builder/components/PublishPanel.tsx` | Five named steps. A single spinner over two wallet prompts and a chain read is how somebody pays twice |
+| `builder/components/ConnectionGuard.tsx` | Detects a rehydrated WalletConnect connector stub by the method it is missing (`getChainId`); storage looks healthy in that state and is a dead end |
+| `builder/shared/` | Generated copy of `frontend/shared/` — Turbopack will not resolve a symlink out of the project root, so the codec is copied on `prebuild` |
 | `DEPLOY.md` | The v2 deploy runbook, in the order it must be run |
 
 ## Contract reference
@@ -248,6 +348,28 @@ Minting sets default forward addresses for ETH (coinType 60) and Robinhood Chain
 manage their own records directly on the L2Registry** (addr/text/contenthash) —
 no permission from the registrar needed.
 
+### `HoodfiSites` (Robinhood Chain)
+
+The website builder's paywall. Sells the right to have a site pinned; takes no authority
+over the name itself.
+
+| Function | Notes |
+|---|---|
+| `publish(bytes32 node, bytes32 templateId, string cid)` | Pay in ETH for one site on one name. Records `paidFor[node][keccak(cid)]`; excess refunded |
+| `publishWithUsdg(bytes32 node, bytes32 templateId, string cid)` | The same in USDG |
+| `isPaid(bytes32 node, string cid) → bool` | The gateway's entire authorisation check, and a plain read anyone can make |
+| `quote(node, templateId, buyer)` | Price in both currencies, eligibility, and how many sites the name has published |
+| `canUseTemplate(templateId, buyer) → bool` | Drives the picker; batched across templates through Multicall3 |
+| `withdraw()` | Pays out everything owed to the caller, both currencies. Pull, never push |
+| `setTemplate(id, payee, collection, shareBps, active)` | Owner only. `shareBps` capped at 5000 |
+| `setPrices(firstWei, republishWei, firstUsdg, republishUsdg)` | Owner only. All four launch at zero |
+
+Only the name's owner may publish on it — otherwise a stranger could flip a name onto the
+republish price permanently. Holdership for a gated template is checked with a low-level
+`staticcall`, not `try IERC721(...).balanceOf`: `try/catch` does not catch a return-data
+*decoding* failure, so a collection answering with empty data — or a mistyped address with
+no code — would blow past the guard and revert the publish.
+
 ### `HoodfiL1Resolver` (mainnet)
 
 ENSIP-10 `resolve(bytes,bytes)` routes apex queries to onchain storage
@@ -268,6 +390,11 @@ MAINNET_RPC_URL=https://ethereum-rpc.publicnode.com forge test --match-path "tes
 cd gateway && bun install && bunx tsc --noEmit
 SIGNER_PRIVATE_KEY=0x… L2_REGISTRY_ADDRESS=0x… bun src/index.ts   # terminal 1
 bun scripts/smoke.ts                                              # terminal 2
+
+# Builder (HoodFi Sites) — its own Next app, its own Vercel project
+cd builder && npm install && npm run build      # static export in out/
+node scripts/make-og.mjs http://localhost:8899  # OG cards, shot from the built pages
+bash scripts/build-fonts.sh                     # regenerate the subsetted faces
 
 # Frontend
 cd frontend && npm install && npm run dev
@@ -326,6 +453,9 @@ so nobody who donated loses anything by the sale opening.
 | Short-name credits | Earned onchain on L1 (`shortCredits`), readable by anyone. The gateway only *attests* that public value — it grants nothing a donation didn't already earn, and the registrar enforces spending on-chain. A compromised signer could mint short names, not touch existing ones. |
 | CCIP gateway | **Trusted-signer**: a malicious gateway could misreport records to L1 clients, but cannot touch L2 ownership. Signer is rotatable (`setSigner`); upgrade path to Arbitrum storage-proof verification with no ABI change. |
 | Registry admin | Can approve registrars (which can edit records, never seize names). Post-launch plan: move to a multisig; renouncing freezes the system permanently. |
+| Published sites | **Yours, and outlive us.** The site is a static bundle on IPFS and the pointer is a `contenthash` on a name you own — neither depends on this service. The CID is handed to you at publish time precisely so you can re-pin it anywhere. `HoodfiSites` records payment; it cannot write, move or remove your record. |
+| Site pinning | **Trusted for availability, nothing else.** We keep the pin alive; if we stop, the site stops resolving from our gateway but the CID stays valid and anyone can re-pin it. Unpaid pins are swept after 24 hours — paid ones never are, and the sweeper asks the chain rather than a flag we control. |
+| Partner templates | Curated by hand, OpenSea-verified collections only, and **only our code emits the published HTML**. A partner supplies a design, never markup or script — a partner-authored script would run on a `hoodfi.eth` subdomain. Any template can be switched off on-chain with no redeploy. |
 
 Known client limitation (inherited from ENS wildcard architecture): Trust
 Wallet's **non-ETH coin** send screen doesn't follow wildcard/CCIP resolution for
