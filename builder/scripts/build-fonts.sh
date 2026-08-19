@@ -27,6 +27,11 @@ SUBSET="${SUBSET:-pyftsubset}"
 # any uploaded image and is the difference between "José" rendering and not.
 #
 # U+221E (∞) is in the set because the Terminal template prints it as a literal value.
+#
+# U+25A0 (■) is deliberately NOT here and cannot be: not one of these four faces carries
+# it. Every ■ in a template was therefore being drawn by whatever fallback the device had,
+# which is what "some of the font is not pixelated" looked like on Terminal. The templates
+# draw their own square with a ::before box instead. Do not reintroduce the character.
 UNICODES="U+0020-007E,U+00A0,U+00B7,U+2013,U+2014,U+2018,U+2019,U+201C,U+201D,U+2022,U+2026,U+2192,U+00C0-00FF,U+0100-017F,U+20AC,U+2122,U+221E"
 
 echo "work dir: $WORK"
@@ -59,8 +64,10 @@ inst () { # out, src, axis...
 }
 
 # Archivo carries a wdth axis, which is why the Manifesto template needs no extra family:
-# its wide display type is this same face at the top of that axis.
-inst archivo-800-wide archivo.ttf wght=800 wdth=125
+# its wide display type is this same face at the top of that axis. The handoff specifies
+# 800; 600 is what ships, because at 132px the 800 was heavy enough to be the only thing
+# on the page and its wider advance made a long headline break mid-word sooner.
+inst archivo-600-wide archivo.ttf wght=600 wdth=125
 
 # Product asks for 800 on both headings and 700 on eyebrows and pills, so it needs three.
 inst manrope-400 manrope.ttf wght=400
@@ -84,6 +91,36 @@ sub silkscreen-400 silkscreen-regular.ttf
 sub silkscreen-700 silkscreen-bold.ttf
 
 sub departure-mono departure/DepartureMono-*/DepartureMono-Regular.otf
+
+# Emits a character -> advance table beside a face, in thousandths of an em.
+#
+# A template that has to size a headline to fit a column needs to know how wide the text
+# will be, and for a proportional face no single average will do: Archivo at wdth=125
+# runs from 0.35em on I to 1.19em on W, so a mean overshoots a narrow word and
+# undershoots a wide one. Guessing 0.66 is what left "GM.HOODFI.ETH" breaking after the
+# E. The table is generated from the same instance that ships, so the two cannot drift,
+# and it costs nothing on a published page — it is read at render time to compute one
+# number.
+emit_adv () { # const, file
+  "$PYBIN" - "$1" "_$2.ttf" >> "$OUT" <<'PYEOF'
+import sys
+from fontTools.ttLib import TTFont
+
+name, path = sys.argv[1], sys.argv[2]
+font = TTFont(path)
+upm = font["head"].unitsPerEm
+hmtx = font["hmtx"]
+cmap = font.getBestCmap()
+pairs = []
+for cp in range(0x20, 0x7F):
+    glyph = cmap.get(cp)
+    if glyph:
+        pairs.append("%d:%d" % (cp, round(hmtx[glyph][0] / upm * 1000)))
+print()
+print("/** %s advance widths, thousandths of an em, keyed by code point. GENERATED. */" % name)
+print("export const %s: Record<number, number> = {%s};" % (name, ",".join(pairs)))
+PYEOF
+}
 
 emit () { # const, file, comment
   local bytes
@@ -118,11 +155,15 @@ HEADER
 emit SILKSCREEN_400   silkscreen-400    "Silkscreen 400 — the whole Terminal template"
 emit SILKSCREEN_700   silkscreen-700    "Silkscreen 700 — Terminal's values and chips"
 emit BRICOLAGE_VAR    bricolage-var     "Bricolage Grotesque, variable: wght 400-600, opsz 12-96 — Editorial"
-emit ARCHIVO_800_WIDE archivo-800-wide  "Archivo 800 at wdth=125 — the Manifesto headline"
+emit ARCHIVO_600_WIDE archivo-600-wide  "Archivo 600 at wdth=125 — the Manifesto headline"
 emit MANROPE_400      manrope-400       "Manrope 400 — Product body text"
 emit MANROPE_700      manrope-700       "Manrope 700 — Product eyebrows and pills"
 emit MANROPE_800      manrope-800       "Manrope 800 — Product headings"
 emit DEPARTURE_MONO   departure-mono    "Departure Mono — Manifesto's meta and tagline"
+
+# Only the Manifesto headline needs to measure itself; Terminal is monospaced and
+# Editorial runs at a fixed size the handoff pins.
+emit_adv ARCHIVO_600_WIDE_ADV archivo-600-wide
 
 echo "subsetted:"
 ls -l ./*.woff2 | awk '{printf "  %-28s %6d B\n", $9, $5}'

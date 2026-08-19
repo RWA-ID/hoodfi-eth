@@ -1,6 +1,6 @@
-import { ARCHIVO_800_WIDE, DEPARTURE_MONO } from "./fonts.ts";
+import { ARCHIVO_600_WIDE, ARCHIVO_600_WIDE_ADV, DEPARTURE_MONO } from "./fonts.ts";
 import { ICON_CSS, keyed, sprite, type IconId } from "./icons.ts";
-import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, handle, paragraphs, safeImage, safeUrl, shortAddress } from "./html.ts";
+import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, fitSize, handle, paragraphs, safeImage, safeUrl, shortAddress } from "./html.ts";
 import { BUILDER_URL } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
@@ -37,6 +37,22 @@ function renderManifesto(data: SiteData): string {
   if (data.solAddress) cols.push({ id: "sol", k: "SOL", v: shortAddress(data.solAddress.trim()), copy: data.solAddress.trim() });
 
   const usedIcons = [...(cols.map((c) => c.id).filter(Boolean) as IconId[]), "rh" as IconId];
+
+  /*
+   * Headline size: the largest that fits the longest line on one row.
+   *
+   * 854px is what the middle column actually has at the 1180 max-width — 1180 less 80 of
+   * padding, less the 246 reserved for the portrait. The lines are the leading words on
+   * one row and the accent word plus its period on the next, and the text is uppercased
+   * by CSS, so that is the form to measure. 132 is the handoff's size and stays the
+   * ceiling; 46 is the floor, below which this stops being a poster.
+   */
+  const headLines = [words.slice(0, -1).join(" "), `${words[words.length - 1] ?? ""}.`]
+    .filter(Boolean)
+    .map((line) => line.toUpperCase());
+  const headSize = Math.min(
+    ...headLines.map((line) => fitSize(line, ARCHIVO_600_WIDE_ADV, 854, 132, 46, -0.035))
+  );
   const year = new Date().getUTCFullYear();
   const links = data.links.map((l) => ({ label: l.label.trim(), url: safeUrl(l.url) })).filter((l) => l.label && l.url);
 
@@ -53,7 +69,7 @@ function renderManifesto(data: SiteData): string {
 ${avatar ? `<meta property="og:image" content="${attr(avatar)}">` : ""}
 <meta name="twitter:card" content="summary_large_image">
 <style>
-@font-face{font-family:'ArchivoWide';src:url(data:font/woff2;base64,${ARCHIVO_800_WIDE}) format('woff2');font-weight:800;font-style:normal;font-display:swap}
+@font-face{font-family:'ArchivoWide';src:url(data:font/woff2;base64,${ARCHIVO_600_WIDE}) format('woff2');font-weight:600;font-style:normal;font-display:swap}
 @font-face{font-family:'DepartureMono';src:url(data:font/woff2;base64,${DEPARTURE_MONO}) format('woff2');font-weight:400;font-style:normal;font-display:swap}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
@@ -67,7 +83,11 @@ ${ICON_CSS}
 .top .id{color:#fff}
 .mid{flex:1;display:flex;flex-direction:column;justify-content:center;padding:48px 0;position:relative}
 .slash{font-size:11px;letter-spacing:.26em;color:#c6f702;text-transform:uppercase}
-h1{margin-top:30px;font-family:'ArchivoWide',system-ui,sans-serif;font-size:132px;font-weight:800;line-height:.9;letter-spacing:-.035em;text-transform:uppercase;overflow-wrap:anywhere}
+/* Size is computed per headline — see the note in the render function. The handoff's 132
+   is the ceiling, not a constant: a single long word at 132 broke mid-word, and no amount
+   of wrapping helps a word that does not fit. Weight is 600 rather than the handoff's 800
+   because at this size the 800 was the only thing on the page. */
+h1{margin-top:30px;font-family:'ArchivoWide',system-ui,sans-serif;font-weight:600;line-height:.9;letter-spacing:-.035em;text-transform:uppercase;overflow-wrap:anywhere}
 h1 .a{color:#c6f702;display:block}
 .tag{margin-top:40px;max-width:56ch;font-size:12.5px;line-height:1.9;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55)}
 .tag p+p{margin-top:16px}
@@ -103,7 +123,7 @@ button.v{background:none;border:0;color:inherit;font:inherit;cursor:pointer;text
   .grid{background-size:100% 48px,48px 100%}
   .top{flex-direction:column;gap:7px;font-size:9.5px;letter-spacing:.16em}
   .mid{padding:30px 0}
-  h1{font-size:52px;margin-top:20px}
+  h1{font-size:52px!important;margin-top:20px}
   .tag{margin-top:24px;font-size:11px;line-height:1.85;max-width:none}
   .face{width:112px;height:112px;margin-top:26px}
   .bot{flex-direction:column;align-items:flex-start;gap:18px;padding-top:18px}
@@ -124,7 +144,7 @@ ${sprite(usedIcons)}
 
   <div class="mid">
     <div class="slash">// ${data.tagline ? esc(data.tagline) : `${label}.hoodfi.eth`}</div>
-    <h1>${head ? `${head}<br>` : ""}<span class="a">${accent}.</span></h1>
+    <h1 style="font-size:${headSize}px">${head ? `${head}<br>` : ""}<span class="a">${accent}.</span></h1>
     ${data.bio ? `<div class="tag">${paragraphs(data.bio)}</div>` : ""}
     ${avatar ? `<div class="face"><img src="${attr(avatar)}" alt="${attr(raw)}"></div>` : ""}
     ${

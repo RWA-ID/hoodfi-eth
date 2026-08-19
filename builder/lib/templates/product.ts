@@ -236,8 +236,11 @@ footer a:hover{color:#2f6bff}
 ${sprite(usedIcons)}
 <div class="tpl">
 <div class="nav">
+  <!-- The name, not the headline. Every other template prints the name top-left, and
+       when the headline is left blank this was the one place the placeholder leaked into
+       the chrome. The headline belongs to the owner; the identity belongs here. -->
   <span class="brand">
-    <span class="d">${avatar ? `<img src="${attr(avatar)}" alt="">` : ""}</span>${name}
+    <span class="d">${avatar ? `<img src="${attr(avatar)}" alt="">` : ""}</span>${label}.hoodfi.eth
   </span>
   <span class="links">
     ${data.bio ? '<a href="#about">About</a>' : ""}

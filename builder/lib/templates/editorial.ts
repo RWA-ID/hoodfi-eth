@@ -70,7 +70,7 @@ function renderEditorial(data: SiteData): string {
     .map((word) => `<span>${esc(word)}</span>`)
     .join("");
 
-  const marquee = ["■ " + label + ".hoodfi.eth", "■ served from IPFS", "■ no renewals", "■ owned outright"];
+  const marquee = [label + ".hoodfi.eth", "served from IPFS", "no renewals", "owned outright"];
   const usedIcons = [...(rows.map((r) => r.id).filter(Boolean) as IconId[]), "rh" as IconId];
 
   return `<!doctype html>
@@ -113,6 +113,9 @@ h1 span{display:block}
 .marq{background:#0b0e08;color:#f1f1ea;font-size:11px;letter-spacing:.3em;text-transform:uppercase;padding:11px 0;white-space:nowrap;overflow:hidden}
 .marq .row{display:inline-block;animation:slide 30s linear infinite}
 .marq span{padding-right:40px}
+/* Drawn, not typed: U+25A0 is in none of the faces this project ships, so a literal ■
+   was always somebody's fallback font sitting in the middle of our own. */
+.marq i{display:inline-block;width:.5em;height:.5em;background:currentColor;margin-right:.7em}
 /* Eight copies, slid by one. The handoff says duplicate the run and translate -50%, which
    only fills the band while one copy out-measures the viewport — this one is about 850px,
    so on anything wider than a laptop the loop dragged a black gap across the screen. What
@@ -177,7 +180,7 @@ ${sprite(usedIcons)}
   </div>
 </div>
 
-<div class="marq"><div class="row">${Array.from({ length: 8 }, () => marquee).flat().map((m) => `<span>${esc(m)}</span>`).join("")}</div></div>
+<div class="marq"><div class="row">${Array.from({ length: 8 }, () => marquee).flat().map((m) => `<span><i></i>${esc(m)}</span>`).join("")}</div></div>
 
 ${
   data.bio

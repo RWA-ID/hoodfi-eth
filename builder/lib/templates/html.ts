@@ -114,6 +114,39 @@ export function handle(raw: string): string {
 }
 
 /** `0x1234…abcd`, for an address shown rather than read. */
+/**
+ * The largest whole-pixel font size at which `text` fits `available` px on one line.
+ *
+ * Templates set a headline from a field a stranger fills in, so no fixed size is safe:
+ * the handoff's own sizes are chosen for the handoff's own two-word example, and a real
+ * name broke mid-word under the portrait. Rather than let it wrap into nonsense, the size
+ * comes down until the longest word fits.
+ *
+ * `adv` is the face's own advance table in thousandths of an em, generated beside the
+ * font — see build-fonts.sh. A single average cannot stand in for it on a proportional
+ * face: Archivo at wdth=125 runs 0.35em to 1.19em per character.
+ *
+ * `tracking` is the template's letter-spacing in em, and it counts: -0.035em over
+ * fourteen characters is half a character back.
+ */
+export function fitSize(
+  text: string,
+  adv: Record<number, number>,
+  available: number,
+  max: number,
+  min: number,
+  tracking = 0
+): number {
+  const chars = [...text];
+  if (chars.length === 0) return max;
+  // 1000 for anything the table does not carry — wider than every glyph in it, so an
+  // accented character errs toward shrinking rather than toward overflowing.
+  let em = 0;
+  for (const ch of chars) em += (adv[ch.codePointAt(0) ?? 0] ?? 1000) / 1000 + tracking;
+  if (em <= 0) return max;
+  return Math.max(min, Math.min(max, Math.floor(available / em)));
+}
+
 export function shortAddress(value: string): string {
   const v = value.trim();
   if (v.length <= 14) return v;
