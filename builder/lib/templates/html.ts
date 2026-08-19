@@ -10,6 +10,15 @@
  * `safeUrl`. No exceptions, including for fields that "can only be a handle".
  */
 
+/**
+ * Where "Built with HoodFi Sites" goes.
+ *
+ * Every published site carries one link back. It is the only outbound reference we put
+ * on someone else's page, so it points at the builder rather than the marketing site —
+ * a visitor who likes the page is one click from making their own.
+ */
+export const BUILDER_URL = "https://build.hoodfi.name/";
+
 /** HTML text-node escaping. */
 export function esc(value: string): string {
   return value

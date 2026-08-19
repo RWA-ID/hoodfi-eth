@@ -1,6 +1,6 @@
 "use client";
 
-import type { SiteData, SiteLink } from "@/lib/templates/index.ts";
+import type { SiteData, SiteFact, SiteLink } from "@/lib/templates/index.ts";
 
 type Props = {
   data: SiteData;
@@ -19,6 +19,7 @@ const MAX = {
 } as const;
 
 const MAX_LINKS = 8;
+const MAX_FACTS = 3;
 
 function Field({
   label,
@@ -75,6 +76,17 @@ export function SiteForm({ data, onChange }: Props) {
 
   const removeLink = (i: number) =>
     onChange({ ...data, links: data.links.filter((_, idx) => idx !== i) });
+
+  const setFact = (i: number, patch: Partial<SiteFact>) =>
+    onChange({ ...data, facts: data.facts.map((f, idx) => (idx === i ? { ...f, ...patch } : f)) });
+
+  const addFact = () => {
+    if (data.facts.length >= MAX_FACTS) return;
+    onChange({ ...data, facts: [...data.facts, { label: "", value: "" }] });
+  };
+
+  const removeFact = (i: number) =>
+    onChange({ ...data, facts: data.facts.filter((_, idx) => idx !== i) });
 
   return (
     <div className="grid gap-7">
@@ -173,6 +185,59 @@ export function SiteForm({ data, onChange }: Props) {
             type="button"
           >
             {data.links.length >= MAX_LINKS ? `Maximum ${MAX_LINKS} links` : "Add a link"}
+          </button>
+        </div>
+      </Group>
+
+      <Group title="Figures">
+        <p className="text-[13.5px] leading-[1.6] text-[var(--dim)]">
+          Up to three short figures, shown as a row of large numbers on the Terminal and
+          Product templates. Anything worth stating plainly — years doing this, pieces
+          collected, projects shipped, where you are.
+        </p>
+        {data.facts.map((fact, i) => (
+          <div className="border border-[var(--line)] p-4" key={i}>
+            <div className="flex items-center justify-between gap-3">
+              <span className="data text-[10.5px] uppercase tracking-[0.18em] text-[var(--faint)]">
+                Figure {String(i + 1).padStart(2, "0")}
+              </span>
+              <button
+                aria-label={`Remove figure ${i + 1}`}
+                className="data cursor-pointer text-[11px] uppercase tracking-[0.14em] text-[var(--faint)] underline underline-offset-4 transition-colors hover:text-[var(--bad)]"
+                onClick={() => removeFact(i)}
+                type="button"
+              >
+                Remove
+              </button>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+              <input
+                aria-label={`Figure ${i + 1} value`}
+                className="input"
+                maxLength={12}
+                onChange={(e) => setFact(i, { value: e.target.value })}
+                placeholder="2019"
+                value={fact.value}
+              />
+              <input
+                aria-label={`Figure ${i + 1} label`}
+                className="input"
+                maxLength={20}
+                onChange={(e) => setFact(i, { label: e.target.value })}
+                placeholder="Collecting since"
+                value={fact.label}
+              />
+            </div>
+          </div>
+        ))}
+        <div>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={data.facts.length >= MAX_FACTS}
+            onClick={addFact}
+            type="button"
+          >
+            {data.facts.length >= MAX_FACTS ? `Maximum ${MAX_FACTS} figures` : "Add a figure"}
           </button>
         </div>
       </Group>

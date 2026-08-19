@@ -10,6 +10,7 @@ import {
   safeImage,
   safeUrl,
 } from "./html.ts";
+import { BUILDER_URL } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
 /**
@@ -154,6 +155,7 @@ section{padding-top:clamp(44px,7vw,64px)}
 .row .c{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(11,14,8,.4)}
 button.v{background:none;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;padding:0}
 footer{margin-top:clamp(48px,8vw,64px);background:#0b0e08;color:rgba(241,241,234,.8)}
+footer a:hover{color:var(--lime,#c6f702)}
 footer .shell{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;padding-top:26px;padding-bottom:34px;font-size:12px}
 </style>
 </head>

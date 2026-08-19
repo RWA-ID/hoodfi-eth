@@ -70,4 +70,4 @@ export function keyed(id: IconId, label: string): string {
 export const ICON_CSS =
   ".ic{width:1em;height:1em;fill:currentColor;flex:none;display:block}" +
   ".kk{display:inline-flex;align-items:center;gap:7px}" +
-  ".kk .ic{width:1.15em;height:1.15em;opacity:.85}";
+  ".kk .ic{width:1.4em;height:1.4em;opacity:.9}";

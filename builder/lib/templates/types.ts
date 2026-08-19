@@ -10,6 +10,19 @@ export type SiteLink = {
   url: string;
 };
 
+/**
+ * A short labelled figure, shown in the stat blocks.
+ *
+ * These used to be hardcoded product facts — expiry ∞, renewals $0, chain 4663 — which
+ * are true of every HoodFi name and therefore say nothing about the person whose site it
+ * is. Three cells of prime space describing the platform rather than the owner. They are
+ * the owner's to fill now.
+ */
+export type SiteFact = {
+  label: string;
+  value: string;
+};
+
 export type SiteData = {
   /** The HoodFi label, without the parent. The site's identity and its address. */
   label: string;
@@ -28,6 +41,8 @@ export type SiteData = {
   avatar: string;
 
   links: SiteLink[];
+  /** Up to three. Rendered where a template has stat cells. */
+  facts: SiteFact[];
 
   /** Handles, not URLs. The template builds the address so it can't be malformed. */
   x: string;
@@ -52,6 +67,7 @@ export const EMPTY_SITE: SiteData = {
   bio: "",
   avatar: "",
   links: [],
+  facts: [],
   x: "",
   github: "",
   telegram: "",

@@ -1,6 +1,7 @@
 import { MANROPE_400, MANROPE_700 } from "./fonts.ts";
 import { ICON_CSS, icon, sprite, type IconId } from "./icons.ts";
 import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, handle, paragraphs, safeImage, safeUrl, shortAddress } from "./html.ts";
+import { BUILDER_URL } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
 /**
@@ -89,6 +90,7 @@ function renderProduct(data: SiteData): string {
 
   const links = data.links.map((l) => ({ label: l.label.trim(), url: safeUrl(l.url) })).filter((l) => l.label && l.url);
   const primary = links[0];
+  const facts = data.facts.filter((f) => f.label.trim() && f.value.trim()).slice(0, 3);
   const usedIcons = [...(rows.map((r) => r.id).filter(Boolean) as IconId[]), "rh" as IconId, ...(opensea ? (["os"] as IconId[]) : [])];
 
   return `<!doctype html>
@@ -151,6 +153,7 @@ h2{margin-top:11px;font-size:clamp(26px,3.6vw,34px);font-weight:700;letter-spaci
 .row .v{color:#4a5568;min-width:0;word-break:break-all;text-align:right}
 button.v{background:none;border:0;font:inherit;cursor:pointer;color:#2f6bff;padding:0}
 footer{margin-top:clamp(40px,6vw,56px);background:#f6f8fc;border-top:1px solid #e4e9f2}
+footer a:hover{color:#2f6bff}
 footer .shell{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;padding-top:26px;padding-bottom:34px;font-size:14px;color:#8a94a6}
 </style>
 </head>
@@ -180,11 +183,15 @@ ${sprite(usedIcons)}
       <div class="t">${label}.hoodfi.eth</div>
       <div class="s">A lifetime name on Robinhood Chain, serving this site straight from IPFS.</div>
       <div class="chain">${icon("rh", "width:15px;height:15px")}Robinhood Chain · 4663</div>
-      <div class="stats">
-        <div><div class="n">∞</div><div class="l">Expiry</div></div>
-        <div><div class="n">$0</div><div class="l">Renewals</div></div>
-        <div><div class="n">4663</div><div class="l">Chain</div></div>
-      </div>
+      ${
+        facts.length
+          ? `<div class="stats">
+        ${facts
+          .map((f) => `<div><div class="n">${esc(f.value)}</div><div class="l">${esc(f.label)}</div></div>`)
+          .join("\n        ")}
+      </div>`
+          : ""
+      }
     </div>
   </div>
 
@@ -237,7 +244,7 @@ ${sprite(usedIcons)}
   }
 </div>
 
-<footer><div class="shell"><span>${label}.hoodfi.eth</span><span>Built with HoodFi Sites</span></div></footer>
+<footer><div class="shell"><span>${label}.hoodfi.eth</span><a href="${BUILDER_URL}" target="_blank" rel="noreferrer">Built with HoodFi Sites</a></div></footer>
 <script>${COPY_SCRIPT}
 ${ANCHOR_SCRIPT}</script>
 </body>

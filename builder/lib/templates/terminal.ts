@@ -11,6 +11,7 @@ import {
   safeUrl,
   shortAddress,
 } from "./html.ts";
+import { BUILDER_URL } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
 /**
@@ -51,6 +52,8 @@ function renderTerminal(data: SiteData): string {
   cells.push({ id: "rh", k: "CHAIN", v: "ROBINHOOD · 4663" });
 
   const usedIcons = cells.map((c) => c.id).filter(Boolean) as IconId[];
+
+  const facts = data.facts.filter((f) => f.label.trim() && f.value.trim()).slice(0, 3);
 
   const chips = [
     `<span class="tm-chip on">■ ${label}.HOODFI.ETH</span>`,
@@ -121,6 +124,7 @@ h1 .dim{color:rgba(198,247,2,.34)}
 .cell .v{margin-top:9px;font-size:14px;word-break:break-all;display:block}
 .cell a.v:hover{text-decoration:underline}
 button.v{background:none;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;padding:0}
+footer a:hover{text-decoration:underline}
 footer{border-top:1px solid rgba(198,247,2,.22);display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;font-size:10.5px;letter-spacing:.16em;color:rgba(198,247,2,.4);padding:20px 0 34px}
 </style>
 </head>
@@ -157,11 +161,15 @@ ${sprite(usedIcons)}
     }
   </div>
 
-  <div class="blk">
-    <div><div class="n">∞</div><div class="l">EXPIRY</div></div>
-    <div><div class="n">$0</div><div class="l">RENEWALS</div></div>
-    <div><div class="n">4663</div><div class="l">CHAIN</div></div>
-  </div>
+  ${
+    facts.length
+      ? `<div class="blk">
+    ${facts
+      .map((f) => `<div><div class="n">${esc(f.value)}</div><div class="l">${esc(f.label)}</div></div>`)
+      .join("\n    ")}
+  </div>`
+      : ""
+  }
 
   <div class="rule" id="links"><span>02 / LINKS + ADDRESSES</span><span>TAP TO COPY</span></div>
   <div class="grid">
@@ -178,7 +186,7 @@ ${sprite(usedIcons)}
       .join("\n    ")}
   </div>
 
-  <footer><span>${label}.HOODFI.ETH</span><span>BUILT WITH HOODFI SITES</span></footer>
+  <footer><span>${label}.HOODFI.ETH</span><a href="${BUILDER_URL}" target="_blank" rel="noreferrer">BUILT WITH HOODFI SITES</a></footer>
 </div>
 <script>${COPY_SCRIPT}
 ${ANCHOR_SCRIPT}</script>

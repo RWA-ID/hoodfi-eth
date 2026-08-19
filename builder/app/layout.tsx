@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import { SITE } from "@/lib/site";
+import { ogMetadata } from "@/lib/metadata";
 import "./globals.css";
 
 /* Same two families as the site, for the same reason: Archivo carries structure,
@@ -21,8 +22,12 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${SITE.name} — turn your name into a website`,
-  description: SITE.description,
+  ...ogMetadata({
+    title: "Your name is the site",
+    description: SITE.description,
+    path: "/",
+    image: "/og/default.png",
+  }),
   metadataBase: new URL(SITE.url),
 };
 

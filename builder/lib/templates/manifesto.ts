@@ -1,6 +1,7 @@
 import { ARCHIVO_800_WIDE, DEPARTURE_MONO } from "./fonts.ts";
 import { ICON_CSS, keyed, sprite, type IconId } from "./icons.ts";
 import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, handle, paragraphs, safeImage, safeUrl, shortAddress } from "./html.ts";
+import { BUILDER_URL } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
 /**
@@ -85,6 +86,7 @@ h1 .a{color:#c6f702;display:block}
 .col .v{margin-top:8px;font-size:13px;word-break:break-all}
 .col a:hover,.col button:hover{color:#c6f702}
 button.v{background:none;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;padding:0}
+.pg:hover{color:#c6f702}
 .pg{font-size:11px;letter-spacing:.2em;color:rgba(255,255,255,.34);white-space:nowrap}
 </style>
 </head>
@@ -127,7 +129,7 @@ ${sprite(usedIcons)}
         })
         .join("\n      ")}
     </div>
-    <div class="pg">${year} · 01 / 01</div>
+    <a class="pg" href="${BUILDER_URL}" target="_blank" rel="noreferrer">${year} · BUILT WITH HOODFI SITES</a>
   </div>
 </div>
 <script>${COPY_SCRIPT}

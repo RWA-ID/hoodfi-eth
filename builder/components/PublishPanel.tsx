@@ -77,6 +77,7 @@ export function PublishPanel({ name, templateId, html }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [cid, setCid] = useState<string | null>(null);
   const [needsReset, setNeedsReset] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const configured = Boolean(SITES_ADDRESS && L2_REGISTRY_ADDRESS);
 
@@ -263,12 +264,47 @@ export function PublishPanel({ name, templateId, html }: Props) {
         >
           Open it <ArrowNE />
         </a>
-        <p className="mt-4 break-all text-[12px] leading-[1.6] text-[var(--faint)]">
-          <span className="data">ipfs://{cid}</span>
-        </p>
-        <p className="mt-3 text-[13px] leading-[1.6] text-[var(--faint)]">
-          Gateways cache aggressively, so the first load can take a minute. Nothing else
-          is needed from you — the record is written.
+
+        {/*
+          The CID, offered to be kept.
+          
+          This is the one piece of the transaction that is not recoverable from anywhere
+          we control: it is the address of their site on IPFS, it is what their name
+          points at, and it is what lets them re-pin the site elsewhere if this service
+          ever stops existing. That last part is the actual promise being made — "you own
+          this" is only true if they hold the thing they own.
+        */}
+        <div className="mt-6 border border-[var(--line-card)] p-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="label">Your site&rsquo;s address on IPFS</span>
+            <button
+              className="data cursor-pointer text-[11px] uppercase tracking-[0.14em] text-[var(--lime)] underline underline-offset-4"
+              onClick={() => {
+                if (!cid) return;
+                navigator.clipboard?.writeText(cid).then(
+                  () => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1600);
+                  },
+                  () => {}
+                );
+              }}
+              type="button"
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <p className="data mt-3 break-all text-[12.5px] leading-[1.6] text-[var(--fg)]">{cid}</p>
+          <p className="mt-3 text-[13px] leading-[1.6] text-[var(--dim)]">
+            <strong className="text-[var(--fg)]">Save this somewhere.</strong> It is the
+            permanent address of your site. With it you can pin the site yourself, or point
+            any name you own at it, without needing us at all.
+          </p>
+        </div>
+
+        <p className="mt-4 text-[13px] leading-[1.6] text-[var(--faint)]">
+          Gateways cache aggressively, so the first load can take a minute. Nothing else is
+          needed from you — the record is written.
         </p>
       </div>
     );
