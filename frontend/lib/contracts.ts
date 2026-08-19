@@ -25,6 +25,33 @@ export const USDC_ADDRESS = addressEnv(process.env.NEXT_PUBLIC_USDC_ADDRESS);
 export const L1_RESOLVER_ADDRESS =
   "0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2" as const;
 
+/**
+ * Chainlink ETH/USD on Robinhood Chain, as listed in Chainlink's own feed directory:
+ * https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json
+ *
+ * This is the **Standard Proxy**. Every feed here also has an **SVR Proxy** (Smart
+ * Value Recapture) in front of the same aggregator — for ETH/USD, 0x5058aDee…5b22,
+ * listed as `secondaryProxyAddress`. Both are real Chainlink feeds and they answer
+ * identically: same description, same decimals, same round data, differing only by
+ * phaseId, where the *higher* one is the SVR variant rather than the default. Nothing
+ * on-chain distinguishes them, so take the address from the directory and take the
+ * one under `proxyAddress`.
+ *
+ * Read for display only, never to price a mint. The registrar charges a fixed amount
+ * of ETH per tier, so this is what turns that amount into the dollar figure a buyer
+ * is actually about to spend.
+ *
+ * Note the feed implements only a subset of AggregatorV3 — decimals(),
+ * description(), latestRoundData() and getRoundData() answer; anything else reverts
+ * with empty returndata. (oraclePaused() lives on a stock *token*, not on a feed, and
+ * has nothing to do with the crypto feeds.) Do not add selectors here without probing
+ * them on-chain.
+ */
+export const ETH_USD_FEED = "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9" as const;
+
+/** ETH/USD's published heartbeat: Chainlink writes an answer at least this often. */
+export const ETH_USD_HEARTBEAT_SECONDS = 86_400;
+
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
 export const donationsAbi = [
@@ -213,6 +240,20 @@ export const registrarAbi = [
       { name: "weiPrice", type: "uint256" },
       { name: "usdcPrice", type: "uint256" },
     ],
+  },
+  {
+    type: "function",
+    name: "priceWei",
+    stateMutability: "view",
+    inputs: [{ name: "tier", type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "priceUsdc",
+    stateMutability: "view",
+    inputs: [{ name: "tier", type: "uint256" }],
+    outputs: [{ type: "uint256" }],
   },
   {
     type: "function",
@@ -450,5 +491,29 @@ export const erc20Abi = [
     stateMutability: "view",
     inputs: [{ name: "owner", type: "address" }],
     outputs: [{ type: "uint256" }],
+  },
+] as const;
+
+/** The subset of AggregatorV3 the Robinhood Chain feeds actually implement. */
+export const aggregatorV3Abi = [
+  {
+    type: "function",
+    name: "decimals",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint8" }],
+  },
+  {
+    type: "function",
+    name: "latestRoundData",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "roundId", type: "uint80" },
+      { name: "answer", type: "int256" },
+      { name: "startedAt", type: "uint256" },
+      { name: "updatedAt", type: "uint256" },
+      { name: "answeredInRound", type: "uint80" },
+    ],
   },
 ] as const;

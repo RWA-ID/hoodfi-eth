@@ -36,9 +36,19 @@ export function isShort(label: string): boolean {
 }
 
 /**
- * Public sale price per tier, in USD. Tiers 0–2 are 1–3 character names, which are not
- * on public sale until the 100-year goal is reached — so those three figures describe
- * what a short name *will* cost, not what anyone pays for one today. See CREDIT_USD.
+ * Public sale price per tier, in USD — and specifically the USDG price, which is the
+ * only leg the registrar charges to the cent. Mirrors HoodfiRegistrar.priceUsdc.
+ *
+ * The ETH leg is NOT this number. The contract stores a fixed quantity of ETH per
+ * tier, pinned by hand whenever prices are set, so it only equals the dollar figure
+ * on the day it was pinned and drifts from then on. Never render this as the price of
+ * an ETH mint: read priceWei from the registrar and convert it through the live feed
+ * (see lib/ethUsd.ts). Doing exactly that — printing $3 while charging 0.0016 ETH,
+ * which had quietly become $3.66 — is why this warning is here.
+ *
+ * Tiers 0–2 are 1–3 character names, which are not on public sale until the 100-year
+ * goal is reached, so those three figures describe what a short name *will* cost, not
+ * what anyone pays for one today. See CREDIT_USD.
  */
 export const TIER_USD = [15, 10, 5, 3];
 

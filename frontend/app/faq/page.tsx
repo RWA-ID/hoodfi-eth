@@ -23,7 +23,7 @@ const GROUPS: { heading: string; items: FaqItem[] }[] = [
       },
       {
         q: "How much does a name cost?",
-        a: "$3 for names of 4 or more characters, paid in ETH or USDG. Short names are premium: $5 for 3 characters, $10 for 2 and $15 for 1. Prices are one-time, for life.",
+        a: "$3 for names of 4 or more characters. Short names are premium: $5 for 3 characters, $10 for 2 and $15 for 1. Prices are one-time, for life. Those figures are exact when you pay in USDG. Paying in ETH costs a fixed amount of ETH per tier — set to match the dollar price and re-pegged as ETH moves — so it lands near the figure rather than on it. The mint panel shows both before you sign.",
       },
       {
         q: "Which names can I mint?",

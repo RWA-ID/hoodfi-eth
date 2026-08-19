@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useReadContract } from "wagmi";
+import { useReadContract, useReadContracts } from "wagmi";
 import { robinhoodChain } from "@/lib/chains";
 import { REGISTRAR_ADDRESS, registrarAbi } from "@/lib/contracts";
+import { useEthUsd, weiToUsd } from "@/lib/ethUsd";
+import { formatEth } from "@/lib/format";
 import { CREDIT_USD, TIER_USD, checkLabel } from "@/lib/labels";
 import { ArrowNE } from "./ArrowNE";
 import { useMintQuery } from "./MintQuery";
@@ -42,7 +44,41 @@ export function TierGrid() {
     query: { enabled: Boolean(REGISTRAR_ADDRESS) },
   });
 
+  /**
+   * The ETH leg of every tier, read from the registrar rather than derived from the
+   * dollar figure beside it. The contract stores a fixed amount of ETH per tier, so
+   * the two are only equal on the day the prices were last set — printing the dollar
+   * figure as though it were the ETH price is what made this card lie.
+   */
+  const { data: tierWei } = useReadContracts({
+    contracts: [0, 1, 2, 3].map((tier) => ({
+      address: REGISTRAR_ADDRESS,
+      abi: registrarAbi,
+      functionName: "priceWei",
+      args: [BigInt(tier)],
+      chainId: robinhoodChain.id,
+    })),
+    query: { enabled: Boolean(REGISTRAR_ADDRESS) },
+  });
+  const ethUsd = useEthUsd();
+
   const active = label ? Math.min(label.length, 4) - 1 : clicked;
+
+  /**
+   * The second line of an open tier: what the ETH leg costs, and what that is worth
+   * right now. Both halves degrade independently — no feed drops the dollar figure,
+   * no registrar read drops the line to the bare "+ gas" it can always honour. It
+   * stays one line in every one of those states, because the cards align on their
+   * bottom edge and a wrapped line floats the price above its neighbours.
+   */
+  function ethLine(i: number): string {
+    const wei = tierWei?.[i]?.result as bigint | undefined;
+    if (wei === undefined) return "or ETH at the live rate + gas";
+    const usd = weiToUsd(wei, ethUsd);
+    return usd
+      ? `or ${formatEth(wei, 4)} ETH ≈ ${usd} + gas`
+      : `or ${formatEth(wei, 4)} ETH + gas`;
+  }
 
   return (
     <>
@@ -94,12 +130,10 @@ export function TierGrid() {
                   ${TIER_USD[i]}
                 </span>
                 <span className="label mt-2 block">
-                  {open ? "public · open now" : "public price · locked"}
+                  {open ? "in USDG · open now" : "public price · locked"}
                 </span>
                 <span className="label mt-1 block" style={{ color: "var(--ink)" }}>
-                  {open
-                    ? `today: $${TIER_USD[i]} + gas`
-                    : `today: 1 credit · ~$${CREDIT_USD} + gas`}
+                  {open ? ethLine(i) : `today: 1 credit · ~$${CREDIT_USD} + gas`}
                 </span>
               </span>
             </button>

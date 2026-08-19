@@ -39,6 +39,7 @@ import {
   isShort,
   tierOf,
 } from "@/lib/labels";
+import { useEthUsd, weiToUsd } from "@/lib/ethUsd";
 import { formatEth } from "@/lib/format";
 import { VOUCHER_URL, nameShareUrl } from "@/lib/site";
 import { track } from "@/lib/analytics";
@@ -176,6 +177,7 @@ export function MintPanel({
 
   const weiPrice = price?.[0];
   const usdgPrice = price?.[1];
+  const ethUsd = useEthUsd();
 
   // Fetch the voucher for *any* short name, not just locked ones. Credits still mint
   // short names free after the goal opens them to public sale, so gating this on
@@ -300,7 +302,14 @@ export function MintPanel({
     }
   }, [query, check, enabled, settledStatus, creditsLeft, debouncedLabel]);
 
-  /** The big figure in the price block: what this name costs, once, for life. */
+  /**
+   * The big figure in the price block: what this name costs, once, for life.
+   *
+   * This is the USDG price, which the registrar charges to the cent. The ETH leg is a
+   * fixed quantity of ETH and drifts against it as ETH moves, so the line underneath
+   * carries the real number for anyone paying that way — this one stays put rather
+   * than twitching with every round of the price feed.
+   */
   const priceLabel = !debouncedLabel
     ? "—"
     : canMintWithCredit
@@ -316,11 +325,25 @@ export function MintPanel({
     ? "checking credits…"
     : method === "usdg"
     ? usdgPrice !== undefined
-      ? `${(Number(usdgPrice) / 1e6).toFixed(2)} USDG`
+      ? `${(Number(usdgPrice) / 1e6).toFixed(2)} USDG = exactly $${TIER_USD[tier]}`
       : "…"
     : weiPrice !== undefined
-    ? `${formatEth(weiPrice)} ETH`
+    ? ethPriceLine(weiPrice)
     : null;
+
+  /**
+   * The ETH leg spelled out. Without a trustworthy rate it shows the ETH amount
+   * alone, which is true at any price, rather than a dollar figure we cannot stand
+   * behind — a stale number here is the exact failure this line exists to prevent.
+   *
+   * Kept terse because the line it lands in truncates: at 360px — an ordinary phone —
+   * anything longer than roughly this ellipsises away the dollar figure, which is the
+   * only part worth showing. Measure at 320px before adding a word.
+   */
+  function ethPriceLine(wei: bigint): string {
+    const usd = weiToUsd(wei, ethUsd);
+    return usd ? `${formatEth(wei)} ETH ≈ ${usd}` : `${formatEth(wei)} ETH`;
+  }
 
   const lengthNote = debouncedLabel
     ? `${debouncedLabel.length} character${debouncedLabel.length === 1 ? "" : "s"}`
