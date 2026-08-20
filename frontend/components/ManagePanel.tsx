@@ -46,6 +46,7 @@ import { NameAvatar } from "./NameAvatar";
 import { ProfileCard, type L1State } from "./ProfileCard";
 import { readMintDate, resolveOnL1 } from "@/lib/resolution";
 import { nameShareUrl } from "@/lib/site";
+import { SUBNAME_SECTION_ID, SubnameCallout } from "./SubnameCallout";
 import { SubnameCreator } from "./SubnameCreator";
 import { TransferName } from "./TransferName";
 import { type OwnedName, useMyNames } from "./useMyNames";
@@ -484,13 +485,17 @@ function NameEditor({
             Share
           </ShareOnX>
         </div>
+
+        {/* Fills the column under the card. Without it this side ran out of content a
+            fifth of the way down and left a tall empty strip beside the records. */}
+        <SubnameCallout path={pathBelowRoot(name.name)} />
       </div>
 
       {/* Editor, laid out as the same ledger the lookup page renders read-only. */}
       <div className="w-full border border-[var(--line-card)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3.5 sm:px-5">
           <span className="label">Onchain records</span>
-          <span className="label">editing {name.label}</span>
+          <span className="label">editing {pathBelowRoot(name.name)}</span>
         </div>
 
         {/* Addresses first — they're what make the name actually resolve. */}
@@ -705,7 +710,7 @@ function NameEditor({
           column they stretched the row and left the card's column standing empty for
           most of the page. Nothing here is picked up by "Save changes"; each carries
           its own confirmation. */}
-      <div className="border border-[var(--line-card)]">
+      <div id={SUBNAME_SECTION_ID} className="border border-[var(--line-card)]">
         <SubnameCreator name={name} onCreated={onSaved} />
         <TransferName name={name} onTransferred={onSaved} />
       </div>
