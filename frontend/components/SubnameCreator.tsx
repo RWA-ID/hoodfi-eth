@@ -142,7 +142,10 @@ export function SubnameCreator({
   const busy = submitting || isPending || receipt.isLoading;
 
   return (
-    <div className="border-t border-[var(--line-card)]">
+    // No top border here: this is the first section inside the bordered box the editor
+    // wraps it in, and its own rule would double the line. TransferName keeps one,
+    // because it does need separating from this.
+    <div>
       <div className="px-4 pt-5 sm:px-5">
         <h4 className="h-sub">Create names under this one</h4>
         <p className="mt-2 max-w-[70ch] text-xs leading-relaxed text-[var(--faint)]">

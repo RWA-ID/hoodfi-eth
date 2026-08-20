@@ -23,7 +23,7 @@ import {
   nameUrl,
   type ContentHash,
 } from "@/shared/contenthash";
-import { MINT_STATUS, checkLabel, normalizeLabel } from "@/lib/labels";
+import { MINT_STATUS, checkNamePath, normalizeLabel } from "@/lib/labels";
 import { track } from "@/lib/analytics";
 import { ArrowNE } from "./ArrowNE";
 import { ProfileCard, useCopy, type CardName } from "./ProfileCard";
@@ -64,7 +64,15 @@ type Records = {
  */
 type Lookup =
   | { kind: "registered"; records: Records }
-  | { kind: "unregistered"; status: number };
+  | { kind: "unregistered"; status: number }
+  /**
+   * A nested name nobody has created — `crypto.gm` when `gm` exists but has no such
+   * child. Distinct from the unregistered case because the registrar has no say over
+   * it: names below the second level are created by the holder of their parent, at no
+   * price, and the mint page cannot produce one. Offering "Mint this name" here sends
+   * someone to a form that will never accept what they typed.
+   */
+  | { kind: "nested-missing"; parent: string };
 
 /** Why a name that nobody owns still can't be minted right now. */
 async function readMintStatus(label: string): Promise<number> {
@@ -89,7 +97,9 @@ async function readMintStatus(label: string): Promise<number> {
  * reading it directly means this page keeps working — and keeps telling the truth —
  * even when the CCIP gateway in front of it doesn't.
  */
-async function readRecords(label: string): Promise<Lookup> {
+async function readRecords(path: string): Promise<Lookup> {
+  const label = path;
+  const nested = path.includes(".");
   // Captured into a local so the narrowing survives into the closures below — a
   // narrowed *imported* binding widens again inside a callback.
   const registry = L2_REGISTRY_ADDRESS;
@@ -108,10 +118,14 @@ async function readRecords(label: string): Promise<Lookup> {
       args: [tokenId],
     });
   } catch {
-    return { kind: "unregistered", status: await readMintStatus(label) };
+    return nested
+      ? { kind: "nested-missing", parent: path.slice(path.indexOf(".") + 1) }
+      : { kind: "unregistered", status: await readMintStatus(label) };
   }
   if (!owner || owner === ZERO_ADDRESS) {
-    return { kind: "unregistered", status: await readMintStatus(label) };
+    return nested
+      ? { kind: "nested-missing", parent: path.slice(path.indexOf(".") + 1) }
+      : { kind: "unregistered", status: await readMintStatus(label) };
   }
 
   const text = (key: string) =>
@@ -316,6 +330,34 @@ function RecordsLedger({ records }: { records: Records }) {
   );
 }
 
+/**
+ * A name below the second level that nobody has created.
+ *
+ * Nothing here offers to mint it, because nothing can: names at this depth are created
+ * by whoever holds the name directly above, from their own manage page, and the
+ * registrar has no say over them at all. The useful answer is who to ask.
+ */
+function NestedMissingState({ name, parent }: { name: string; parent: string }) {
+  return (
+    <div className="w-full max-w-[760px] border border-[var(--line-card)] bg-[var(--paper-alt)] px-7 py-10 text-center">
+      <div className="label">Not created</div>
+      <div className="mt-3 break-all text-[clamp(26px,4.6vw,44px)] font-extrabold leading-[1.02] tracking-[-0.035em]">
+        {name}
+        <span className="text-[var(--faint)]">.hoodfi.eth</span>
+      </div>
+      <p className="mx-auto mt-4 max-w-[46ch] text-[15px] leading-relaxed text-[var(--dim)]">
+        Nobody has created this one yet. Names at this level aren&apos;t minted — they
+        are handed out by whoever owns{" "}
+        <span className="data">{parent}.hoodfi.eth</span>, free beyond gas, from their
+        manage page.
+      </p>
+      <Link href={`/search/?q=${encodeURIComponent(parent)}`} className="btn btn-ghost mt-7">
+        Look up {parent}.hoodfi.eth <ArrowNE />
+      </Link>
+    </div>
+  );
+}
+
 /** Registry says nobody owns it — but the registrar decides whether it can be had. */
 function UnregisteredState({ label, status }: { label: string; status: number }) {
   const blocked = status === MINT_STATUS.BLOCKED;
@@ -397,7 +439,9 @@ export function SearchPanel() {
 
   const lookup = useCallback(
     async (raw: string, opts: { scroll: boolean }) => {
-      const check = checkLabel(raw);
+      // A path, not a label: names nest, so `crypto.gm` is a name someone can look up
+      // and `checkLabel` would reject it for containing a dot.
+      const check = checkNamePath(raw);
       if (!check.ok) {
         setError(check.reason);
         setState("error");
@@ -410,15 +454,15 @@ export function SearchPanel() {
       setResult(null);
       setL1({ status: "idle" });
       setMintedOn(null);
-      setSubmitted(check.label);
-      track("name_searched", { method: String(check.label.length) });
+      setSubmitted(check.path);
+      track("name_searched", { method: String(check.depth) });
 
       try {
-        const found = await readRecords(check.label);
+        const found = await readRecords(check.path);
         setResult(found);
         setState("done");
         if (found.kind === "registered") {
-          void checkL1(check.label, found.records.evm);
+          void checkL1(check.path, found.records.evm);
           void readMintDate(found.records.tokenId).then(setMintedOn);
         }
         // Only for a search the user just made — scrolling on the ?q= hydration
@@ -551,6 +595,12 @@ export function SearchPanel() {
         {result?.kind === "unregistered" && (
           <div className="mt-8">
             <UnregisteredState label={submitted} status={result.status} />
+          </div>
+        )}
+
+        {result?.kind === "nested-missing" && (
+          <div className="mt-8">
+            <NestedMissingState name={submitted} parent={result.parent} />
           </div>
         )}
 

@@ -290,7 +290,7 @@ function NameEditor({
     const onChainEvm =
       evmRecord && evmRecord !== "0x" ? getAddress(evmRecord as Address) : "";
     setL1({ status: "checking" });
-    void resolveOnL1(name.label, onChainEvm).then((s) => {
+    void resolveOnL1(pathBelowRoot(name.name), onChainEvm).then((s) => {
       if (!cancelled) setL1(s);
     });
     return () => {
@@ -446,6 +446,7 @@ function NameEditor({
   const canSave = changeCount > 0 && !blocked && !busy;
 
   return (
+    <div className="flex flex-col gap-6">
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(330px,480px)_minmax(330px,1fr)]">
       {/* Live preview — driven by the draft, not the chain, so it shows what you are
           about to publish rather than what is already published. */}
@@ -696,9 +697,15 @@ function NameEditor({
           </p>
         </div>
 
-        {/* Both of these act on the name itself rather than its records, so they sit
-            below the save button with their own confirmations — nothing here is
-            picked up by "Save changes". */}
+      </div>
+      </div>
+
+      {/* Full width, outside the two-column grid on purpose. These act on the name
+          itself rather than its records, and they are tall — left inside the records
+          column they stretched the row and left the card's column standing empty for
+          most of the page. Nothing here is picked up by "Save changes"; each carries
+          its own confirmation. */}
+      <div className="border border-[var(--line-card)]">
         <SubnameCreator name={name} onCreated={onSaved} />
         <TransferName name={name} onTransferred={onSaved} />
       </div>

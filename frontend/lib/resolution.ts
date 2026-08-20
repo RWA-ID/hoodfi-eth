@@ -23,14 +23,19 @@ export type L1State =
  * A disagreement is worth surfacing rather than smoothing over: it means the CCIP path
  * is answering with something other than the record you can see, which is the one
  * failure the L2 read cannot detect on its own.
+ *
+ * `path` is everything below `hoodfi.eth` — `gm` for `gm.hoodfi.eth`, `crypto.gm` for
+ * `crypto.gm.hoodfi.eth`. Passing only the leftmost label asks about a different name:
+ * `crypto.gm.hoodfi.eth` was checked as `crypto.hoodfi.eth`, which nobody owns, so a
+ * name resolving perfectly well was reported to its owner as invisible to wallets.
  */
 export async function resolveOnL1(
-  label: string,
+  path: string,
   expected: string
 ): Promise<L1State> {
   try {
     const resolved = await publicClient.getEnsAddress({
-      name: `${label}.hoodfi.eth`,
+      name: `${path}.hoodfi.eth`,
     });
     if (!resolved) return { status: "empty" };
     const addr = getAddress(resolved);

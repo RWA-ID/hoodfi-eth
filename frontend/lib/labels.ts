@@ -25,6 +25,40 @@ export function checkLabel(input: string): LabelCheck {
   return { ok: true, label };
 }
 
+/** How deep a name may be looked up. Mirrors MAX_DEPTH in the gateway. */
+export const MAX_NAME_DEPTH = 5;
+
+export type PathCheck =
+  | { ok: true; path: string; depth: number }
+  | { ok: false; reason: string };
+
+/**
+ * Validates everything below `hoodfi.eth` — one label, or a dotted path.
+ *
+ * Names nest: the holder of `gm.hoodfi.eth` can create `crypto.gm.hoodfi.eth`, and
+ * that name is looked up by its whole path. `checkLabel` rejects the dot, so using it
+ * on a lookup told the owner of a perfectly good name that it contained illegal
+ * characters. Each segment still has to satisfy `checkLabel`, so nothing is admitted
+ * here that would have been refused at the top level.
+ */
+export function checkNamePath(input: string): PathCheck {
+  const raw = input.trim().toLowerCase().replace(/\.hoodfi\.eth$/, "").replace(/\.eth$/, "");
+  if (!raw) return { ok: false, reason: "Type a name" };
+
+  const segments = raw.split(".");
+  if (segments.length > MAX_NAME_DEPTH)
+    return { ok: false, reason: `At most ${MAX_NAME_DEPTH} levels` };
+
+  const clean: string[] = [];
+  for (const segment of segments) {
+    const check = checkLabel(segment);
+    if (!check.ok) return { ok: false, reason: check.reason };
+    clean.push(check.label);
+  }
+
+  return { ok: true, path: clean.join("."), depth: clean.length };
+}
+
 /** Tier index 0–3 (1 char, 2 chars, 3 chars, 4+). Mirrors LabelUtils.tierOf. */
 export function tierOf(label: string): number {
   return label.length >= 4 ? 3 : label.length - 1;
