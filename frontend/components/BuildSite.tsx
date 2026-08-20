@@ -62,7 +62,7 @@ export function BuildSite() {
             hoodfi sites · free while it is new
           </span>
           <h3 className="text-[clamp(24px,3vw,32px)] font-extrabold leading-[1.02] tracking-[-0.035em]">
-            Build yours in an afternoon.
+            Build yours in under 5 minutes.
           </h3>
         </div>
         {/* Ink fill: a lime button on a lime ground is a rectangle you cannot see. */}

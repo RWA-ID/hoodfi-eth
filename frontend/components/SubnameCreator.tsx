@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useReadContracts, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { robinhoodChain } from "@/lib/chains";
 import { L2_REGISTRY_ADDRESS, registryAbi } from "@/lib/contracts";
@@ -98,6 +98,51 @@ export function SubnameCreator({
   const [rows, setRows] = useState<SubnameDraft[]>([blankRow()]);
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  /**
+   * The rows scroll inside a card of fixed height rather than growing it.
+   *
+   * Every `Add another` used to lengthen this card, and because the primer rail beside
+   * it stretches to match, the whole right-hand column jumped down the page too — so
+   * adding a name moved everything you were looking at. The height is reserved instead:
+   * space for two rows and a glimpse of a third, which is both the scroll affordance
+   * and the reason the card doesn't sit half empty at one row.
+   *
+   * Only above the breakpoint. Stacked on a phone there is no rail to disturb, the rows
+   * are twice as tall, and a scrolling box inside a scrolling page is a trap.
+   */
+  const listRef = useRef<HTMLDivElement>(null);
+  const [added, setAdded] = useState<string | null>(null);
+
+  // Layout effect, not effect: the new row has to be brought into view in the same
+  // frame it is painted, or it appears below the fold of the box and then jumps.
+  useLayoutEffect(() => {
+    if (!added) return;
+    listRef.current?.scrollTo({
+      top: listRef.current.scrollHeight,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  }, [added]);
+
+  // Focus follows, one frame later — you pressed `add another name` because you have a
+  // name to type. Deliberately not in the layout effect above: focusing an element
+  // mid-scroll makes the browser scroll to it a second time, fighting the smooth one.
+  useEffect(() => {
+    if (!added) return;
+    const t = window.setTimeout(() => {
+      document.getElementById(`sub-label-${added}`)?.focus({ preventScroll: true });
+      setAdded(null);
+    }, 220);
+    return () => window.clearTimeout(t);
+  }, [added]);
+
+  function addRow() {
+    const row = blankRow();
+    setRows((prev) => [...prev, row]);
+    setAdded(row.id);
+  }
 
   const checks = useMemo(() => rows.map(checkSubnameRow), [rows]);
   const dupes = useMemo(() => duplicateLabels(checks), [checks]);
@@ -212,7 +257,10 @@ export function SubnameCreator({
         </p>
       </div>
 
-      <div className="flex flex-col gap-3.5">
+      <div
+        ref={listRef}
+        className="flex flex-col gap-3.5 min-[900px]:h-[300px] min-[900px]:overflow-y-auto min-[900px]:[scrollbar-gutter:stable]"
+      >
         {rows.map((row, i) => {
           const status = rowStatus(i);
           const preview = labelChecks[i].ok
@@ -221,7 +269,9 @@ export function SubnameCreator({
           return (
             <div
               key={row.id}
-              className="on-paper flex flex-col gap-3 px-[18px] py-4"
+              // `shrink-0` or the fixed-height list squashes its rows to fit instead of
+              // scrolling them — flex children shrink before a container overflows.
+              className="on-paper flex shrink-0 flex-col gap-3 px-[18px] py-4"
             >
               <div className="flex items-baseline justify-between gap-4">
                 <NamePreview full={preview} parent={name.name} />
@@ -287,16 +337,19 @@ export function SubnameCreator({
           );
         })}
 
-        {/* Dashed rather than boxed: adding a row is not a decision on the same footing
-            as signing for the batch, and a second solid button beside the lime one
-            would say it was. */}
+        {/* The last item in the scrolling list, not a control below it.
+            Reserving height leaves slack at one row wherever it is put; under the last
+            row the slack falls *beneath* this button, which reads as a list with room
+            to grow. Above it — the button pinned below the box — the same pixels read
+            as a hole between the row and the control. Adding a row scrolls the list to
+            the bottom, so it stays in view however many names are queued. */}
         <button
           type="button"
-          className="data w-full border border-dashed border-[rgba(241,241,234,0.35)] px-[18px] py-3.5 text-[12px] uppercase tracking-[0.14em] text-[rgba(241,241,234,0.75)] transition-colors hover:border-[var(--lime)] hover:text-[var(--lime)] disabled:opacity-40 disabled:hover:border-[rgba(241,241,234,0.35)] disabled:hover:text-[rgba(241,241,234,0.75)]"
+          className="data w-full shrink-0 border border-dashed border-[rgba(241,241,234,0.35)] px-[18px] py-3.5 text-[12px] uppercase tracking-[0.14em] text-[rgba(241,241,234,0.75)] transition-colors hover:border-[var(--lime)] hover:text-[var(--lime)] disabled:opacity-40 disabled:hover:border-[rgba(241,241,234,0.35)] disabled:hover:text-[rgba(241,241,234,0.75)]"
           disabled={rows.length >= MAX_ROWS}
-          onClick={() => setRows((prev) => [...prev, blankRow()])}
+          onClick={addRow}
         >
-          + add another name
+          {rows.length >= MAX_ROWS ? `${MAX_ROWS} is the limit` : "+ add another name"}
         </button>
       </div>
 
