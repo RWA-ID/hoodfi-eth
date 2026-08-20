@@ -296,7 +296,7 @@ function NameEditor({
     return () => {
       cancelled = true;
     };
-  }, [name.label, evmRecord]);
+  }, [name.name, evmRecord]);
 
   function set(key: string, value: string) {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -319,15 +319,19 @@ function NameEditor({
    */
   useEffect(() => {
     if (avatar.data === undefined) return;
-    const pending = readStashedAvatar(name.label);
+    // Keyed by the whole path. On the label alone, `crypto.hoodfi.eth` and
+    // `crypto.gm.hoodfi.eth` share one stash slot, so an avatar pinned for one would be
+    // re-applied to the other's form on the way back from the wallet.
+    const key = pathBelowRoot(name.name);
+    const pending = readStashedAvatar(key);
     if (!pending) return;
     if (pending === avatar.data) {
-      clearStashedAvatar(name.label);
+      clearStashedAvatar(key);
       return;
     }
     set("avatar", pending);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [avatar.data, name.label]);
+  }, [avatar.data, name.name]);
 
   async function ensureChain() {
     if (chainId !== robinhoodChain.id) {
@@ -607,7 +611,7 @@ function NameEditor({
                   Live at{" "}
                   <a
                     className="link"
-                    href={nameUrl(name.label)}
+                    href={nameUrl(pathBelowRoot(name.name))}
                     target="_blank"
                     rel="noreferrer noopener"
                   >
@@ -729,6 +733,11 @@ function NameCard({
   onSelect: () => void;
 }) {
   const avatar = useTextRecord(name.node, "avatar");
+  // The whole path below the root, not the leftmost label: the card draws this against
+  // a fixed `.hoodfi.eth` suffix, so `crypto.gm.hoodfi.eth` rendered from its label
+  // alone would read as `crypto.hoodfi.eth` — a different name, quite possibly one this
+  // wallet doesn't hold. Two nested names sharing a first label were indistinguishable.
+  const path = pathBelowRoot(name.name);
 
   return (
     <button
@@ -754,13 +763,17 @@ function NameCard({
       </span>
 
       <NameAvatar
-        label={name.label}
+        label={path}
         avatar={avatar.data ?? ""}
         className="h-12 w-12"
         textClassName="text-sm"
       />
-      <span className="data block max-w-full truncate text-sm font-semibold leading-tight">
-        {name.label}
+      {/* A nested path is longer than a label and the card is a fixed 168px, so it
+          wraps on the dot rather than truncating to the same first label the bug this
+          replaced already showed. `break-all` would split mid-label; this breaks at the
+          separator and keeps each label whole. */}
+      <span className="data block max-w-full text-sm font-semibold leading-tight [overflow-wrap:anywhere]">
+        {path}
       </span>
       <span className="data -mt-1.5 text-[10px] text-[var(--faint)]">.hoodfi.eth</span>
     </button>
