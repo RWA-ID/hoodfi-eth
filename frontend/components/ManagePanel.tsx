@@ -46,9 +46,8 @@ import { NameAvatar } from "./NameAvatar";
 import { ProfileCard, type L1State } from "./ProfileCard";
 import { readMintDate, resolveOnL1 } from "@/lib/resolution";
 import { nameShareUrl } from "@/lib/site";
-import { SUBNAME_SECTION_ID, SubnameCallout } from "./SubnameCallout";
-import { SubnameCreator } from "./SubnameCreator";
-import { TransferName } from "./TransferName";
+import { RecordsPrimer } from "./RecordsPrimer";
+import { SubnameSection } from "./SubnameSection";
 import { type OwnedName, useMyNames } from "./useMyNames";
 
 type Field = "addr" | "avatar" | "com.twitter" | "url" | "description";
@@ -488,7 +487,7 @@ function NameEditor({
 
         {/* Fills the column under the card. Without it this side ran out of content a
             fifth of the way down and left a tall empty strip beside the records. */}
-        <SubnameCallout path={pathBelowRoot(name.name)} />
+        <RecordsPrimer />
       </div>
 
       {/* Editor, laid out as the same ledger the lookup page renders read-only. */}
@@ -710,10 +709,7 @@ function NameEditor({
           column they stretched the row and left the card's column standing empty for
           most of the page. Nothing here is picked up by "Save changes"; each carries
           its own confirmation. */}
-      <div id={SUBNAME_SECTION_ID} className="border border-[var(--line-card)]">
-        <SubnameCreator name={name} onCreated={onSaved} />
-        <TransferName name={name} onTransferred={onSaved} />
-      </div>
+      <SubnameSection name={name} onChanged={onSaved} />
     </div>
   );
 }

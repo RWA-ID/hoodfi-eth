@@ -8,6 +8,7 @@ import { MintQueryProvider } from "@/components/MintQuery";
 import { StatBar } from "@/components/StatBar";
 import { Ticker } from "@/components/Ticker";
 import { TierGrid } from "@/components/TierGrid";
+import { BuildSite } from "@/components/BuildSite";
 import { IdentityCard } from "@/components/IdentityCard";
 import { FundTheCentury } from "@/components/FundTheCentury";
 import { ResolutionGrids } from "@/components/ResolutionGrids";
@@ -161,15 +162,23 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ── 03 — the drive that keeps the parent name alive. */}
+          {/* ── 03 — the record nobody knows they have, and the tool that fills it.
+              The builder is a deployment of its own and was reachable from nowhere on
+              this site, so a name's most interesting record went unused by default. */}
+          <section id="website" className="shell section">
+            <div className="eyebrow">03 / your website</div>
+            <BuildSite />
+          </section>
+
+          {/* ── 04 — the drive that keeps the parent name alive. */}
           <section id="short" className="shell section">
-            <div className="eyebrow">03 / short names</div>
+            <div className="eyebrow">04 / short names</div>
             <FundTheCentury />
           </section>
 
-          {/* ── 04 — the answer to "will anything I use recognise this?" */}
+          {/* ── 05 — the answer to "will anything I use recognise this?" */}
           <section id="resolves" className="shell section">
-            <div className="eyebrow">04 / resolution</div>
+            <div className="eyebrow">05 / resolution</div>
             <div className="duo mt-[18px] items-end">
               <h2 className="h-section m-0">Works where you already are.</h2>
               <p className="lede m-0 mb-2.5 max-w-[44ch]">
@@ -184,9 +193,9 @@ export default function Home() {
             </p>
           </section>
 
-          {/* ── 05 — every address, every guarantee, nothing taken on trust. */}
+          {/* ── 06 — every address, every guarantee, nothing taken on trust. */}
           <section id="verify" className="shell section">
-            <div className="eyebrow">05 / transparency</div>
+            <div className="eyebrow">06 / transparency</div>
             <div className="duo mt-[18px] items-end">
               <h2 className="h-section m-0">Verify everything.</h2>
               <p className="lede m-0 mb-2.5 max-w-[44ch]">
@@ -228,9 +237,9 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ── 06 — the six questions people actually arrive with. */}
+          {/* ── 07 — the six questions people actually arrive with. */}
           <section id="faq" className="shell section">
-            <div className="eyebrow">06 / questions</div>
+            <div className="eyebrow">07 / questions</div>
             <h2 className="h-section mt-[18px]">Answered plainly.</h2>
             <div className="mt-11">
               <FaqAccordion items={FAQ} />

@@ -30,7 +30,11 @@ export type TrackEvent =
   | "connect_opened"
   | "partner_submitted"
   | "subnames_created"
-  | "name_transferred";
+  | "name_transferred"
+  /* Handing off to HoodFi Sites, which is a separate deployment — this is the last
+     event we can see, so `from` is the only way to tell which of the three entry
+     points is actually feeding it. */
+  | "builder_opened";
 
 type Props = Record<string, string | number | boolean | undefined>;
 

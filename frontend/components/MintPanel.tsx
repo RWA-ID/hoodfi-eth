@@ -41,7 +41,7 @@ import {
 } from "@/lib/labels";
 import { useEthUsd, weiToUsd } from "@/lib/ethUsd";
 import { formatEth } from "@/lib/format";
-import { VOUCHER_URL, nameShareUrl } from "@/lib/site";
+import { BUILDER_URL, VOUCHER_URL, nameShareUrl } from "@/lib/site";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
 import { ArrowNE } from "./ArrowNE";
@@ -555,7 +555,7 @@ export function MintPanel({
         </h3>
         <p className="mt-3 max-w-[38ch] text-sm leading-relaxed text-[var(--dim)]">
           It&apos;s yours for life — no renewals, no expiry. Add an avatar, an address
-          and your links next.
+          and your links next, or give it a website.
         </p>
 
         <div className="mt-6 flex flex-col gap-2.5">
@@ -567,9 +567,23 @@ export function MintPanel({
           >
             Share on X
           </ShareOnX>
-          <Link href="/manage/" className="btn btn-ghost btn-lg w-full">
+          <Link href="/manage/" className="btn btn-ghost w-full">
             Set up your name
           </Link>
+          {/* The one moment an owner is guaranteed to be looking for a next step, and
+              until now the builder was reachable from nowhere on this site at all. Not
+              a Link: it's a separate deployment on its own origin, and this export also
+              runs from an IPFS gateway where a client-side route would resolve to
+              nothing. */}
+          <a
+            className="btn btn-ghost w-full"
+            href={BUILDER_URL}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => track("builder_opened", { from: "mint_success" })}
+          >
+            Build a website <ArrowNE />
+          </a>
         </div>
 
         {txHash && (

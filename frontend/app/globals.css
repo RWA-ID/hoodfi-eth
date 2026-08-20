@@ -86,6 +86,32 @@
   color: var(--ink);
 }
 
+/* Paper again, inside an ink panel.
+ *
+ * `.on-ink` re-points every role token at the on-ink alpha ramp, and those tokens
+ * inherit — so a paper-coloured card floating on an ink section (the subname rows)
+ * would draw its text with the ramp meant for a dark ground and come out invisible.
+ * This puts the paper ramp back for that subtree. It is deliberately the same list
+ * as `:root`: any role added there has to be added here too, or it leaks through. */
+.on-paper {
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --dim: rgba(11, 14, 8, 0.66);
+  --label: rgba(11, 14, 8, 0.55);
+  --faint: rgba(11, 14, 8, 0.45);
+  --line: rgba(11, 14, 8, 0.18);
+  --line-soft: rgba(11, 14, 8, 0.14);
+  --line-card: rgba(11, 14, 8, 0.2);
+  --hover-fill: rgba(11, 14, 8, 0.06);
+  --accent: var(--olive);
+  --ok: var(--olive);
+  --warn: #8a6a04;
+  --bad: #b03a1a;
+
+  background: var(--paper);
+  color: var(--ink);
+}
+
 /* Type roles must be declared on <body>, not :root — next/font puts
    --font-archivo/--font-mono on the body element, and a var() inside a custom
    property resolves against the element it's declared on. At :root those
@@ -508,6 +534,41 @@ a {
 }
 .on-ink .textarea:focus {
   border-color: var(--lime);
+}
+
+/* A field in a card that already draws the boundary — the subname rows.
+ *
+ * Same reason `.textarea` exists rather than `.input` plus utilities: every rule here
+ * is unlayered and outranks `border-0` and `h-auto`, so a `.input` in one of those
+ * rows keeps its box and its 48px slot no matter what the class list says.
+ *
+ * The size is a compromise the design can't make on its own: the spec asks for 14px,
+ * and iOS zooms the viewport on focus for anything under 16px — which on a phone
+ * throws the whole page sideways mid-typing. 16px on phones, the drawn size above. */
+.field-bare {
+  width: 100%;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-data), monospace;
+  font-size: 16px;
+  transition: border-color 0.15s ease;
+}
+@media (min-width: 640px) {
+  .field-bare {
+    font-size: 14px;
+  }
+}
+.field-bare:focus {
+  outline: none;
+  border-bottom-color: var(--fg);
+}
+.field-bare::placeholder {
+  color: var(--faint);
 }
 
 /* ── status colors ── */

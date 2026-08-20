@@ -90,18 +90,34 @@ export function TransferName({
     }
   }
 
+  // Collapsed, this is a quiet strip of its own beneath the subname card rather than a
+  // row inside it. The two do opposite things — one hands out names below yours, the
+  // other hands away the name itself — and sharing a box made the irreversible one look
+  // like the last option in a list of ways to give a name to someone.
   if (!open) {
     return (
-      <div className="border-t border-[var(--line-card)] px-4 py-4 sm:px-5">
-        <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>
-          Send this name to another wallet
+      <div className="shadow-card flex flex-col items-start justify-between gap-4 border border-[var(--line-card)] bg-[var(--paper)] px-5 py-[18px] sm:flex-row sm:items-center sm:gap-5">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-[15px] font-bold tracking-[-0.02em]">
+            Send this name to another wallet
+          </span>
+          <span className="data break-words text-[11px] text-[rgba(11,14,8,0.5)]">
+            moves {name.name} itself · irreversible
+          </span>
+        </div>
+        <button
+          type="button"
+          className="btn btn-ghost w-full flex-none px-[18px] text-[13.5px] sm:w-auto"
+          onClick={() => setOpen(true)}
+        >
+          Transfer
         </button>
       </div>
     );
   }
 
   return (
-    <div className="border-t border-[var(--line-card)]">
+    <div className="shadow-card border border-[var(--line-card)] bg-[var(--paper)]">
       <div className="px-4 pt-5 sm:px-5">
         <h4 className="h-sub">Send this name</h4>
         <p className="mt-2 max-w-[70ch] text-xs leading-relaxed text-[var(--faint)]">

@@ -90,6 +90,17 @@ export const MCP_URL =
   process.env.NEXT_PUBLIC_MCP_URL ?? "https://hoodfi-mcp.dmpay.workers.dev/mcp";
 
 /**
+ * HoodFi Sites — the website builder, which is a deployment of its own.
+ *
+ * Not a route on this site and never will be: it builds and pins a whole static site
+ * per name, so it lives at its own origin. Every link to it is therefore absolute and
+ * external, and has to work identically from the IPFS export and the hosted domain —
+ * which is why it is a constant here rather than a string typed into four components.
+ */
+export const BUILDER_URL =
+  process.env.NEXT_PUBLIC_BUILDER_URL ?? "https://build.hoodfi.name";
+
+/**
  * Gateway route serving the donation ledger.
  *
  * Read server-side because a wide `eth_getLogs` needs an archive-capable RPC, and any

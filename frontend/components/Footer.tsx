@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowNE } from "./ArrowNE";
+import { BUILDER_URL } from "@/lib/site";
 
 type FooterLink = { href: string; label: string; external?: boolean };
 
@@ -10,6 +11,9 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { href: "/mint/", label: "Mint" },
       { href: "/manage/", label: "Manage records" },
       { href: "/search/", label: "Search a name" },
+      // Its own deployment, so external — but a product link, not a "learn" one: it is
+      // the second thing you do with a name, after pointing it at a wallet.
+      { href: BUILDER_URL, label: "Build a website", external: true },
       { href: "/short-names/", label: "Short names" },
     ],
   },
