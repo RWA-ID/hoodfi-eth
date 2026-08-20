@@ -441,6 +441,52 @@ export const registryAbi = [
     inputs: [{ name: "data", type: "bytes[]" }],
     outputs: [{ type: "bytes[]" }],
   },
+  /**
+   * Creates a child of `node`. Guarded by `onlyOwnerOrRegistrar(node)`, so the holder
+   * of any name can create names beneath it — the registry keys on namehash, not
+   * labelhash, so this works at any depth and needs no registrar.
+   *
+   * `data` runs through the resolver AFTER the token is minted, and the setters check
+   * that the *caller* owns the subnode. Minting to someone else and setting their
+   * records in the same call therefore reverts with empty returndata. See
+   * buildGiftCalls() in lib/subnames.ts for the way round it.
+   */
+  {
+    type: "function",
+    name: "createSubnode",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "node", type: "bytes32" },
+      { name: "label", type: "string" },
+      { name: "owner", type: "address" },
+      { name: "data", type: "bytes[]" },
+    ],
+    outputs: [{ type: "bytes32" }],
+  },
+  /**
+   * The non-reverting owner getter. `ownerOf` reverts for a token that was never
+   * minted, which is the normal case when checking whether a label is free — this
+   * returns the zero address instead, so availability needs no try/catch that could
+   * confuse an unregistered name with an unreachable RPC.
+   */
+  {
+    type: "function",
+    name: "owner",
+    stateMutability: "view",
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ type: "address" }],
+  },
+  {
+    type: "function",
+    name: "transferFrom",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "from", type: "address" },
+      { name: "to", type: "address" },
+      { name: "tokenId", type: "uint256" },
+    ],
+    outputs: [],
+  },
   {
     type: "function",
     name: "setText",

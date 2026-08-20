@@ -100,6 +100,19 @@ export function labelFromName(name: string): string {
 }
 
 /**
+ * Everything below `hoodfi.eth` — `jack` for `jack.hoodfi.eth`, `jack.aaron` for
+ * `jack.aaron.hoodfi.eth`.
+ *
+ * Anywhere a name is addressed by its label rather than its node, this is what has to
+ * be sent. `labelFromName` returns only the leftmost segment, which for a nested name
+ * identifies a *different* name — `jack.aaron.hoodfi.eth` would be addressed as
+ * `jack.hoodfi.eth`, quite possibly somebody else's.
+ */
+export function pathBelowRoot(name: string): string {
+  return name.replace(/\.hoodfi\.eth$/, "");
+}
+
+/**
  * Our own Pinata gateway — the one the uploader pins to. It serves a CID the moment
  * the upload completes, because it is the account holding the pin rather than a
  * stranger that has to find the bytes on the network first.

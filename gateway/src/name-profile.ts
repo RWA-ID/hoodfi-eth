@@ -54,13 +54,37 @@ export type NameProfile = {
   twitter: string
 }
 
-/** Only a–z, 0–9 and hyphens are mintable, so anything else can't name a real token. */
+/**
+ * The part of a name below `hoodfi.eth`, validated — `jack` for `jack.hoodfi.eth`, and
+ * `jack.aaron` for `jack.aaron.hoodfi.eth`.
+ *
+ * Returns a path rather than a single label because names nest: the holder of
+ * `aaron.hoodfi.eth` can create `jack.aaron.hoodfi.eth`, and that name deserves a card
+ * and an avatar like any other. Every caller appends `.hoodfi.eth` to what comes back,
+ * so returning the whole path keeps each of them correct at any depth without knowing
+ * depth exists.
+ *
+ * Each segment is held to the same charset the registrar enforces at the top level.
+ * That matters more here than there: `createSubnode` checks only that a label is 1–255
+ * bytes, so a subname can be created with characters no client will render the same
+ * way. Those names resolve, but they are not ones we will draw a card for.
+ */
+const MAX_DEPTH = 5
+
 export function normalizeLabel(raw: string): string | null {
-  const label = raw.trim().toLowerCase().replace(/\.hoodfi\.eth$/, '').replace(/\.eth$/, '')
-  if (!label || label.length > 32) return null
-  if (!/^[a-z0-9-]+$/.test(label)) return null
-  if (label.startsWith('-') || label.endsWith('-')) return null
-  return label
+  const path = raw.trim().toLowerCase().replace(/\.hoodfi\.eth$/, '').replace(/\.eth$/, '')
+  if (!path) return null
+
+  const segments = path.split('.')
+  if (segments.length > MAX_DEPTH) return null
+
+  for (const segment of segments) {
+    if (!segment || segment.length > 32) return null
+    if (!/^[a-z0-9-]+$/.test(segment)) return null
+    if (segment.startsWith('-') || segment.endsWith('-')) return null
+  }
+
+  return segments.join('.')
 }
 
 /**
@@ -68,13 +92,17 @@ export function normalizeLabel(raw: string): string | null {
  *
  * Shared by the share page and the card renderer so a link and the image it embeds
  * can never disagree about what a name says.
+ *
+ * `path` is whatever `normalizeLabel` returned — one label for a second-level name,
+ * a dotted path for anything deeper. Namehash walks the labels either way, so nothing
+ * below this line cares which it got.
  */
 export async function readNameProfile(
-  label: string,
+  path: string,
   env: Env
 ): Promise<NameProfile | null> {
   const registry = envVar('L2_REGISTRY_ADDRESS', env)
-  const name = `${label}.hoodfi.eth`
+  const name = `${path}.hoodfi.eth`
   const node = namehash(name)
   const client = robinhoodClient(env)
 
@@ -116,7 +144,10 @@ export async function readNameProfile(
   ])
 
   return {
-    label,
+    // Everything below `hoodfi.eth`, which the card renders against its own fixed
+    // suffix — so a nested name draws as `jack.aaron` + `.hoodfi.eth` and its layout
+    // is sized from the whole path, not from one label of it.
+    label: path,
     name,
     owner: getAddress(owner as Hex),
     address: addrBytes && addrBytes !== '0x' ? getAddress(addrBytes as Hex) : '',

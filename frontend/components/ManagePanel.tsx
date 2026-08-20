@@ -26,6 +26,7 @@ import {
   decodeChainAddress,
   encodeChainAddress,
   normalizeXHandle,
+  pathBelowRoot,
 } from "@/lib/ens";
 import {
   contentGatewayUrl,
@@ -45,6 +46,8 @@ import { NameAvatar } from "./NameAvatar";
 import { ProfileCard, type L1State } from "./ProfileCard";
 import { readMintDate, resolveOnL1 } from "@/lib/resolution";
 import { nameShareUrl } from "@/lib/site";
+import { SubnameCreator } from "./SubnameCreator";
+import { TransferName } from "./TransferName";
 import { type OwnedName, useMyNames } from "./useMyNames";
 
 type Field = "addr" | "avatar" | "com.twitter" | "url" | "description";
@@ -449,7 +452,10 @@ function NameEditor({
       <div className="flex flex-col gap-3">
         <ProfileCard
           name={{
-            label: name.label,
+            // The card draws this against a fixed `.hoodfi.eth` suffix and builds the
+            // share link from it, so a nested name has to arrive as its whole path or
+            // it would both render and link as somebody else's name.
+            label: pathBelowRoot(name.name),
             node: name.node,
             avatar: draft.avatar ?? "",
             description: draft.description ?? "",
@@ -469,8 +475,8 @@ function NameEditor({
             View NFT
           </a>
           <ShareOnX
-            text={`${name.label}.hoodfi.eth is mine — a lifetime ENS name on Robinhood Chain.\n\nGet yours:`}
-            url={nameShareUrl(name.label)}
+            text={`${name.name} is mine — a lifetime ENS name on Robinhood Chain.\n\nGet yours:`}
+            url={nameShareUrl(pathBelowRoot(name.name))}
             className="btn btn-ghost min-w-[150px] flex-1"
             eventLabel="manage"
           >
@@ -547,9 +553,12 @@ function NameEditor({
               {field.help && (
                 <p className="mt-1.5 text-xs text-[var(--faint)]">{field.help}</p>
               )}
+              {/* The path, not the label: the uploader signs a message naming the name
+                  and the gateway checks who owns it, so a nested name sent as its
+                  leftmost label alone would be authorised against a different name. */}
               {field.key === "avatar" && (
                 <AvatarUpload
-                  label={name.label}
+                  label={pathBelowRoot(name.name)}
                   onUploaded={(uri) => set("avatar", uri)}
                 />
               )}
@@ -597,7 +606,7 @@ function NameEditor({
                     target="_blank"
                     rel="noreferrer noopener"
                   >
-                    {name.label}.hoodfi.eth.link <ArrowNE />
+                    {name.name}.link <ArrowNE />
                   </a>{" "}
                   and from{" "}
                   <a
@@ -612,7 +621,7 @@ function NameEditor({
                 </p>
               ) : (
                 <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
-                  Saving points {name.label}.hoodfi.eth at this content.{" "}
+                  Saving points {name.name} at this content.{" "}
                   <a
                     className="link"
                     href={contentGatewayUrl(contentDraft)}
@@ -676,7 +685,7 @@ function NameEditor({
             <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
               Your website record is live onchain. Give lookups up to five minutes to
               stop serving the previous answer, and the first visit to{" "}
-              <span className="data">{name.label}.hoodfi.eth.link</span> a moment to
+              <span className="data">{name.name}.link</span> a moment to
               get its certificate — the content itself is already reachable from the
               gateway link above.
             </p>
@@ -686,6 +695,12 @@ function NameEditor({
             the owner — these writes go straight to the registry, not through us.
           </p>
         </div>
+
+        {/* Both of these act on the name itself rather than its records, so they sit
+            below the save button with their own confirmations — nothing here is
+            picked up by "Save changes". */}
+        <SubnameCreator name={name} onCreated={onSaved} />
+        <TransferName name={name} onTransferred={onSaved} />
       </div>
     </div>
   );
