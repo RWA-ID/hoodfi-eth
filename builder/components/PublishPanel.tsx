@@ -84,6 +84,14 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
   const [cid, setCid] = useState<string | null>(null);
+  /**
+   * What this panel actually put on chain, and the exact bytes it was.
+   *
+   * Kept so the finished state can be checked against the editor rather than trusted:
+   * a success screen that outlives the content it describes is the same lie as one that
+   * outlives the name it describes.
+   */
+  const [published, setPublished] = useState<{ html: string; cid: string } | null>(null);
   const [needsReset, setNeedsReset] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -246,6 +254,7 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       });
       await client.waitForTransactionReceipt({ hash: linkHash, timeout: 180_000 });
 
+      setPublished({ html, cid: pinned.cid });
       setStep("done");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -276,6 +285,23 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       // Private mode; the reload below still helps more often than not.
     }
     window.location.reload();
+  }
+
+  /**
+   * Editing after publishing drops back to the publish button.
+   *
+   * The name still serves what was published, so leaving "Live." on screen over a site
+   * that has since been edited tells someone their changes are out there when nothing
+   * has been pinned or paid for. Publishing again is a new CID, a new payment and a new
+   * record — the button is the honest thing to show.
+   *
+   * Adjusted during render rather than in an effect, so the stale success screen is never
+   * painted. `html` is memoised on the editor's data and the templates are deterministic,
+   * which is the same property the resume path depends on, so this compares equal until
+   * something is actually typed.
+   */
+  if (step === "done" && published && published.html !== html) {
+    setStep("idle");
   }
 
   if (step === "done") {
@@ -340,14 +366,42 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
   }
 
   const busy = step !== "idle";
+  // Whether the editor currently differs from what is live. Not simply "has published
+  // once": editing away and back leaves the live site correct, and a notice saying
+  // otherwise would be telling someone to publish something already published.
+  const editedSincePublish = published !== null && published.html !== html;
 
   return (
     <div className="on-ink panel-ink shadow-hero border border-[var(--ink)] p-7">
       <span className="label">Publish</span>
       <p className="mt-4 max-w-[40ch] text-[15px] leading-[1.6] text-[var(--dim)]">
-        Two signatures: one to pay, one to point your name at the finished site. The
-        record is written by you, from your wallet — we never hold a key to your name.
+        Two signatures: one to pay, one to point your name at{" "}
+        {published ? "the new version" : "the finished site"}. The record is written by
+        you, from your wallet — we never hold a key to your name.
       </p>
+
+      {/* Only ever shown after this panel has published once and the site has since been
+          edited — the state the `done` check above drops out of. Says what is actually
+          live, so "publish again" reads as updating something rather than as a warning
+          that the last attempt failed. */}
+      {editedSincePublish ? (
+        <div className="mt-6 border border-[var(--line-card)] p-4">
+          <span className="label">Not yet live</span>
+          <p className="mt-2.5 text-[13.5px] leading-[1.6] text-[var(--dim)]">
+            <strong className="text-[var(--fg)]">You&rsquo;ve edited since publishing.</strong>{" "}
+            {name.path}.hoodfi.eth still serves the version you published — these changes
+            reach it when you publish again.
+          </p>
+          <a
+            className="btn btn-ghost btn-sm mt-4 w-full"
+            href={publishedUrl(name.path)}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Open the published version <ArrowNE />
+          </a>
+        </div>
+      ) : null}
 
       {blocked ? (
         <p className="mt-6 text-[14px] leading-[1.6] text-[var(--warn)]">{blocked}</p>
@@ -359,7 +413,7 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
         onClick={run}
         type="button"
       >
-        {busy ? LABELS[step] : "Publish this site"}
+        {busy ? LABELS[step] : published ? "Publish your changes" : "Publish this site"}
         {busy ? null : <ArrowNE />}
       </button>
 
