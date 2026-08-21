@@ -76,9 +76,13 @@ app.post('/partner', async (c) => postPartner(c.req.raw, c.env))
 // Publishing, in two phases. The site is pinned first — a CID cannot be paid for
 // before it exists — then confirmed against the chain once HoodfiSites says that exact
 // CID was paid for on that name. See the handler for why the receipt is the CID.
-app.post('/site/:label', async (c) => postSite(c.req.param('label'), c.req.raw, c.env))
-app.post('/site/:label/confirm', async (c) =>
-  postSiteConfirm(c.req.param('label'), c.req.raw, c.env)
+//
+// The parameter is the whole path below hoodfi.eth — `agent`, or `crypto.gm` for a
+// subname — not a single label. Dots inside one path segment, which Hono passes through
+// untouched.
+app.post('/site/:path', async (c) => postSite(c.req.param('path'), c.req.raw, c.env))
+app.post('/site/:path/confirm', async (c) =>
+  postSiteConfirm(c.req.param('path'), c.req.raw, c.env)
 )
 
 /**

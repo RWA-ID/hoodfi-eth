@@ -4,6 +4,7 @@ import { recoverMessageAddress } from 'viem/utils'
 
 import { type Env, envVar, envVarOptional } from '../env'
 import { robinhoodClient } from '../rpc'
+import { normalizeSitePath } from '../site-path'
 
 /**
  * Pinning a website for a name, and keeping it only if it was paid for.
@@ -50,10 +51,7 @@ function fail(message: string, status: number): Response {
   return Response.json({ message }, { status })
 }
 
-function normalizeLabel(raw: string): string {
-  const label = raw.trim().toLowerCase().replace(/\.hoodfi\.eth$/, '')
-  return /^[a-z0-9-]{1,63}$/.test(label) ? label : ''
-}
+
 
 /**
  * The exact text the owner signs.
@@ -95,9 +93,9 @@ async function ownerOfName(name: string, env: Env): Promise<string | null> {
  * open pinning service on our Pinata account, and the sweeper would spend its life
  * cleaning up after strangers.
  */
-export async function postSite(rawLabel: string, request: Request, env: Env): Promise<Response> {
-  const label = normalizeLabel(rawLabel)
-  if (!label) return fail('Invalid name', 400)
+export async function postSite(rawPath: string, request: Request, env: Env): Promise<Response> {
+  const path = normalizeSitePath(rawPath)
+  if (!path) return fail('Invalid name', 400)
 
   const jwt = envVarOptional('PINATA_JWT', env)
   if (!jwt) return fail('Publishing is not configured', 503)
@@ -116,7 +114,7 @@ export async function postSite(rawLabel: string, request: Request, env: Env): Pr
     return fail(`Site is larger than ${Math.floor(MAX_BYTES / 1024)}KB`, 413)
   }
 
-  const name = `${label}.hoodfi.eth`
+  const name = `${path}.hoodfi.eth`
   const message = sitePublishMessage(name, sha256(bytes), body.expiry)
 
   let signer: string
@@ -145,12 +143,14 @@ export async function postSite(rawLabel: string, request: Request, env: Env): Pr
   form.append(
     'pinataMetadata',
     JSON.stringify({
-      name: `hoodfi-site-${label}`,
+      name: `hoodfi-site-${path}`,
       keyvalues: {
         // `node` is what lets the sweeper ask the chain about this pin later. `paid` is
         // only a cheap pre-filter for the pinList query — the chain is what decides.
         node: namehash(name),
-        label,
+        // Informational only — the sweeper works off `node`, which is derived from the
+        // whole path, so a subname sweeps correctly whatever this says.
+        path,
         paid: 'false',
         template: typeof body.templateId === 'string' ? body.templateId.slice(0, 32) : '',
         pinnedAt: String(now),
@@ -188,12 +188,12 @@ type ConfirmBody = { cid?: string }
  * promote a pin the chain has already been paid for.
  */
 export async function postSiteConfirm(
-  rawLabel: string,
+  rawPath: string,
   request: Request,
   env: Env
 ): Promise<Response> {
-  const label = normalizeLabel(rawLabel)
-  if (!label) return fail('Invalid name', 400)
+  const path = normalizeSitePath(rawPath)
+  if (!path) return fail('Invalid name', 400)
 
   const jwt = envVarOptional('PINATA_JWT', env)
   if (!jwt) return fail('Publishing is not configured', 503)
@@ -207,7 +207,7 @@ export async function postSiteConfirm(
     return fail('Expected a JSON body with a valid cid', 400)
   }
 
-  const node = namehash(`${label}.hoodfi.eth`)
+  const node = namehash(`${path}.hoodfi.eth`)
 
   let paid: boolean
   try {

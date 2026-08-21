@@ -14,6 +14,7 @@ import { EMPTY_SITE, TEMPLATES_BY_ID, type SiteData, type TemplateId } from "@/l
 import { MINT_URL } from "@/lib/site";
 import { ArrowNE } from "@/components/ArrowNE";
 import { PublishPanel } from "@/components/PublishPanel";
+import { NamePicker } from "@/components/NamePicker";
 
 /**
  * The editor.
@@ -51,7 +52,10 @@ export default function BuildPage() {
     if (names.length === 0) return;
     if (!name) {
       const wanted = new URLSearchParams(window.location.search).get("name");
-      const match = wanted ? names.find((n) => n.label === wanted) : undefined;
+      // By path. On the label, `?name=crypto` matches BOTH crypto.hoodfi.eth and
+      // crypto.gm.hoodfi.eth and takes whichever sorted first — so the editor could open,
+      // and then charge for, a different name than the one that was clicked.
+      const match = wanted ? names.find((n) => n.path === wanted) : undefined;
       setName(match ?? names[0]);
       return;
     }
@@ -67,12 +71,12 @@ export default function BuildPage() {
     const draft = loadDraft(name.node);
     if (draft) {
       setTemplateId(draft.templateId);
-      setData({ ...draft.data, label: name.label });
+      setData({ ...draft.data, label: name.path });
       setEdited(draft.edited);
       setTouched(new Set(draft.touched ?? []));
       return;
     }
-    setData({ ...EMPTY_SITE, label: name.label });
+    setData({ ...EMPTY_SITE, label: name.path });
     setEdited(false);
     setTouched(new Set());
   }, [name]);
@@ -132,7 +136,7 @@ export default function BuildPage() {
     () =>
       template.render({
         ...data,
-        label: data.label || name?.label || "yourname",
+        label: data.label || name?.path || "yourname",
         displayName: data.displayName.trim() || "Your headline",
       }),
     [template, data, name]
@@ -152,7 +156,7 @@ export default function BuildPage() {
                 <h1 className="mt-3 text-[clamp(28px,4vw,44px)] font-extrabold leading-[0.95] tracking-[-0.04em]">
                   {name ? (
                     <>
-                      {name.label}
+                      {name.path}
                       <span className="opacity-45">.hoodfi.eth</span>
                     </>
                   ) : (
@@ -162,23 +166,16 @@ export default function BuildPage() {
               </div>
 
               {names.length > 1 ? (
-                <div className="flex flex-wrap gap-2">
-                  {names.map((n) => (
-                    <button
-                      aria-pressed={n.node === name?.node}
-                      className={`data cursor-pointer border px-3 py-2 text-[12.5px] transition-colors ${
-                        n.node === name?.node
-                          ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]"
-                          : "border-[var(--ink)] hover:bg-[var(--hover-fill)]"
-                      }`}
-                      key={n.node}
-                      onClick={() => setName(n)}
-                      type="button"
-                    >
-                      {n.label}
-                    </button>
-                  ))}
-                </div>
+                // Capped so a wallet holding many names cannot push the editor itself off
+                // the screen; the rows scroll inside it.
+                <NamePicker
+                  className="w-full max-w-[520px]"
+                  names={names}
+                  onSelect={setName}
+                  selectedNode={name?.node}
+                  suffix={false}
+                  tone="lime"
+                />
               ) : null}
             </div>
           </div>
@@ -241,7 +238,7 @@ export default function BuildPage() {
                   <SitePreview
                     html={html}
                     instantKey={templateId}
-                    label={data.label || name?.label || "yourname"}
+                    label={data.label || name?.path || "yourname"}
                   />
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <span className="data text-[11.5px] text-[var(--faint)]">

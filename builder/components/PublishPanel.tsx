@@ -138,19 +138,35 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       const bytes = new TextEncoder().encode(html);
       const expiry = Date.now() + SIGNATURE_LIFETIME_MS;
       const signature = await signMessageAsync({
-        message: sitePublishMessage(`${name.label}.hoodfi.eth`, sha256(bytes), expiry),
+        // The whole path. This string is the name as far as the gateway is concerned:
+        // it recovers the signer against it, pins under it, and later reads isPaid at its
+        // namehash. Signing the leftmost label instead authorised a different name and
+        // stranded the payment — see `pathBelowRoot`.
+        message: sitePublishMessage(`${name.path}.hoodfi.eth`, sha256(bytes), expiry),
       });
 
       // ── 2. Pin, which is what gives the payment something to name ───────────
       setStep("pinning");
       const pinned = await pinSite({
-        label: name.label,
+        path: name.path,
         html,
         templateId,
         signature: signature as Hex,
         expiry,
       });
       setCid(pinned.cid);
+
+      // The gateway derived a node from the path we sent it. If that disagrees with the
+      // node we are about to pay on, the two halves of this protocol are addressing
+      // different names — which is exactly how a publish once got paid for on
+      // crypto.gm.hoodfi.eth and then confirmed against crypto.hoodfi.eth, failing with
+      // "No payment found" over a payment that had landed. Stop before the money moves,
+      // not after.
+      if (pinned.node.toLowerCase() !== name.node.toLowerCase()) {
+        throw new Error(
+          "That site was pinned against a different name than the one selected. Reload the page and try again."
+        );
+      }
 
       // ── 3. Pay for that exact CID, unless it is already paid for ────────────
       //
@@ -205,7 +221,10 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       let confirmed = false;
       for (let attempt = 0; attempt < 5 && !confirmed; attempt++) {
         try {
-          await confirmSite(name.label, pinned.cid);
+          // Must be the same string the payment's node was derived from, or the gateway
+          // checks a different name and answers "No payment found" over a payment that
+          // did land.
+          await confirmSite(name.path, pinned.cid);
           confirmed = true;
         } catch (err) {
           if (attempt === 4) throw err;
@@ -264,11 +283,11 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       <div className="on-ink panel-ink shadow-hero border border-[var(--ink)] p-7">
         <span className="label">Published</span>
         <p className="mt-4 text-[19px] font-semibold leading-[1.35] tracking-[-0.02em] text-[var(--fg)]">
-          {name.label}.hoodfi.eth is a website.
+          {name.path}.hoodfi.eth is a website.
         </p>
         <a
           className="btn btn-lime mt-6 w-full"
-          href={publishedUrl(name.label)}
+          href={publishedUrl(name.path)}
           rel="noreferrer"
           target="_blank"
         >

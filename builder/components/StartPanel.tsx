@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
 import { useMyNames, type OwnedName } from "./useMyNames";
 import { ArrowNE } from "./ArrowNE";
+import { NamePicker } from "./NamePicker";
 import { MINT_URL } from "@/lib/site";
 
 type Props = {
@@ -105,34 +106,20 @@ export function StartPanel({ selected, onSelect }: Props) {
 
           {names.length > 0 ? (
             <>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {names.map((name) => {
-                  const isSelected = selected?.node === name.node;
-                  return (
-                    <button
-                      aria-pressed={isSelected}
-                      className={`data cursor-pointer border px-4 py-2.5 text-[13.5px] transition-colors ${
-                        isSelected
-                          ? "border-[var(--lime)] bg-[var(--lime)] text-[var(--ink)]"
-                          : "border-[var(--line-card)] text-[var(--fg)] hover:bg-[var(--hover-fill)]"
-                      }`}
-                      key={name.node}
-                      onClick={() => onSelect(name)}
-                      type="button"
-                    >
-                      <span className="font-semibold">{name.label}</span>
-                      <span className="opacity-50">.hoodfi.eth</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <NamePicker
+                className="mt-4"
+                names={names}
+                onSelect={onSelect}
+                selectedNode={selected?.node}
+                tone="ink"
+              />
 
               {selected ? (
                 <a
                   className="btn btn-lime mt-7 w-full"
-                  href={`/build/?name=${encodeURIComponent(selected.label)}`}
+                  href={`/build/?name=${encodeURIComponent(selected.path)}`}
                 >
-                  Build on {selected.label} <ArrowNE />
+                  Build on {selected.path} <ArrowNE />
                 </a>
               ) : (
                 <button className="btn btn-lime mt-7 w-full" disabled type="button">
@@ -144,7 +131,7 @@ export function StartPanel({ selected, onSelect }: Props) {
                 <p className="mt-4 text-[13px] leading-[1.6] text-[var(--faint)]">
                   Your site will live at{" "}
                   <span className="data text-[var(--lime)]">
-                    {selected.label}.hoodfi.eth.link
+                    {selected.path}.hoodfi.eth.link
                   </span>
                 </p>
               ) : null}

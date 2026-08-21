@@ -11,6 +11,10 @@ import type { Hex } from "viem";
  *
  * Then the owner writes the contenthash themselves. We never hold a key to their name.
  *
+ * Every step names the name by its whole path below `hoodfi.eth` — `crypto.gm`, not
+ * `crypto`. The three steps derive the same node from that string independently, so a
+ * step that abbreviates it addresses a different name than the one being paid for.
+ *
  * A CID cannot be paid for before it exists, which is why pinning comes first and why
  * step one is free. Anything pinned and never paid for is swept after a day.
  */
@@ -44,13 +48,14 @@ export type PinResult = { cid: string; uri: string; node: Hex };
 
 /** Step one. Returns the CID the payment will name. */
 export async function pinSite(args: {
-  label: string;
+  /** The whole path below `hoodfi.eth` — `crypto.gm`, never `crypto`. */
+  path: string;
   html: string;
   templateId: string;
   signature: Hex;
   expiry: number;
 }): Promise<PinResult> {
-  const response = await fetch(`${SITE_UPLOAD_URL}/${args.label}`, {
+  const response = await fetch(`${SITE_UPLOAD_URL}/${encodeURIComponent(args.path)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -77,8 +82,8 @@ export async function pinSite(args: {
  * `writeContract` before that happens. Retrying here is the difference between "your
  * site is live" and "it says unpaid but the money left".
  */
-export async function confirmSite(label: string, cid: string): Promise<void> {
-  const response = await fetch(`${SITE_UPLOAD_URL}/${label}/confirm`, {
+export async function confirmSite(path: string, cid: string): Promise<void> {
+  const response = await fetch(`${SITE_UPLOAD_URL}/${encodeURIComponent(path)}/confirm`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ cid }),
@@ -90,6 +95,6 @@ export async function confirmSite(label: string, cid: string): Promise<void> {
 }
 
 /** Where the finished site answers. `.link`, not `.limo` — both are eth.limo. */
-export function publishedUrl(label: string): string {
-  return `https://${label}.hoodfi.eth.link/`;
+export function publishedUrl(path: string): string {
+  return `https://${path}.hoodfi.eth.link/`;
 }

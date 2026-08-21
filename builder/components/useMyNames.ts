@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { type Address, parseAbiItem, toHex } from "viem";
 import { usePublicClient } from "wagmi";
 import { L2_DEPLOY_BLOCK, L2_REGISTRY_ADDRESS, registryAbi } from "@/lib/contracts";
-import { dnsDecodeName, labelFromName } from "@/lib/ens";
+import { dnsDecodeName, pathBelowRoot } from "@/lib/ens";
 import { robinhoodChain } from "@/lib/chains";
 
 const transferEvent = parseAbiItem(
@@ -12,7 +12,15 @@ const transferEvent = parseAbiItem(
 );
 
 export type OwnedName = {
-  label: string;
+  /**
+   * Everything below `hoodfi.eth` — `agent`, or `crypto.gm` for a subname.
+   *
+   * Deliberately not the leftmost label. Every step of publishing addresses a name by
+   * this string — the signature, the pin, the payment and the confirmation — and they
+   * have to agree; see `pathBelowRoot`. There is no `label` field on purpose, so that
+   * nothing downstream can reach for one.
+   */
+  path: string;
   name: string;
   node: `0x${string}`;
   tokenId: bigint;
@@ -146,14 +154,14 @@ export function useMyNames(address: Address | undefined): MyNamesState {
         if (!name) return;
 
         owned.push({
-          label: labelFromName(name),
+          path: pathBelowRoot(name),
           name,
           node: toHex(tokenId, { size: 32 }),
           tokenId,
         });
       });
 
-      owned.sort((a, b) => a.label.localeCompare(b.label));
+      owned.sort((a, b) => a.path.localeCompare(b.path));
       setNames(owned);
       setError(
         partial ? "Some names couldn't be read just now. Reload to see the full list." : null
