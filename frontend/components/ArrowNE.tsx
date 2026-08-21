@@ -26,3 +26,31 @@ export function ArrowNE({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+
+/**
+ * A left/right chevron for the scrolling name rows, drawn for the same reason as the
+ * arrow above and mitred the same way.
+ */
+export function Chevron({
+  dir,
+  className = "",
+}: {
+  dir: "left" | "right";
+  className?: string;
+}) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 12 12"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="square"
+      className={`inline-block shrink-0 ${className}`}
+    >
+      <path d={dir === "left" ? "M7.6 2.4 4 6l3.6 3.6" : "M4.4 2.4 8 6l-3.6 3.6"} />
+    </svg>
+  );
+}

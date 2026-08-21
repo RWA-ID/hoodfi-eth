@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactElement, useEffect, useState } from "react";
+import {
+  type ReactElement,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   type Address,
   encodeFunctionData,
@@ -35,7 +42,7 @@ import {
   nameUrl,
   parseContenthash,
 } from "@/shared/contenthash";
-import { ArrowNE } from "./ArrowNE";
+import { ArrowNE, Chevron } from "./ArrowNE";
 import { AvatarUpload } from "./AvatarUpload";
 import { clearStashedAvatar, readStashedAvatar } from "@/lib/avatar";
 import { BitcoinLogo, EthereumLogo, SolanaLogo } from "./ChainLogo";
@@ -768,15 +775,240 @@ function NameCard({
         className="h-12 w-12"
         textClassName="text-sm"
       />
-      {/* A nested path is longer than a label and the card is a fixed 168px, so it
-          wraps on the dot rather than truncating to the same first label the bug this
-          replaced already showed. `break-all` would split mid-label; this breaks at the
-          separator and keeps each label whole. */}
-      <span className="data block max-w-full text-sm font-semibold leading-tight [overflow-wrap:anywhere]">
-        {path}
+      {/* A nested path is longer than a label and the card is a fixed 168px, so it wraps
+          rather than truncating to the same first label the bug this replaced already
+          showed. The `<wbr>`s are the only break opportunities, so it breaks at the
+          separator and keeps every label whole — `payroll.treasury` splits after
+          `payroll`, not as `payroll.treasur / y`. `anywhere` is the last resort for a
+          single label too long to fit, which has no separator to break at and would
+          otherwise spill out of the card.
+
+          Two lines are reserved whether or not the name uses them, so the `.hoodfi.eth`
+          below sits on the same line across every card in a row. */}
+      <span className="grid min-h-[2.5em] w-full place-items-center">
+        <span className="data max-w-full text-sm font-semibold leading-tight [overflow-wrap:anywhere]">
+          {breakOnDots(path)}
+        </span>
       </span>
       <span className="data -mt-1.5 text-[10px] text-[var(--faint)]">.hoodfi.eth</span>
     </button>
+  );
+}
+
+/**
+ * A name path with a break opportunity before each separator — `crypto.gm` may wrap as
+ * `crypto` / `.gm`, and nowhere else.
+ *
+ * The dot leads the new line rather than trailing the old one, which is how the suffix
+ * under it and the token art both write one.
+ */
+function breakOnDots(path: string): ReactNode[] {
+  return path
+    .split(".")
+    .flatMap((label, i) => (i === 0 ? [label] : [<wbr key={i} />, `.${label}`]));
+}
+
+/**
+ * The pitch a nudge of the arrows moves: one card plus one `gap-3`.
+ *
+ * Tied by hand to `w-[168px]` on the card above — a scroll that lands mid-card reads as
+ * a broken row rather than a scrolled one, so if that width changes this must too.
+ */
+const CARD_PITCH = 168 + 12;
+
+/**
+ * One horizontally-scrolling row of name cards.
+ *
+ * A wrapping grid was fine for the three or four names a wallet used to hold, but
+ * subnames go any depth and cost only gas, so the picker is now the tallest thing on the
+ * page for anyone who has used the feature — it pushed the editor it exists to serve
+ * below the fold. A row that slides stays one card tall no matter how many names are in
+ * it, and splitting names from subnames means the thing you own and the things you
+ * created beneath it stop being one undifferentiated wall.
+ *
+ * Native overflow scrolling does the work: a trackpad, a touch swipe and shift-wheel all
+ * already do the right thing, and the arrows exist for the mouse-only case where nothing
+ * on screen says the row moves.
+ */
+function NameRow({
+  label,
+  group = "names",
+  names,
+  selectedNode,
+  onSelect,
+}: {
+  /** Heading text, count and all. Omitted when there is only one row to head. */
+  label?: string;
+  /** What this row holds, for the arrows' screen-reader labels — no count, which is
+   *  noise read aloud and changes every time a name is minted. */
+  group?: string;
+  names: OwnedName[];
+  selectedNode: string | undefined;
+  onSelect: (node: string) => void;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  // Which way there is more to see. Drives both the arrows and the edge fade, so a row
+  // that fits shows neither and reads as a plain row.
+  const [more, setMore] = useState({ left: false, right: false });
+
+  const measure = useCallback(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    // A pixel of slack: fractional layout widths mean scrollLeft never quite reaches
+    // `max`, which would leave the right arrow live at the end of the row forever.
+    setMore({ left: el.scrollLeft > 1, right: el.scrollLeft < max - 1 });
+  }, []);
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    measure();
+    // Resizing the window changes what fits without firing a scroll event.
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [measure, names.length]);
+
+  function nudge(direction: 1 | -1) {
+    const el = scroller.current;
+    if (!el) return;
+    // Whole cards, as many as are on screen — a page, not a pixel amount.
+    const step = Math.max(1, Math.floor(el.clientWidth / CARD_PITCH)) * CARD_PITCH;
+    el.scrollBy({ left: direction * step, behavior: "smooth" });
+  }
+
+  const arrows = more.left || more.right;
+
+  return (
+    <div className="min-w-0">
+      {(label || arrows) && (
+        <div className="mb-2.5 flex items-center gap-3">
+          {label && <span className="label">{label}</span>}
+          {/* The rule carries the eye across to the arrows and gives a short label
+              something to sit against, the same hairline idiom as every other group. */}
+          <span className="h-px min-w-4 flex-1 bg-[var(--line-soft)]" />
+          {arrows && (
+            <div className="flex shrink-0 gap-1.5">
+              {(["left", "right"] as const).map((dir) => (
+                <button
+                  key={dir}
+                  type="button"
+                  onClick={() => nudge(dir === "left" ? -1 : 1)}
+                  disabled={!more[dir]}
+                  aria-label={`Scroll ${group} ${dir}`}
+                  className="grid h-6 w-6 cursor-pointer place-items-center border border-[var(--line-card)] text-[10px] text-[var(--fg)] transition-colors hover:bg-[var(--hover-fill)] disabled:cursor-default disabled:border-[var(--line-soft)] disabled:text-[var(--faint)] disabled:hover:bg-transparent"
+                >
+                  <Chevron dir={dir} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Faded on whichever side has more, so the row is visibly cut off rather than
+          appearing to end at the container edge. A mask rather than a paper-coloured
+          overlay: it fades the cards to transparent, so it keeps working whatever ground
+          the row is ever placed on. */}
+      <div
+        ref={scroller}
+        onScroll={measure}
+        // `-m-*`/`p-*` so a card's focus ring and the selected card's border aren't
+        // shaved off by the scroll container's own edge.
+        className="-mx-1 -my-1 flex snap-x gap-3 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{
+          maskImage: edgeFade(more),
+          WebkitMaskImage: edgeFade(more),
+        }}
+      >
+        {names.map((name) => (
+          <NameCard
+            key={name.node}
+            name={name}
+            selected={name.node === selectedNode}
+            onSelect={() => onSelect(name.node)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The mask for a row, or `undefined` when it fits and needs none. */
+function edgeFade(more: { left: boolean; right: boolean }): string | undefined {
+  if (!more.left && !more.right) return undefined;
+  const from = more.left ? "transparent 0, #000 28px" : "#000 0";
+  const to = more.right ? "#000 calc(100% - 28px), transparent 100%" : "#000 100%";
+  return `linear-gradient(to right, ${from}, ${to})`;
+}
+
+/**
+ * The whole picker: every name this wallet holds, as one or two sliding rows.
+ *
+ * Exported so it can be rendered against mock names without a wallet — verifying this
+ * page any other way means holding the right names in a connected wallet, and shipping it
+ * unseen has cost a visual bug more than once.
+ */
+export function NamePicker({
+  names,
+  selectedNode,
+  onSelect,
+}: {
+  names: OwnedName[];
+  selectedNode: string | undefined;
+  onSelect: (node: string) => void;
+}) {
+  // Names held directly under hoodfi.eth, and names created beneath one of them — `gm`
+  // against `crypto.gm`. A dot in the path below the root is the whole test, and it holds
+  // at any depth: `a.b.gm` is a subname of `b.gm`, which is a subname of `gm`.
+  //
+  // Null when every name falls on the same side, which is the common case: a wallet that
+  // has never created a subname should not be told which kind its names are.
+  const split = (() => {
+    const roots: OwnedName[] = [];
+    const subs: OwnedName[] = [];
+    for (const name of names) {
+      (pathBelowRoot(name.name).includes(".") ? subs : roots).push(name);
+    }
+    return roots.length > 0 && subs.length > 0 ? { roots, subs } : null;
+  })();
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="eyebrow">{names.length} names in this wallet</div>
+        <div className="data text-xs text-[var(--faint)]">
+          Pick one to edit its records
+        </div>
+      </div>
+      {/* Deliberately not wrapped in a .panel: a single bordered box around them reads
+          as the object, and the cards inside it disappear. */}
+      <div className="mt-4 flex flex-col gap-5">
+        {split ? (
+          <>
+            <NameRow
+              label={`Names · ${split.roots.length}`}
+              group="names"
+              names={split.roots}
+              selectedNode={selectedNode}
+              onSelect={onSelect}
+            />
+            <NameRow
+              label={`Subnames · ${split.subs.length}`}
+              group="subnames"
+              names={split.subs}
+              selectedNode={selectedNode}
+              onSelect={onSelect}
+            />
+          </>
+        ) : (
+          // Only one kind of name here, so there is no distinction to draw and a heading
+          // would label a group against nothing.
+          <NameRow names={names} selectedNode={selectedNode} onSelect={onSelect} />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -865,26 +1097,11 @@ export function ManagePanel() {
       {/* Every name visible at once. Stacking full editors meant a second name sat
           below the fold, so a wallet holding several looked like it held one. */}
       {names.length > 1 && (
-        <div>
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <div className="eyebrow">{names.length} names in this wallet</div>
-            <div className="data text-xs text-[var(--faint)]">
-              Pick one to edit its records
-            </div>
-          </div>
-          {/* Deliberately not wrapped in a .panel: a single bordered box around them
-              reads as the object, and the cards inside it disappear. */}
-          <div className="mt-4 flex flex-wrap gap-3">
-            {names.map((name) => (
-              <NameCard
-                key={name.node}
-                name={name}
-                selected={name.node === selected?.node}
-                onSelect={() => setSelectedNode(name.node)}
-              />
-            ))}
-          </div>
-        </div>
+        <NamePicker
+          names={names}
+          selectedNode={selected?.node}
+          onSelect={setSelectedNode}
+        />
       )}
 
       {selected && (
