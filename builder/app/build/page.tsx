@@ -41,7 +41,7 @@ export default function BuildPage() {
   // and must keep following them — see the note on Draft.touched.
   const [touched, setTouched] = useState<Set<keyof SiteData>>(new Set());
 
-  const { prefill } = useNameRecords(name?.node);
+  const { prefill, loading: recordsLoading } = useNameRecords(name?.node);
 
   // Honour ?name= from the homepage panel before falling back to the first entry.
   //
@@ -244,13 +244,28 @@ export default function BuildPage() {
                     <span className="data text-[11.5px] text-[var(--faint)]">
                       {sizeKb} KB · one file · fonts embedded
                     </span>
+                    {/* Reading a name's records is a chain round trip, and until it
+                        lands the preview has no avatar to draw. Saying so stops the gap
+                        reading as "this name has no picture" — the state it is
+                        indistinguishable from. */}
                     <span className="data text-[11.5px] text-[var(--faint)]">
-                      {edited ? "Draft saved" : "Not edited yet"}
+                      {recordsLoading && !prefill
+                        ? "Reading records…"
+                        : edited
+                          ? "Draft saved"
+                          : "Not edited yet"}
                     </span>
                   </div>
                   {name ? (
                     <div className="mt-6">
+                      {/* Keyed on the node so switching names remounts it. Without this
+                          the panel kept the previous name's finished state: after
+                          publishing one name, picking another still showed "Open it" and
+                          the CID of the site just published, under the new name's heading
+                          — telling someone a name was live when nothing had been
+                          published on it. */}
                       <PublishPanel
+                        key={name.node}
                         displayName={data.displayName}
                         html={html}
                         name={name}
