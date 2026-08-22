@@ -227,7 +227,7 @@ export default function BuildPage() {
                 <div className="min-w-0">
                   <div className="eyebrow">02 / content</div>
                   <div className="mt-6">
-                    <SiteForm data={data} onChange={update} />
+                    <SiteForm data={data} onChange={update} templateId={templateId} />
                   </div>
                 </div>
 

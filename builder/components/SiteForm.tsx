@@ -1,11 +1,48 @@
 "use client";
 
-import type { SiteData, SiteFact, SiteLink } from "@/lib/templates/index.ts";
+import { TEMPLATES_BY_ID } from "@/lib/templates/index.ts";
+import { omittedFields } from "@/lib/templates/support.ts";
+import type { SiteData, SiteFact, SiteLink, TemplateId } from "@/lib/templates/index.ts";
+import type { OptionalField } from "@/lib/templates/support.ts";
 
 type Props = {
   data: SiteData;
   onChange: (next: SiteData) => void;
+  /** Which template the preview is rendering, so the form can say what it will drop. */
+  templateId: TemplateId;
 };
+
+/**
+ * Says, at the field itself, that this template will not show what you are typing.
+ *
+ * The Figures section already explained in prose which templates have stat cells, and it
+ * was not enough: two figures were typed onto a Manifesto site, published, paid for, and
+ * never appeared. A sentence in a section description is read once, when the section is
+ * first opened; this is read at the moment the field is being filled in.
+ *
+ * Deliberately not a disabled input. The data is kept and the other templates still show
+ * it, so switching template is a real fix — and taking the field away would make that
+ * impossible to discover.
+ */
+function NotShown({ field, templateId }: { field: OptionalField; templateId: TemplateId }) {
+  const omitted = omittedFields(templateId);
+  // Null means the probe could not run. Say nothing rather than guess — a false "this
+  // will not appear" is worse than the silence it replaced.
+  if (!omitted?.has(field)) return null;
+
+  const elsewhere = (Object.keys(TEMPLATES_BY_ID) as TemplateId[])
+    .filter((id) => !omittedFields(id)?.has(field))
+    .map((id) => TEMPLATES_BY_ID[id].name);
+
+  return (
+    <p className="border border-[var(--warn)] px-3.5 py-3 text-[13px] leading-[1.6] text-[var(--warn)]">
+      <strong>The {TEMPLATES_BY_ID[templateId].name} template doesn&rsquo;t show this.</strong>{" "}
+      {elsewhere.length
+        ? `What you type is saved and will appear if you switch to ${elsewhere.join(" or ")}.`
+        : "What you type is saved, but no template currently displays it."}
+    </p>
+  );
+}
 
 /** Caps that keep a template's layout inside the shape it was designed for. */
 const MAX = {
@@ -60,7 +97,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
  * cost more than it saves. Every keystroke re-renders the preview, so the page beside
  * this one is the progress indicator.
  */
-export function SiteForm({ data, onChange }: Props) {
+export function SiteForm({ data, onChange, templateId }: Props) {
   const set = <K extends keyof SiteData>(key: K, value: SiteData[K]) =>
     onChange({ ...data, [key]: value });
 
@@ -196,10 +233,14 @@ export function SiteForm({ data, onChange }: Props) {
 
       <Group title="Figures">
         <p className="text-[13.5px] leading-[1.6] text-[var(--dim)]">
-          Up to three short figures, shown as a row of large numbers on the Terminal and
-          Product templates. Anything worth stating plainly — years doing this, pieces
-          collected, projects shipped, where you are.
+          Up to three short figures, shown as a row of large numbers. Anything worth
+          stating plainly — years doing this, pieces collected, projects shipped, where
+          you are.
         </p>
+        {/* Which templates have stat cells used to be stated in the paragraph above.
+            That is the sentence somebody read past on their way to typing two figures
+            into a template that has none. */}
+        <NotShown field="facts" templateId={templateId} />
         {data.facts.map((fact, i) => (
           <div className="border border-[var(--line)] p-4" key={i}>
             <div className="flex items-center justify-between gap-3">
@@ -278,6 +319,9 @@ export function SiteForm({ data, onChange }: Props) {
               spellCheck={false}
               value={data.telegram}
             />
+            <div className="mt-2.5">
+              <NotShown field="telegram" templateId={templateId} />
+            </div>
           </Field>
           <Field label="Discord invite">
             <input
@@ -288,6 +332,9 @@ export function SiteForm({ data, onChange }: Props) {
               spellCheck={false}
               value={data.discord}
             />
+            <div className="mt-2.5">
+              <NotShown field="discord" templateId={templateId} />
+            </div>
           </Field>
           <Field label="Website">
             <input
