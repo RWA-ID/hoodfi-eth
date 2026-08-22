@@ -136,6 +136,45 @@ export const registryAbi = [
 ] as const;
 
 /**
+ * USDG, as much of ERC-20 as paying with it needs.
+ *
+ * `decimals` is deliberately absent: it is 6, the contract's price fields are documented
+ * as 6, and reading it at runtime would invite code that adapts to an answer the prices
+ * were never denominated in. If USDG were ever swapped for a token with different
+ * decimals, the prices themselves would be wrong and a live read would hide that rather
+ * than surface it.
+ */
+export const erc20Abi = [
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "value", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+] as const;
+
+/**
  * HoodfiSites — the publish paywall.
  *
  * Errors carry a sentence each. An ABI without them leaves viem only a selector, and a

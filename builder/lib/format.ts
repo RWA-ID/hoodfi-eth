@@ -1,4 +1,12 @@
-import { formatEther } from "viem";
+import { formatEther, formatUnits } from "viem";
+
+/** USDG, as a dollar figure. 6 decimals, always two shown — it is a price. */
+export function formatUsdg(units: bigint): string {
+  return Number(formatUnits(units, 6)).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 export function formatEth(wei: bigint, digits = 5): string {
   const s = Number(formatEther(wei));

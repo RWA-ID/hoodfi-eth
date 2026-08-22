@@ -7,7 +7,7 @@ import { StartPanel } from "@/components/StartPanel";
 import { ArrowNE } from "@/components/ArrowNE";
 import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
 import type { OwnedName } from "@/components/useMyNames";
-import { FIRST_USD, REBUILD_USD } from "@/lib/labels";
+import { CURRENCIES, FIRST_USD, REBUILD_USD } from "@/lib/labels";
 
 /** The four looks. Order is the order they appear in the grid. */
 const TEMPLATES: { id: string; name: string; blurb: string; note: string }[] = [
@@ -61,12 +61,12 @@ const FAQ: FaqItem[] = [
     a: "To publish, yes — the site is served by your name, so there has to be a name to serve it. You can design the whole thing before you have one, and you'll be prompted to mint at the point you publish.",
   },
   {
-    q: `What does ${FIRST_USD} pay for?`,
-    a: "Building and publishing a site on one name: the templates, the editor, and pinning the finished site to IPFS so it stays online. It is charged once per name, not per month.",
+    q: "What does the first site cost?",
+    a: "Nothing. Your first site on a name is free — all four templates, the editor, and pinning the finished site to IPFS so it stays online. Free per name, so a second name gets its own free first site.",
   },
   {
-    q: "Why does rebuilding cost extra?",
-    a: `Republishing pins a whole new copy of your site and keeps it online, which is a real ongoing cost rather than a one-off. Rebuilds are ${REBUILD_USD} — less than the first publish, and only when you actually change something.`,
+    q: "Why does rebuilding cost anything?",
+    a: `Republishing pins a whole new copy of your site and keeps it online, which is a real ongoing cost rather than a one-off. Rebuilds are ${REBUILD_USD}, payable in ${CURRENCIES}, and only when you actually change something.`,
   },
   {
     q: "Who controls the site once it's published?",
@@ -134,8 +134,8 @@ export default function Home() {
           <div className="shell cells">
             {[
               ["templates", "4", "to choose from"],
-              ["first site", FIRST_USD, "once, per name"],
-              ["rebuilds", REBUILD_USD, "only when you change it"],
+              ["first site", FIRST_USD, "every name you own"],
+              ["rebuilds", REBUILD_USD, CURRENCIES],
               ["hosting", "$0", "forever"],
             ].map(([label, value, note], i) => (
               <div
@@ -234,12 +234,12 @@ export default function Home() {
               <div className="label">First site on a name</div>
               <div className="mt-4 flex items-baseline gap-3">
                 <span className="h-panel">{FIRST_USD}</span>
-                <span className="data text-[13px] text-[var(--faint)]">one time</span>
+                <span className="data text-[13px] text-[var(--faint)]">nothing to pay</span>
               </div>
               <p className="mt-5 text-[15px] leading-[1.6] text-[var(--dim)]">
                 Everything: all four templates, the editor, image hosting and the pin
-                that keeps your site online. Charged per name, so it moves with the name
-                if you ever sell it.
+                that keeps your site online. Free per name, so every name you own gets a
+                site at no cost.
               </p>
             </div>
 
@@ -247,11 +247,14 @@ export default function Home() {
               <div className="label">Rebuild</div>
               <div className="mt-4 flex items-baseline gap-3">
                 <span className="h-panel">{REBUILD_USD}</span>
-                <span className="data text-[13px] text-[var(--faint)]">per republish</span>
+                <span className="data text-[13px] text-[var(--faint)]">
+                  per republish, in {CURRENCIES}
+                </span>
               </div>
               <p className="mt-5 text-[15px] leading-[1.6] text-[var(--dim)]">
                 Change the design or the content and publish again. Only charged when
                 you actually republish — coming back to look at your site costs nothing.
+                USDG is an exact dollar amount; the ETH price is the same figure converted.
               </p>
             </div>
           </div>

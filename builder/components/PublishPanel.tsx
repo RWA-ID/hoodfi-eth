@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { keccak256, sha256, stringToBytes, toBytes, type Hex } from "viem";
+import { sha256, type Hex } from "viem";
 import {
   useAccount,
   usePublicClient,
@@ -11,7 +11,15 @@ import {
 } from "wagmi";
 import { ArrowNE } from "./ArrowNE";
 import { robinhoodChain } from "@/lib/chains";
-import { L2_REGISTRY_ADDRESS, SITES_ADDRESS, registryAbi, sitesAbi } from "@/lib/contracts";
+import {
+  L2_REGISTRY_ADDRESS,
+  SITES_ADDRESS,
+  USDG_ADDRESS,
+  erc20Abi,
+  registryAbi,
+  sitesAbi,
+} from "@/lib/contracts";
+import { formatEth, formatUsdg } from "@/lib/format";
 import {
   SIGNATURE_LIFETIME_MS,
   confirmSite,
@@ -20,6 +28,8 @@ import {
   sitePublishMessage,
 } from "@/lib/publish";
 import { encodeContenthash } from "@/shared/contenthash";
+import { templateHash, useQuote } from "./useQuote";
+import { useUsdg } from "./useUsdg";
 import type { OwnedName } from "./useMyNames";
 import type { TemplateId } from "@/lib/templates/index.ts";
 
@@ -37,17 +47,29 @@ type Props = {
   displayName: string;
 };
 
-type Step = "idle" | "signing" | "pinning" | "paying" | "confirming" | "linking" | "done";
+type Step =
+  | "idle"
+  | "signing"
+  | "pinning"
+  | "approving"
+  | "paying"
+  | "confirming"
+  | "linking"
+  | "done";
 
 const LABELS: Record<Step, string> = {
   idle: "",
   signing: "Waiting for your signature…",
   pinning: "Pinning your site to IPFS…",
+  approving: "Approve USDG in your wallet…",
   paying: "Confirm the payment in your wallet…",
   confirming: "Checking the payment on chain…",
   linking: "Point your name at the site…",
   done: "Live.",
 };
+
+/** Which token the publish is paid in. */
+type Currency = "eth" | "usdg";
 
 /**
  * Publishing, as four things the owner does and two the gateway does.
@@ -80,6 +102,14 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
    */
   const { writeContractAsync } = useWriteContract();
   const client = usePublicClient({ chainId: robinhoodChain.id });
+  const quote = useQuote(name.node, templateId, address);
+  const usdg = useUsdg(address);
+
+  /**
+   * ETH by default because it needs no token and one fewer transaction. USDG is the
+   * exact-dollar option and is offered beside it, not instead of it.
+   */
+  const [currency, setCurrency] = useState<Currency>("eth");
 
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -113,15 +143,51 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
     isConnected && connector && typeof connector.getChainId !== "function"
   );
 
-  const blocked: string | null = !configured
-    ? "Publishing isn't configured in this deployment yet."
-    : !isConnected
-      ? "Connect the wallet holding this name to publish."
-      : stubConnector
-        ? "Your wallet session was restored without a working link. Reset it below, then reconnect."
-        : !displayName.trim()
-          ? "Give your site a headline first — it's the big line at the top, and it's yours to choose."
-          : null;
+  // An if-chain rather than the ternary this used to be: the price states doubled its
+  // length, and a six-deep nested ternary beside a payment button is not worth the
+  // symmetry.
+  function whyBlocked(): string | null {
+    if (!configured) return "Publishing isn't configured in this deployment yet.";
+    if (!isConnected) return "Connect the wallet holding this name to publish.";
+    if (stubConnector) {
+      return "Your wallet session was restored without a working link. Reset it below, then reconnect.";
+    }
+    if (!displayName.trim()) {
+      return "Give your site a headline first — it's the big line at the top, and it's yours to choose.";
+    }
+    // Never let the button run without a price in hand. Publishing with an unread price
+    // is what sent `value: 0` for the whole free period — harmless then, a guaranteed
+    // InsufficientPayment revert the moment a price is set.
+    if (quote.status === "loading") return "Checking the price…";
+    if (quote.status === "unreachable") {
+      return "Couldn't read the publishing price from Robinhood Chain. Reload the page and try again.";
+    }
+    if (quote.status === "ok" && !quote.quote.eligible) {
+      return "That template isn't available to this wallet. Pick another one.";
+    }
+
+    if (currency === "usdg" && quote.status === "ok" && quote.quote.usdgPrice > 0n) {
+      if (!USDG_ADDRESS) return "Paying in USDG isn't configured in this deployment.";
+      if (usdg.status === "loading") return "Checking your USDG balance…";
+      if (usdg.status === "unconfigured") {
+        return "Paying in USDG isn't configured in this deployment.";
+      }
+      // Not "you have none" — see useUsdg. A read that did not happen must not be
+      // reported as an empty wallet.
+      if (usdg.status === "unreachable") {
+        return "Couldn't read your USDG balance. Reload the page, or pay in ETH instead.";
+      }
+      // Said here rather than discovered at the transfer, which is the moment it costs
+      // gas and reads as a broken button.
+      if (usdg.balance < quote.quote.usdgPrice) {
+        return `You need ${formatUsdg(quote.quote.usdgPrice)} USDG to publish and this wallet holds ${formatUsdg(usdg.balance)}. Pay in ETH instead, or top up.`;
+      }
+    }
+
+    return null;
+  }
+
+  const blocked = whyBlocked();
 
   async function run() {
     if (!SITES_ADDRESS || !L2_REGISTRY_ADDRESS) return;
@@ -184,7 +250,7 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       // way to finish. Identical content produces an identical CID, so asking the chain
       // first turns a retry into a resume. It happened on the first real publish.
       setStep("paying");
-      const templateHash = keccak256(stringToBytes(templateId));
+      const template = templateHash(templateId);
 
       const alreadyPaid = (await client.readContract({
         address: SITES_ADDRESS,
@@ -194,6 +260,35 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       })) as boolean;
 
       if (!alreadyPaid) {
+        // Priced again here rather than trusting the number on screen. The displayed
+        // quote can be up to a cache-lifetime old, and the owner can call setPrices
+        // between a page load and a click — this is the figure the contract will actually
+        // check the payment against.
+        const [weiPrice, usdgPrice] = (await client.readContract({
+          address: SITES_ADDRESS,
+          abi: sitesAbi,
+          functionName: "quote",
+          args: [name.node, template, address],
+        })) as readonly [bigint, bigint, boolean, bigint];
+
+        const price = currency === "usdg" ? usdgPrice : weiPrice;
+        const shown =
+          quote.status === "ok"
+            ? currency === "usdg"
+              ? quote.quote.usdgPrice
+              : quote.quote.weiPrice
+            : null;
+
+        // Charging more than was shown, without saying so, is the one failure here that
+        // costs somebody money quietly. Underpaying only ever reverts, so a price that
+        // moved DOWN needs no ceremony — it is simply charged.
+        if (shown !== null && price > shown) {
+          throw new Error(
+            `The price changed while you were editing — it is now ${
+              currency === "usdg" ? `${formatUsdg(price)} USDG` : `${formatEth(price)} ETH`
+            }. Reload the page to publish at the new price.`
+          );
+        }
 
       // Simulate against our own RPC first. A wallet that estimates on its own node can
       // drop the revert payload entirely — that is the Brave signature — and the person
@@ -204,23 +299,71 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       // the public client resolved to, and handing it straight over is what produced
       // "the current chain of the wallet (id: 4663) does not match the target chain for
       // the transaction (id: 1 – Ethereum)". Every write below names its chain outright.
-        await client.simulateContract({
-          address: SITES_ADDRESS,
-          abi: sitesAbi,
-          functionName: "publish",
-          args: [name.node, templateHash, pinned.cid],
-          account: address,
-          value: 0n,
-        });
-        const payHash = await writeContractAsync({
-          address: SITES_ADDRESS,
-          abi: sitesAbi,
-          functionName: "publish",
-          args: [name.node, templateHash, pinned.cid],
-          value: 0n,
-          chainId: robinhoodChain.id,
-        });
-        await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
+        if (currency === "usdg") {
+          if (!USDG_ADDRESS) throw new Error("Paying in USDG isn't configured here.");
+
+          // Approve exactly the price, never an unlimited allowance. It is spent to zero
+          // by the transfer below, so the next publish approves again from a clean slate
+          // — which also sidesteps the ERC-20 wart where a non-zero allowance cannot be
+          // changed to another non-zero one without a reset in between.
+          //
+          // Read fresh rather than reusing the hook's value: an approval granted in
+          // another tab, or the leftovers of a publish that failed after approving,
+          // both make a second approval pointless.
+          const allowance = (await client.readContract({
+            address: USDG_ADDRESS,
+            abi: erc20Abi,
+            functionName: "allowance",
+            args: [address, SITES_ADDRESS],
+          })) as bigint;
+
+          if (allowance < price) {
+            setStep("approving");
+            const approveHash = await writeContractAsync({
+              address: USDG_ADDRESS,
+              abi: erc20Abi,
+              functionName: "approve",
+              args: [SITES_ADDRESS, price],
+              chainId: robinhoodChain.id,
+            });
+            await client.waitForTransactionReceipt({ hash: approveHash, timeout: 180_000 });
+          }
+
+          setStep("paying");
+          await client.simulateContract({
+            address: SITES_ADDRESS,
+            abi: sitesAbi,
+            functionName: "publishWithUsdg",
+            args: [name.node, template, pinned.cid],
+            account: address,
+          });
+          const payHash = await writeContractAsync({
+            address: SITES_ADDRESS,
+            abi: sitesAbi,
+            functionName: "publishWithUsdg",
+            args: [name.node, template, pinned.cid],
+            chainId: robinhoodChain.id,
+          });
+          await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
+        } else {
+          await client.simulateContract({
+            address: SITES_ADDRESS,
+            abi: sitesAbi,
+            functionName: "publish",
+            args: [name.node, template, pinned.cid],
+            account: address,
+            value: price,
+          });
+          const payHash = await writeContractAsync({
+            address: SITES_ADDRESS,
+            abi: sitesAbi,
+            functionName: "publish",
+            args: [name.node, template, pinned.cid],
+            value: price,
+            chainId: robinhoodChain.id,
+          });
+          await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
+        }
       }
 
       // ── 4. Tell the gateway to keep it. Retried, because isPaid cannot see the
@@ -375,10 +518,74 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
     <div className="on-ink panel-ink shadow-hero border border-[var(--ink)] p-7">
       <span className="label">Publish</span>
       <p className="mt-4 max-w-[40ch] text-[15px] leading-[1.6] text-[var(--dim)]">
-        Two signatures: one to pay, one to point your name at{" "}
+        {currency === "usdg" &&
+        quote.status === "ok" &&
+        quote.quote.usdgPrice > 0n
+          ? "Three signatures: one to approve the USDG, one to pay, one to point your name at "
+          : "Two signatures: one to pay, one to point your name at "}
         {published ? "the new version" : "the finished site"}. The record is written by
         you, from your wallet — we never hold a key to your name.
       </p>
+
+      {/*
+        The price, before the button rather than in the wallet dialog.
+
+        Shown only from a quote that actually landed — a loading or unreachable read
+        renders nothing here and blocks the button instead, because the one number that
+        must never be guessed at is the one someone is about to pay. The republish wording
+        comes from `publishCount`, so it says what this name will really be charged rather
+        than what a first-time publisher would be.
+      */}
+      {quote.status === "ok" ? (
+        <div className="mt-6 border border-[var(--line-card)] p-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="label">
+              {quote.quote.publishCount === 0n ? "To publish" : "To republish"}
+            </span>
+            <span className="data text-[15px] text-[var(--fg)]">
+              {(currency === "usdg" ? quote.quote.usdgPrice : quote.quote.weiPrice) === 0n
+                ? "Free"
+                : currency === "usdg"
+                  ? `${formatUsdg(quote.quote.usdgPrice)} USDG`
+                  : `${formatEth(quote.quote.weiPrice)} ETH`}
+            </span>
+          </div>
+
+          {/*
+            The currency choice, offered only when there is something to pay. While
+            publishing is free both buttons would charge nothing, and asking somebody to
+            choose how to pay zero is a decision with no consequence.
+
+            USDG is hidden rather than disabled when this deployment has no token
+            configured: an option that cannot ever work is not a choice.
+          */}
+          {(quote.quote.weiPrice > 0n || quote.quote.usdgPrice > 0n) && USDG_ADDRESS ? (
+            <div className="mt-4 flex gap-2">
+              {(["eth", "usdg"] as const).map((option) => (
+                <button
+                  aria-pressed={currency === option}
+                  className={`btn btn-sm flex-1 ${currency === option ? "btn-lime" : "btn-ghost"}`}
+                  disabled={busy}
+                  key={option}
+                  onClick={() => setCurrency(option)}
+                  type="button"
+                >
+                  {option === "eth" ? "Pay in ETH" : "Pay in USDG"}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Said before the button, because it is the reason the flow has three wallet
+              prompts instead of two rather than a sign that something went wrong. */}
+          {currency === "usdg" && quote.quote.usdgPrice > 0n ? (
+            <p className="mt-3 text-[12.5px] leading-[1.6] text-[var(--faint)]">
+              USDG is an exact dollar amount and never moves with the ETH price. It needs
+              one extra transaction to approve the payment.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Only ever shown after this panel has published once and the site has since been
           edited — the state the `done` check above drops out of. Says what is actually
