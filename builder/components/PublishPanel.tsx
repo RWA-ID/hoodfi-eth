@@ -28,6 +28,7 @@ import {
   sitePublishMessage,
 } from "@/lib/publish";
 import { encodeContenthash } from "@/shared/contenthash";
+import { resetWalletSession } from "@/lib/session";
 import { templateHash, useQuote } from "./useQuote";
 import { useUsdg } from "./useUsdg";
 import type { OwnedName } from "./useMyNames";
@@ -70,6 +71,74 @@ const LABELS: Record<Step, string> = {
 
 /** Which token the publish is paid in. */
 type Currency = "eth" | "usdg";
+
+/**
+ * An error whose message is already written for the person reading it.
+ *
+ * The catch below rewrites anything it recognises, which is right for a raw viem or
+ * connector error and wrong for a sentence we chose deliberately. Throwing this says
+ * "this text is the message", so a specific diagnosis cannot be flattened into the
+ * generic one on its way to the screen.
+ */
+class PublishError extends Error {
+  readonly offerReset: boolean;
+  constructor(message: string, offerReset = false) {
+    super(message);
+    this.offerReset = offerReset;
+  }
+}
+
+/**
+ * How long to wait for a wallet to answer before giving up on it.
+ *
+ * A WalletConnect request travels to the phone over a relay socket and the answer comes
+ * back the same way. When that socket drops between the two — a backgrounded tab, a
+ * phone that slept, a relay hiccup — the wallet signs, the reply is never delivered, and
+ * the promise simply never settles. Captured from a real publish on this app: one
+ * pending `personal_sign` on eip155:4663 with `hasResponse: false`, still unanswered
+ * after five minutes, the panel showing "Waiting for your signature…" the entire time
+ * and no way out but a reload.
+ *
+ * A rejected promise is recoverable. A pending one is a dead end, and it looks exactly
+ * like the app having crashed.
+ *
+ * Signing is the shorter wait: it costs nothing and re-signing is free, so giving up
+ * early and offering a retry is strictly better. Sending is the longer one, and the
+ * message it fails with must never claim the transaction did not happen — see below.
+ */
+const SIGN_TIMEOUT_MS = 90_000;
+const SEND_TIMEOUT_MS = 150_000;
+
+/**
+ * What to say when a payment goes unanswered.
+ *
+ * Deliberately does not claim the transaction failed. We stopped waiting for the wallet;
+ * that tells us nothing about whether the transaction was broadcast, and telling somebody
+ * their payment did not happen when it is sitting in the mempool is how they pay twice.
+ * Retrying is safe to promise because the flow re-reads `isPaid` before paying, so a
+ * payment that did land turns the next attempt into a resume rather than a second charge.
+ */
+const PAYMENT_UNANSWERED =
+  "Your wallet never sent the payment back, so we stopped waiting. It may still have gone through — open your wallet app to check, then click publish again. That picks up where this left off and cannot charge you twice.";
+
+/** Rejects if `promise` has not settled within `ms`. */
+async function answered<T>(
+  promise: Promise<T>,
+  ms: number,
+  onTimeout: () => PublishError
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(onTimeout()), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * Publishing, as four things the owner does and two the gateway does.
@@ -198,6 +267,31 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       return;
     }
 
+    /**
+     * Waits for a transaction and insists it actually succeeded.
+     *
+     * `waitForTransactionReceipt` does NOT throw on a reverted transaction — it resolves
+     * with a receipt whose `status` is "reverted". Discarding that return value, which
+     * every call site here used to do, means a publish that reverted on chain walks
+     * straight on to the confirm step, where the gateway correctly reports that nothing
+     * was paid for and the owner is told "No payment found on chain for this site yet."
+     *
+     * That is the worst sentence this app can produce: it describes a payment that
+     * failed as if it had succeeded and gone missing, and it points at the gateway when
+     * the fault was on chain. It is exactly what a real owner hit publishing on
+     * och.nft.hoodfi.eth — `publishes` still 0, no Published event, contenthash empty,
+     * and a message implying the money had vanished.
+     */
+    async function mined(hash: Hex, what: string) {
+      const receipt = await client!.waitForTransactionReceipt({ hash, timeout: 180_000 });
+      if (receipt.status !== "success") {
+        throw new PublishError(
+          `Your ${what} transaction reached the chain but reverted, so nothing was recorded. You were not charged — only the gas for the failed attempt. Reload the page and try again.`
+        );
+      }
+      return receipt;
+    }
+
     try {
       // Both writes are on Robinhood Chain. Switching inside the same try as the writes
       // matters: a rejected switch escapes an async onClick as an unhandled promise and
@@ -211,13 +305,21 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       setStep("signing");
       const bytes = new TextEncoder().encode(html);
       const expiry = Date.now() + SIGNATURE_LIFETIME_MS;
-      const signature = await signMessageAsync({
-        // The whole path. This string is the name as far as the gateway is concerned:
-        // it recovers the signer against it, pins under it, and later reads isPaid at its
-        // namehash. Signing the leftmost label instead authorised a different name and
-        // stranded the payment — see `pathBelowRoot`.
-        message: sitePublishMessage(`${name.path}.hoodfi.eth`, sha256(bytes), expiry),
-      });
+      const signature = await answered(
+        signMessageAsync({
+          // The whole path. This string is the name as far as the gateway is concerned:
+          // it recovers the signer against it, pins under it, and later reads isPaid at
+          // its namehash. Signing the leftmost label instead authorised a different name
+          // and stranded the payment — see `pathBelowRoot`.
+          message: sitePublishMessage(`${name.path}.hoodfi.eth`, sha256(bytes), expiry),
+        }),
+        SIGN_TIMEOUT_MS,
+        () =>
+          new PublishError(
+            "Your wallet never sent the signature back. If you already approved it, the reply was lost on the way — open your wallet app, bring it to the front, and click publish again. Nothing was charged.",
+            true
+          )
+      );
 
       // ── 2. Pin, which is what gives the payment something to name ───────────
       setStep("pinning");
@@ -319,14 +421,22 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
 
           if (allowance < price) {
             setStep("approving");
-            const approveHash = await writeContractAsync({
-              address: USDG_ADDRESS,
-              abi: erc20Abi,
-              functionName: "approve",
-              args: [SITES_ADDRESS, price],
-              chainId: robinhoodChain.id,
-            });
-            await client.waitForTransactionReceipt({ hash: approveHash, timeout: 180_000 });
+            const approveHash = await answered(
+              writeContractAsync({
+                address: USDG_ADDRESS,
+                abi: erc20Abi,
+                functionName: "approve",
+                args: [SITES_ADDRESS, price],
+                chainId: robinhoodChain.id,
+              }),
+              SEND_TIMEOUT_MS,
+              () =>
+                new PublishError(
+                  "Your wallet never sent the approval back. It may still go through — check your wallet, then click publish again. An approval that did land is read fresh next time, so it is not asked for twice.",
+                  true
+                )
+            );
+            await mined(approveHash, "approval");
           }
 
           setStep("paying");
@@ -337,14 +447,18 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
             args: [name.node, template, pinned.cid],
             account: address,
           });
-          const payHash = await writeContractAsync({
-            address: SITES_ADDRESS,
-            abi: sitesAbi,
-            functionName: "publishWithUsdg",
-            args: [name.node, template, pinned.cid],
-            chainId: robinhoodChain.id,
-          });
-          await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
+          const payHash = await answered(
+            writeContractAsync({
+              address: SITES_ADDRESS,
+              abi: sitesAbi,
+              functionName: "publishWithUsdg",
+              args: [name.node, template, pinned.cid],
+              chainId: robinhoodChain.id,
+            }),
+            SEND_TIMEOUT_MS,
+            () => new PublishError(PAYMENT_UNANSWERED, true)
+          );
+          await mined(payHash, "payment");
         } else {
           await client.simulateContract({
             address: SITES_ADDRESS,
@@ -354,15 +468,19 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
             account: address,
             value: price,
           });
-          const payHash = await writeContractAsync({
-            address: SITES_ADDRESS,
-            abi: sitesAbi,
-            functionName: "publish",
-            args: [name.node, template, pinned.cid],
-            value: price,
-            chainId: robinhoodChain.id,
-          });
-          await client.waitForTransactionReceipt({ hash: payHash, timeout: 180_000 });
+          const payHash = await answered(
+            writeContractAsync({
+              address: SITES_ADDRESS,
+              abi: sitesAbi,
+              functionName: "publish",
+              args: [name.node, template, pinned.cid],
+              value: price,
+              chainId: robinhoodChain.id,
+            }),
+            SEND_TIMEOUT_MS,
+            () => new PublishError(PAYMENT_UNANSWERED, true)
+          );
+          await mined(payHash, "payment");
         }
       }
 
@@ -388,18 +506,40 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       const encoded = encodeContenthash(`ipfs://${pinned.cid}`);
       if (!encoded) throw new Error("Could not encode the contenthash for that CID.");
 
-      const linkHash = await writeContractAsync({
-        address: L2_REGISTRY_ADDRESS,
-        abi: registryAbi,
-        functionName: "setContenthash",
-        args: [name.node, encoded],
-        chainId: robinhoodChain.id,
-      });
-      await client.waitForTransactionReceipt({ hash: linkHash, timeout: 180_000 });
+      const linkHash = await answered(
+        writeContractAsync({
+          address: L2_REGISTRY_ADDRESS,
+          abi: registryAbi,
+          functionName: "setContenthash",
+          args: [name.node, encoded],
+          chainId: robinhoodChain.id,
+        }),
+        SEND_TIMEOUT_MS,
+        () =>
+          new PublishError(
+            // The one failure that leaves a paid, pinned site not yet reachable. Says so
+            // plainly, and says the money is safe, because the obvious reading of any
+            // error this late is that the payment was lost.
+            "Your site is paid for and pinned, but your wallet never sent back the last transaction — the one pointing your name at it. Nothing is lost and you will not be charged again: open your wallet app and click publish again to finish.",
+            true
+          )
+      );
+      await mined(linkHash, "record");
 
       setPublished({ html, cid: pinned.cid });
       setStep("done");
     } catch (err) {
+      // A message we wrote on purpose, for a condition we diagnosed on purpose. Passed
+      // through untouched — the rewriting below exists to make raw viem and connector
+      // errors readable, and applying it here would replace a specific diagnosis with a
+      // vaguer one.
+      if (err instanceof PublishError) {
+        if (err.offerReset) setNeedsReset(true);
+        setError(err.message);
+        setStep("idle");
+        return;
+      }
+
       const message = err instanceof Error ? err.message : String(err);
       // Never echo a raw viem error: they embed the full RPC URL, key included.
       const cancelled = /user rejected|denied/i.test(message);
@@ -420,14 +560,7 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
   }
 
   function resetSession() {
-    try {
-      Object.keys(window.localStorage)
-        .filter((k) => /^(@appkit\/|wagmi\.|wc@|walletconnect)/i.test(k))
-        .forEach((k) => window.localStorage.removeItem(k));
-    } catch {
-      // Private mode; the reload below still helps more often than not.
-    }
-    window.location.reload();
+    void resetWalletSession();
   }
 
   /**
