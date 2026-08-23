@@ -25,8 +25,23 @@ import { NamePicker } from "@/components/NamePicker";
  * rather than an impression of it.
  */
 export default function BuildPage() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, status } = useAccount();
   const { names, loading, error, unconfigured } = useMyNames(address);
+
+  /**
+   * Restoring a session is not the same as not having one.
+   *
+   * Getting here is a full page load — the homepage links to `/build/?name=…` with a
+   * plain anchor — so wagmi has to rebuild the WalletConnect session from storage every
+   * time, and that means re-establishing a relay socket to the wallet. Until it lands,
+   * `isConnected` is false, and telling somebody who connected thirty seconds ago to
+   * connect their wallet reads as the app having forgotten them: no names, no templates,
+   * no editor. It sent a real owner back to the homepage to select the same name twice.
+   *
+   * Measured on a warm session it is about half a second; on a first connect, with the
+   * relay cold, it is long enough to look broken.
+   */
+  const reconnecting = status === "reconnecting" || status === "connecting";
 
   const [name, setName] = useState<OwnedName | null>(null);
   const [templateId, setTemplateId] = useState<TemplateId>("terminal");
@@ -181,7 +196,15 @@ export default function BuildPage() {
           </div>
         </section>
 
-        {!isConnected ? (
+        {reconnecting ? (
+          <div className="shell section">
+            <p className="lede max-w-[46ch]">Reconnecting your wallet…</p>
+            <p className="mt-3 max-w-[52ch] text-[14px] leading-[1.6] text-[var(--faint)]">
+              You stay connected between pages — this is just your wallet answering again.
+              Your names and your draft are still here.
+            </p>
+          </div>
+        ) : !isConnected ? (
           <div className="shell section">
             <p className="lede max-w-[46ch]">
               Connect the wallet holding your name to start building.

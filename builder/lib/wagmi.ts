@@ -40,7 +40,21 @@ export const wagmiAdapter = new WagmiAdapter({
     [mainnet.id]: mainnetTransport,
     [ROBINHOOD_CHAIN_ID]: http(ROBINHOOD_RPC),
   },
-  ssr: false,
+  /**
+   * True even though there is no server, because a static export prerenders every page
+   * at build time and that HTML is the "server" render as far as hydration is concerned.
+   *
+   * With `ssr: false` wagmi reads its stored connection synchronously during the first
+   * client render, so a returning visitor's first paint says "connected" while the
+   * prerendered HTML says "not connected". React throws hydration error #418 and
+   * re-renders the tree to recover. Observed in production on /build, in the console of
+   * a real session: `Minified React error #418 … args[]=text`.
+   *
+   * `ssr: true` defers the stored state to after mount, so both renders agree and the
+   * connection is restored by `reconnectOnMount` instead. The connected UI arrives a tick
+   * later either way — the difference is that it arrives without a thrown error.
+   */
+  ssr: true,
 });
 
 export const config = wagmiAdapter.wagmiConfig;

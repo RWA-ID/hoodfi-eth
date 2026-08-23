@@ -23,9 +23,13 @@ type Props = {
  * are kept close in height rather than free to grow.
  */
 export function StartPanel({ selected, onSelect }: Props) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, status } = useAccount();
   const { open } = useAppKit();
   const { names, loading, error, unconfigured, reload } = useMyNames(address);
+
+  // See the note in app/build/page.tsx. Offering "Connect Wallet" to somebody who is
+  // already connected invites a second session on top of the one being restored.
+  const reconnecting = status === "reconnecting" || status === "connecting";
 
   // A name that leaves the list — disconnect, account switch, sold mid-session — must
   // not stay selected. Everything downstream treats this as proof of ownership.
@@ -43,11 +47,21 @@ export function StartPanel({ selected, onSelect }: Props) {
             className="inline-block h-[7px] w-[7px]"
             style={{ background: isConnected ? "var(--lime)" : "rgba(241,241,234,0.3)" }}
           />
-          {isConnected ? "CONNECTED" : "NOT CONNECTED"}
+          {isConnected ? "CONNECTED" : reconnecting ? "RECONNECTING" : "NOT CONNECTED"}
         </span>
       </div>
 
-      {!isConnected ? (
+      {reconnecting ? (
+        <div className="mt-7">
+          <p className="text-[19px] font-semibold leading-[1.35] tracking-[-0.02em] text-[var(--fg)]">
+            Reconnecting your wallet…
+          </p>
+          <p className="mt-3 max-w-[38ch] text-[15px] leading-[1.6] text-[var(--dim)]">
+            You were here before, so we&rsquo;re asking your wallet to confirm it again.
+            Nothing to do — your names will appear in a moment.
+          </p>
+        </div>
+      ) : !isConnected ? (
         <div className="mt-7">
           <p className="text-[19px] font-semibold leading-[1.35] tracking-[-0.02em] text-[var(--fg)]">
             Connect the wallet holding your name.
