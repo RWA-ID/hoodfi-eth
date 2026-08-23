@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
+import { resetWalletSession } from "@/lib/session";
 
 /**
  * The phantom WalletConnect connection, detected by what actually breaks.
@@ -24,8 +25,6 @@ import { useAccount } from "wagmi";
  * So the test is the method itself. A live connector has getChainId; a rehydrated stub
  * does not. No heuristics, no key-matching, no false positives.
  */
-const KEY_PATTERN = /^(@appkit\/|wagmi\.|wc@|walletconnect)/i;
-
 export function ConnectionGuard() {
   const { connector, isConnected } = useAccount();
   const [stuck, setStuck] = useState(false);
@@ -45,14 +44,7 @@ export function ConnectionGuard() {
   if (!stuck) return null;
 
   const reset = () => {
-    try {
-      Object.keys(window.localStorage)
-        .filter((k) => KEY_PATTERN.test(k))
-        .forEach((k) => window.localStorage.removeItem(k));
-    } catch {
-      // Private mode. The reload below still helps more often than not.
-    }
-    window.location.reload();
+    void resetWalletSession();
   };
 
   return (
