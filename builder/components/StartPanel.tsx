@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
+import { useWalletStatus } from "./useWalletStatus";
 import { useMyNames, type OwnedName } from "./useMyNames";
 import { ArrowNE } from "./ArrowNE";
 import { NamePicker } from "./NamePicker";
@@ -23,13 +23,12 @@ type Props = {
  * are kept close in height rather than free to grow.
  */
 export function StartPanel({ selected, onSelect }: Props) {
-  const { address, isConnected, status } = useAccount();
+  // Offering "Connect Wallet" to somebody who is already connected invites a second
+  // session on top of the one being restored — but a restore that never finishes must not
+  // hold this panel shut either. `useWalletStatus` draws that line; see isRestoringSession.
+  const { address, isConnected, reconnecting } = useWalletStatus();
   const { open } = useAppKit();
   const { names, loading, error, unconfigured, reload } = useMyNames(address);
-
-  // See the note in app/build/page.tsx. Offering "Connect Wallet" to somebody who is
-  // already connected invites a second session on top of the one being restored.
-  const reconnecting = status === "reconnecting" || status === "connecting";
 
   // A name that leaves the list — disconnect, account switch, sold mid-session — must
   // not stay selected. Everything downstream treats this as proof of ownership.

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAccount } from "wagmi";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { SiteForm } from "@/components/SiteForm";
 import { SitePreview } from "@/components/SitePreview";
 import { TemplatePicker } from "@/components/TemplatePicker";
 import { useMyNames, type OwnedName } from "@/components/useMyNames";
+import { useWalletStatus } from "@/components/useWalletStatus";
 import { useNameRecords } from "@/components/useNameRecords";
 import { loadDraft, saveDraft } from "@/lib/draft";
 import { EMPTY_SITE, TEMPLATES_BY_ID, type SiteData, type TemplateId } from "@/lib/templates/index.ts";
@@ -25,23 +25,23 @@ import { NamePicker } from "@/components/NamePicker";
  * rather than an impression of it.
  */
 export default function BuildPage() {
-  const { address, isConnected, status } = useAccount();
-  const { names, loading, error, unconfigured } = useMyNames(address);
-
   /**
-   * Restoring a session is not the same as not having one.
+   * Restoring a session is not the same as not having one — and not the same as having
+   * one, either.
    *
    * Getting here is a full page load — the homepage links to `/build/?name=…` with a
-   * plain anchor — so wagmi has to rebuild the WalletConnect session from storage every
-   * time, and that means re-establishing a relay socket to the wallet. Until it lands,
+   * plain anchor — so wagmi rebuilds the session from storage every time. Until it lands,
    * `isConnected` is false, and telling somebody who connected thirty seconds ago to
    * connect their wallet reads as the app having forgotten them: no names, no templates,
    * no editor. It sent a real owner back to the homepage to select the same name twice.
    *
-   * Measured on a warm session it is about half a second; on a first connect, with the
-   * relay cold, it is long enough to look broken.
+   * Measured on a warm session it is about half a second. But it is not bounded by
+   * anything in wagmi, and when it stalls this screen was the dead end — "Reconnecting
+   * your wallet…" over an empty editor, for as long as the tab stayed open. That is the
+   * "I clicked Build and nothing loaded" report. `useWalletStatus` bounds it.
    */
-  const reconnecting = status === "reconnecting" || status === "connecting";
+  const { address, isConnected, reconnecting } = useWalletStatus();
+  const { names, loading, error, unconfigured } = useMyNames(address);
 
   const [name, setName] = useState<OwnedName | null>(null);
   const [templateId, setTemplateId] = useState<TemplateId>("terminal");

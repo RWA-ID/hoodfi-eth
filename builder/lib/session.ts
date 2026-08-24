@@ -91,3 +91,55 @@ export async function resetWalletSession(): Promise<void> {
 
   window.location.reload();
 }
+
+/**
+ * How long a session restore gets before we stop believing in it.
+ *
+ * Long enough that a healthy reconnect — measured at about half a second on a warm
+ * session — is never interrupted, short enough that nobody reads it as a broken page.
+ */
+export const RECONNECT_GRACE_MS = 4000;
+
+/**
+ * Whether to show "restoring your session" rather than the connected or connect UI.
+ *
+ * A mount-time reconnect is not guaranteed to finish. wagmi's `reconnect` walks the
+ * connectors and awaits `connect({isReconnecting:true})` on each one in turn, and an
+ * injected provider that answers nothing stalls that loop forever — no rejection, no
+ * timeout, so `status` never leaves "reconnecting".
+ *
+ * Captured on build.hoodfi.name, 2026-08-24, with Rabby and MetaMask both installed:
+ * Rabby defines `window.ethereum` as a getter-only property, MetaMask's inpage script
+ * fails to install over it ("Cannot set property ethereum of #<Window> which has only a
+ * getter"), and the provider it announces over EIP-6963 then never answers even a bare
+ * `eth_accounts`. Rabby replied instantly; `io.metamask` was still silent at 4s, and the
+ * page still said "Reconnecting" 154 seconds after load.
+ *
+ * Two things follow, and this predicate is both of them.
+ *
+ * `address` first: during "reconnecting" wagmi's `getAccount` returns the restored
+ * address and `isConnected: !!address`. So a stalled reconnect that has already restored
+ * the account renders the header and the status dot as CONNECTED while the panel body
+ * still shows "Reconnecting your wallet…" — connected and reconnecting at once, with no
+ * name picker underneath. Once there is an address there is nothing left to wait for:
+ * reads go through `usePublicClient` and never touch the connector, and a connector that
+ * came back without its methods is `isDeadConnector`'s job, not this one's.
+ *
+ * Then the grace: with no address restored yet, the same stall leaves a first-time
+ * visitor staring at "your names will appear in a moment" — a promise the page cannot
+ * keep — with no way to connect. After the grace we drop through to the connect UI,
+ * which is both true and actionable.
+ *
+ * "connecting" is deliberately not bounded. It only happens because somebody clicked
+ * Connect, it settles when they approve or reject, and expiring it mid-approval would
+ * pull the page out from under a wallet prompt that is still open.
+ */
+export function isRestoringSession(
+  status: string,
+  address: string | undefined,
+  graceExpired: boolean
+): boolean {
+  if (address) return false;
+  if (status === "connecting") return true;
+  return status === "reconnecting" && !graceExpired;
+}
