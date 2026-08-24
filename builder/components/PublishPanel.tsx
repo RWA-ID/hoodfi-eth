@@ -28,7 +28,7 @@ import {
   sitePublishMessage,
 } from "@/lib/publish";
 import { encodeContenthash } from "@/shared/contenthash";
-import { resetWalletSession } from "@/lib/session";
+import { isDeadConnector, resetWalletSession } from "@/lib/session";
 import { templateHash, useQuote } from "./useQuote";
 import { useUsdg } from "./useUsdg";
 import type { OwnedName } from "./useMyNames";
@@ -205,12 +205,10 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
    * up. A disabled control that cannot say why is the same failure as an error message
    * that says nothing, which this project has now hit several times.
    */
-  // A rehydrated connector stub has no methods on it — see ConnectionGuard. Catching it
+  // A rehydrated connector stub has no methods on it — see isDeadConnector. Catching it
   // here means the failure is named before a signature is requested, rather than
   // surfacing as "connector.getChainId is not a function" halfway through publishing.
-  const stubConnector = Boolean(
-    isConnected && connector && typeof connector.getChainId !== "function"
-  );
+  const stubConnector = Boolean(isConnected && isDeadConnector(connector));
 
   // An if-chain rather than the ternary this used to be: the price states doubled its
   // length, and a six-deep nested ternary beside a payment button is not worth the

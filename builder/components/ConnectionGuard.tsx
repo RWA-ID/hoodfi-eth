@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
-import { resetWalletSession } from "@/lib/session";
+import { isDeadConnector, resetWalletSession } from "@/lib/session";
 
 /**
  * The phantom WalletConnect connection, detected by what actually breaks.
@@ -22,18 +22,17 @@ import { resetWalletSession } from "@/lib/session";
  * version of this guard, which sniffed localStorage for a contradiction, never fired —
  * there is no contradiction to find. The fault is in memory.
  *
- * So the test is the method itself. A live connector has getChainId; a rehydrated stub
- * does not. No heuristics, no key-matching, no false positives.
+ * So the test is the methods themselves. A live connector has them; a rehydrated stub
+ * does not. No heuristics, no key-matching, no false positives. The predicate lives in
+ * lib/session.ts so this banner, the publish button and the header agree on what "dead"
+ * means — see isDeadConnector for why it checks disconnect as well as getChainId.
  */
 export function ConnectionGuard() {
   const { connector, isConnected } = useAccount();
   const [stuck, setStuck] = useState(false);
 
   useEffect(() => {
-    const check = () =>
-      setStuck(
-        Boolean(isConnected && connector && typeof connector.getChainId !== "function")
-      );
+    const check = () => setStuck(Boolean(isConnected && isDeadConnector(connector)));
     check();
     // Re-check on focus: the state usually goes bad while the tab sat in the background
     // waiting on a wallet app.

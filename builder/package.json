@@ -6,7 +6,8 @@
     "prebuild": "node scripts/sync-shared.mjs",
     "dev": "npm run prebuild && next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --experimental-strip-types lib/session.test.mjs"
   },
   "//deps": "Pinned exact, not caret-ranged, and matched to the versions the site actually builds with. A fresh caret resolve here picked up @wagmi/connectors 8.1.0, whose bundled Coinbase SDK imports @x402/* packages that nothing installs — eight module-not-found errors from a dependency this app never calls. The site is on 8.0.22 via its lockfile and builds clean; there is no reason for the two apps to be on different wallet stacks.",
   "dependencies": {

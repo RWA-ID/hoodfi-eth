@@ -3,6 +3,7 @@
 import { useAppKit } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
 import { formatAddress } from "@/lib/format";
+import { isDeadConnector, resetWalletSession } from "@/lib/session";
 
 /**
  * The header's wallet control: an ink button when there's nothing connected, and the
@@ -11,14 +12,31 @@ import { formatAddress } from "@/lib/format";
  */
 export function ConnectButton() {
   const { open } = useAppKit();
-  const { address, isConnected } = useAccount();
+  const { address, connector, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
+
+  /**
+   * Disconnect, or clear the session when there is nothing left to disconnect from.
+   *
+   * A rehydrated connector stub has no `disconnect` method, so wagmi's `disconnect()`
+   * resolves against an object that cannot do anything and the click is a silent no-op —
+   * no error, no state change, nothing in the console. Observed on the sibling frontend
+   * 2026-08-24. Clearing the stored session and reloading is the only way out, and it is
+   * what the person pressing this button is asking for either way.
+   */
+  const onDisconnect = () => {
+    if (isDeadConnector(connector)) {
+      void resetWalletSession();
+      return;
+    }
+    disconnect();
+  };
 
   if (isConnected && address) {
     return (
       <button
         className="data h-9 border border-[color-mix(in_srgb,var(--ink)_35%,transparent)] px-3 text-[12px] font-medium transition-colors hover:bg-[var(--hover-fill)]"
-        onClick={() => disconnect()}
+        onClick={onDisconnect}
         title="Disconnect"
         type="button"
       >
