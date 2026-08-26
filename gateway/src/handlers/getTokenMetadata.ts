@@ -45,25 +45,52 @@ export async function getTokenMetadata(tokenId: string, requestUrl: string, env:
   }
 
   const name = dnsDecodeName(dnsEncodedName)
-  const label = name.split('.')[0] ?? name
+  const segments = name.split('.')
+  const label = segments[0] ?? name
   const origin = new URL(requestUrl).origin
+
+  /**
+   * The name's actual parent, not the collection's root.
+   *
+   * `hoodfi.eth` was hardcoded here, which is right for the names HoodFi sells and wrong
+   * for every subname a holder creates: `crypto.gm.hoodfi.eth` was listing a parent of
+   * `hoodfi.eth`, telling a marketplace it sits alongside the names issued directly rather
+   * than under `gm.hoodfi.eth`. That trait is the one place a buyer could have checked, so
+   * it has to be read off the name.
+   */
+  const parent = segments.slice(1).join('.')
+  /** Subnames nest to any depth; anything below a name HoodFi issued was created by a holder. */
+  const isSubname = segments.length > 3
+  /** The whole path below the root — `crypto.gm`, not `crypto`, which names a different token. */
+  const path = name.endsWith('.hoodfi.eth')
+    ? name.slice(0, -'.hoodfi.eth'.length)
+    : label
 
   return Response.json(
     {
       name,
-      description:
-        `${name} — an ENS name on Robinhood Chain, issued by HoodFi. ` +
-        `Resolves onchain across Ethereum via CCIP-Read.`,
+      // "issued by HoodFi" is a claim, and for a subname it is a false one — `crypto.gm.hoodfi.eth`
+      // was created by whoever holds `gm.hoodfi.eth`. Both still resolve identically, which is
+      // why the sentence has to distinguish them: the resolution is the part that is the same.
+      description: isSubname
+        ? `${name} — an ENS subname of ${parent} on Robinhood Chain, created by its holder. ` +
+          `Resolves onchain across Ethereum via CCIP-Read.`
+        : `${name} — an ENS name on Robinhood Chain, issued by HoodFi. ` +
+          `Resolves onchain across Ethereum via CCIP-Read.`,
       // The name itself, set on the house lime. Every token used to share one piece of
       // collection art, which left a marketplace grid unable to say which name was which.
       // The whole name, not the label: the registry's root token is `hoodfi.eth`, which
       // a label plus a fixed parent would draw as `hoodfi.hoodfi.eth`.
       image: `${origin}/art/${encodeURIComponent(name)}.png`,
-      external_url: `https://hoodfi.eth.limo/?name=${encodeURIComponent(label)}`,
+      external_url: `https://hoodfi.eth.limo/?name=${encodeURIComponent(path)}`,
       attributes: [
         { trait_type: 'Length', value: label.length },
         { trait_type: 'Character Set', value: characterSet(label) },
-        { trait_type: 'Parent', value: 'hoodfi.eth' },
+        { trait_type: 'Parent', value: parent },
+        // Stated outright rather than left to be inferred from Parent, because a filter is
+        // how a marketplace grid actually gets read. The art carries the same distinction
+        // as a ground colour; this is the half a buyer can sort on.
+        { trait_type: 'Type', value: isSubname ? 'Subname' : 'Issued' },
         { trait_type: 'Chain', value: 'Robinhood Chain' },
       ],
     },

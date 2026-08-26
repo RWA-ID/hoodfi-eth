@@ -175,12 +175,35 @@ const PUBLIC_GATEWAY = 'https://ipfs.io/ipfs/'
  * isn't http(s) after that is dropped — a card renderer should not be handed a `data:`
  * or `file:` URI out of a text record.
  */
-export function avatarUrls(value: string): string[] {
+export function avatarUrls(value: string, maxPx?: number): string[] {
   if (!value) return []
   if (value.startsWith('ipfs://')) {
     const cid = value.slice('ipfs://'.length)
-    return [`${PINNED_GATEWAY}${cid}`, `${PUBLIC_GATEWAY}${cid}`]
+    return [`${PINNED_GATEWAY}${cid}${resizeQuery(maxPx)}`, `${PUBLIC_GATEWAY}${cid}`]
   }
   if (!/^https?:\/\//i.test(value)) return []
   return [value]
+}
+
+/**
+ * Ask the pinned gateway for the avatar at the size it will actually be drawn.
+ *
+ * Pinata's gateway resizes on the way out, and the difference is not a tuning detail: a
+ * real 480KB avatar came back as 54KB and 0.38s against 480KB and 0.78s cold — and the
+ * card renderer then has to base64 and decode whatever it was handed. A share card was
+ * measured at 3.57s cold for a name with an avatar against 0.83s for one without, which
+ * is the wrong side of the ~3s a crawler will wait: X fetched the card, gave up, and
+ * unfurled the link with no image at all. The full-size file was never wanted — the
+ * avatar is drawn into a box a few hundred pixels wide.
+ *
+ * Only on the pinned gateway. `ipfs.io` has no such parameter and the fallback exists for
+ * CIDs Pinata refuses anyway, so there is nothing there to ask.
+ *
+ * `img-fit=cover` is doing separate work: satori stretches a non-square avatar to the box
+ * it is given, so a wide image arrived visibly squashed. Cropping to a square on the way
+ * out is what makes it arrive already the right shape.
+ */
+function resizeQuery(maxPx?: number): string {
+  if (!maxPx) return ''
+  return `?img-width=${maxPx}&img-height=${maxPx}&img-fit=cover&img-format=png`
 }

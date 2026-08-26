@@ -15,6 +15,28 @@ const RENDERABLE = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/svg+x
 /** Matches the uploader's own cap in postAvatar.ts. */
 const MAX_AVATAR_BYTES = 512 * 1024
 
+/**
+ * The pixel size the avatar is asked for: twice the 132px box `nameCardHtml` draws it in,
+ * so it stays crisp without paying for a file the card cannot use.
+ */
+const AVATAR_PX = 264
+
+/**
+ * How long the whole avatar hunt gets, across every candidate.
+ *
+ * This was 4000ms *per* candidate, which is the bug rather than the budget: two gateways
+ * meant a card could spend eight seconds before satori started, and a crawler waits about
+ * three for the entire response. A per-candidate timeout also cannot be reasoned about
+ * from the outside — the ceiling moves whenever a gateway is added to the list.
+ *
+ * 1800ms is what is left of that three seconds after the chain reads, the fonts and the
+ * render itself, measured against a card that took 3.57s cold and needs to come in under
+ * X's limit with room to spare. Blowing it costs the avatar and nothing else: the card
+ * still draws, with the house mark, which is the trade this is here to make. A card that
+ * arrives without an avatar is a card; a card that arrives too late is no card at all.
+ */
+const AVATAR_BUDGET_MS = 1800
+
 /** Workers have btoa but not Buffer, and spreading a 512KB array blows the stack. */
 function toBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf)
@@ -41,14 +63,24 @@ function toBase64(buf: ArrayBuffer): string {
  *
  * Candidates are tried in order because a public IPFS gateway is exactly the slow host
  * this guards against: ipfs.io has been measured taking 25s to serve a CID our own
- * gateway returns in one, and against a 4s timeout that is an avatar silently missing
- * from the card. Our gateway goes first and the public one only catches CIDs it won't
- * serve.
+ * gateway returns in one — and on the avatar this was first debugged with, it 504s after
+ * 28 seconds rather than serving anything at all. Our gateway goes first and the public
+ * one only catches CIDs it won't serve.
+ *
+ * The budget is shared across the whole list rather than given to each candidate, so the
+ * ceiling is AVATAR_BUDGET_MS however many gateways get added here later. Running out is
+ * a normal outcome, not an error: the caller draws the house mark.
  */
 async function inlineAvatar(urls: string[]): Promise<string> {
+  const deadline = Date.now() + AVATAR_BUDGET_MS
   for (const url of urls) {
+    const remaining = deadline - Date.now()
+    // Under half a second there is no point starting a gateway fetch: the pinned gateway
+    // needs ~450ms warm, so anything less buys an abort mid-flight and spends the rest of
+    // the budget to end up exactly where breaking does.
+    if (remaining < 500) break
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(4000) })
+      const res = await fetch(url, { signal: AbortSignal.timeout(remaining) })
       if (!res.ok) continue
       const type = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase()
       // A format satori can't decode is the file itself, not the gateway serving it —
@@ -88,7 +120,7 @@ export async function getNameCard(rawLabel: string, env: Env): Promise<Response>
 
   // Already resolved to inline bytes or to nothing, so the render itself has no
   // network left to fail on and needs no fallback path of its own.
-  const avatar = await inlineAvatar(avatarUrls(profile.avatar))
+  const avatar = await inlineAvatar(avatarUrls(profile.avatar, AVATAR_PX))
 
   const rendered = new ImageResponse(
     cardHtml({

@@ -22,6 +22,43 @@ export const SIZE = 1000
 const LIME = '#C6F702'
 const INK = '#0B0E08'
 const FAINT = 'rgba(11, 14, 8, 0.5)'
+/**
+ * The same half-strength relationship as FAINT, measured from the other ground: paper at
+ * 50% on ink. Taken from `nameCardHtml`'s ON_INK_LABEL rather than picked, so the two
+ * grounds mute their suffix by the same amount and the pair reads as one system inverted
+ * rather than as two designs.
+ */
+const ON_INK_FAINT = 'rgba(241, 241, 234, 0.5)'
+
+/**
+ * Which ground a name is drawn on.
+ *
+ * A subname is not a lesser name, but it is a different thing to buy: `crypto.gm.hoodfi.eth`
+ * is issued by whoever holds `gm.hoodfi.eth`, not by HoodFi, and nothing about a lime tile
+ * said so. On a marketplace grid the two sat side by side identically, which is the one
+ * place the distinction has to survive — a buyer there sees the picture and the price, and
+ * has no reason to count the dots.
+ *
+ * Inverting the ground rather than restyling the type is deliberate: it separates the two
+ * at thumbnail size, where a grid is actually read, and it costs the collection nothing
+ * because both tiles keep the same lime, the same face and the same flush-left block.
+ */
+const GROUNDS = {
+  issued: { bg: LIME, head: INK, tail: FAINT },
+  sub: { bg: INK, head: LIME, tail: ON_INK_FAINT },
+} as const
+
+/**
+ * Is this name a subname of a hoodfi.eth name, rather than one HoodFi issued directly?
+ *
+ * Counted in segments because that is the whole of the distinction: `hoodfi.eth` is the
+ * root, `adam.hoodfi.eth` is a name HoodFi sold, and anything longer was created by a
+ * holder through `createSubnode`. Names nest to any depth, so this is a floor, not an
+ * equality — `a.b.c.hoodfi.eth` is as much a subname as `crypto.gm.hoodfi.eth`.
+ */
+function isSubname(fullName: string): boolean {
+  return fullName.split('.').length > 3
+}
 
 /**
  * A name splits into the part that identifies it and the part that says where it lives:
@@ -136,12 +173,16 @@ function escapeHtml(value: string): string {
 /**
  * The art every hoodfi.eth name carries as its NFT image.
  *
- * The name on the house lime in two flush-left lines, set the way the homepage identity
- * card sets a name: Archivo at its heaviest, the label in ink and the parent under it in
- * grey. It says which name the token is, which is the one thing a marketplace grid of
- * identical collection art could never say, and it needs no chain read beyond the name
- * itself: no avatar, no owner, no records, so the image for a given token is fixed the
- * moment it is minted.
+ * The name in two flush-left lines, set the way the homepage identity card sets a name:
+ * Archivo at its heaviest, the label over the parent in a muted half-strength grey. It says
+ * which name the token is, which is the one thing a marketplace grid of identical
+ * collection art could never say, and it needs no chain read beyond the name itself: no
+ * avatar, no owner, no records, so the image for a given token is fixed the moment it is
+ * minted.
+ *
+ * The ground says who issued it — house lime for a name HoodFi sold, inverted onto ink for
+ * a holder's subname. See GROUNDS: that is the one distinction a marketplace thumbnail has
+ * to carry, because it is the one a buyer cannot get from the picture any other way.
  *
  * Takes the whole name, `gm.hoodfi.eth`, not the label — the registry's own root token is
  * `hoodfi.eth`, and it is the one token a label plus a fixed parent gets wrong. Splitting
@@ -166,14 +207,16 @@ export function tokenArtHtml(fullName: string): string {
     size * 0.025
   ).toFixed(1)}px;`
 
+  const ground = isSubname(fullName) ? GROUNDS.sub : GROUNDS.issued
+
   const parentLine = parent
-    ? `<div style="display:flex;color:${FAINT};">${escapeHtml(parent)}</div>`
+    ? `<div style="display:flex;color:${ground.tail};">${escapeHtml(parent)}</div>`
     : ''
 
   return `
-<div style="display:flex;align-items:center;width:${SIZE}px;height:${SIZE}px;background:${LIME};padding-left:${MARGIN}px;">
+<div style="display:flex;align-items:center;width:${SIZE}px;height:${SIZE}px;background:${ground.bg};padding-left:${MARGIN}px;">
   <div style="display:flex;flex-direction:column;align-items:flex-start;${type}">
-    <div style="display:flex;color:${INK};">${escapeHtml(head)}</div>
+    <div style="display:flex;color:${ground.head};">${escapeHtml(head)}</div>
     ${parentLine}
   </div>
 </div>`.trim()
