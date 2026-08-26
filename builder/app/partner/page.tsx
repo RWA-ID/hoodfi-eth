@@ -29,7 +29,7 @@ const TERMS: [string, string][] = [
 const REQUIREMENTS: string[] = [
   "The collection is verified on OpenSea.",
   "The contract is deployed on Robinhood Chain.",
-  "There is a real team behind it we can reach.",
+  "The collection has a website and an X account we can reach you at.",
   "The design is yours to license to us.",
 ];
 

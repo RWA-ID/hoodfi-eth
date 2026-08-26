@@ -13,6 +13,7 @@ const MAX = {
   email: 160,
   org: 100,
   website: 200,
+  x: 60,
   collection: 60,
   opensea: 200,
   payee: 60,
@@ -80,6 +81,7 @@ export function TemplateSubmitForm() {
           email: data.get("email"),
           org: data.get("org"),
           website: data.get("website"),
+          x: data.get("x"),
           message: data.get("message"),
           collection: data.get("collection"),
           opensea: data.get("opensea"),
@@ -143,9 +145,42 @@ export function TemplateSubmitForm() {
         <Field label="Project">
           <input className="input" name="org" maxLength={MAX.org} required />
         </Field>
-        <Field label="Website or X (optional)">
-          <input className="input" name="website" maxLength={MAX.website} />
+        <Field label="Project website">
+          <input
+            className="input"
+            name="website"
+            maxLength={MAX.website}
+            placeholder="https://…"
+            spellCheck={false}
+            required
+          />
         </Field>
+      </div>
+
+      {/* Both required, and the reason is the whole review. A template is accepted from
+          outside and then served under a hoodfi.eth subdomain, so the one thing we have
+          to establish is that the sender speaks for the collection — not merely that the
+          contract they typed exists, which anyone can read off a marketplace. The site
+          and the X account are what we check the submission against and where we reply
+          to confirm it; without either there is nothing to confirm against, and an
+          approval would rest on the sender's own word. */}
+      <div className="mt-5">
+        <Field label="Owner's X account">
+          <input
+            className="input"
+            name="x"
+            maxLength={MAX.x}
+            placeholder="@yourcollection"
+            spellCheck={false}
+            autoComplete="off"
+            required
+          />
+        </Field>
+        <p className="data mt-2.5 text-[11.5px] leading-[1.7] text-[var(--faint)]">
+          The collection&rsquo;s own account — the one linked from your OpenSea page, not a
+          personal one. We reply there from @hoodfieth to confirm the submission before any
+          template is approved, so it has to be an account that can answer for the project.
+        </p>
       </div>
 
       <div className="mt-5">
@@ -260,8 +295,9 @@ export function TemplateSubmitForm() {
       </button>
 
       <p className="data mt-5 text-[11.5px] leading-[1.7] text-[var(--faint)]">
-        We only accept collections verified on OpenSea, and every template is reviewed
-        and built by us before it goes live.
+        We only accept collections verified on OpenSea, we confirm every submission with
+        the collection&rsquo;s own X account before approving it, and every template is
+        reviewed and built by us before it goes live.
       </p>
     </form>
   );
