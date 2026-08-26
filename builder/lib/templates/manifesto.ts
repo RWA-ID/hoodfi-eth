@@ -1,6 +1,6 @@
 import { ARCHIVO_600_WIDE, ARCHIVO_600_WIDE_ADV, DEPARTURE_MONO } from "./fonts.ts";
 import { ICON_CSS, keyed, sprite, type IconId } from "./icons.ts";
-import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, fitSize, handle, paragraphs, safeImage, safeUrl, shortAddress } from "./html.ts";
+import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, fitSize, handle, paragraphs, OG_AVATAR, PAGE_AVATAR, safeImage, safeUrl, shortAddress } from "./html.ts";
 import { BUILDER_URL } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
@@ -23,7 +23,9 @@ function renderManifesto(data: SiteData): string {
   const accent = esc(words[words.length - 1] ?? "");
 
   const label = esc(data.label);
-  const avatar = safeImage(data.avatar);
+  const avatar = safeImage(data.avatar, PAGE_AVATAR);
+  // Its own copy, larger: the page slots are 30-140px squares, the card is neither.
+  const avatarOg = safeImage(data.avatar, OG_AVATAR);
   const site = safeUrl(data.website);
   const opensea = safeUrl(data.opensea);
 
@@ -66,7 +68,7 @@ function renderManifesto(data: SiteData): string {
 <meta property="og:title" content="${attr(raw)}">
 <meta property="og:description" content="${attr(data.tagline)}">
 <meta property="og:type" content="profile">
-${avatar ? `<meta property="og:image" content="${attr(avatar)}">` : ""}
+${avatarOg ? `<meta property="og:image" content="${attr(avatarOg)}">` : ""}
 <meta name="twitter:card" content="summary_large_image">
 <style>
 @font-face{font-family:'ArchivoWide';src:url(data:font/woff2;base64,${ARCHIVO_600_WIDE}) format('woff2');font-weight:600;font-style:normal;font-display:swap}

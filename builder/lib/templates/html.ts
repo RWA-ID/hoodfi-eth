@@ -83,17 +83,66 @@ export function safeUrl(raw: string): string {
  */
 export const IPFS_GATEWAYS = ["https://ipfs.onchain-id.id/ipfs/", "https://ipfs.io/ipfs/"];
 
-export function ipfsToHttp(uri: string, gateway = IPFS_GATEWAYS[0]): string {
-  const path = uri.replace(/^ipfs:\/\/(ipfs\/)?/, "");
-  if (!/^[A-Za-z0-9]+(\/.*)?$/.test(path)) return "";
-  return gateway + path;
+/**
+ * How big a copy of an image to ask the gateway for, and how it may be reshaped.
+ *
+ * Our gateway is a Pinata one, so it resizes on the way out — and a published site is
+ * exactly where that matters most, because the HTML is pinned to IPFS and served to every
+ * visitor of that site with no rebuild path short of republishing it. A real avatar record
+ * measured 480KB at 512x512; the largest slot any template paints it into is 140px, and
+ * the smallest is a 30px mark.
+ *
+ * `cover` crops to a square, which is what the page slots are. `scale-down` never enlarges
+ * — it is the cap for a slot that wants the biggest copy available rather than a specific
+ * size, and it is why a 512px source asked for 640 comes back untouched at 512.
+ */
+export type ImageSize = { px: number; fit: "cover" | "scale-down" };
+
+/**
+ * The square boxes a template draws an avatar in: 140px at the largest (`.pfp` on a wide
+ * screen), 30px at the smallest. 280 keeps the large one crisp on a 2x display.
+ */
+export const PAGE_AVATAR: ImageSize = { px: 280, fit: "cover" };
+
+/**
+ * The social card, which wants the opposite of the page slots.
+ *
+ * Shrinking this is the failure mode, not the fix: every template declares
+ * `summary_large_image`, which X will decline to render below roughly 300x157, and a card
+ * that fails to render is indistinguishable from a link with no card at all. So this only
+ * caps a genuinely huge upload — `scale-down` leaves anything already smaller exactly as
+ * it is, rather than upscaling a small avatar into a soft one.
+ */
+export const OG_AVATAR: ImageSize = { px: 640, fit: "scale-down" };
+
+function resizeQuery(size?: ImageSize): string {
+  if (!size) return "";
+  const box = size.fit === "cover" ? `img-width=${size.px}&img-height=${size.px}` : `img-width=${size.px}`;
+  return `?${box}&img-fit=${size.fit}&img-format=png`;
 }
 
-/** An image src, with the same scheme rules as a link. */
-export function safeImage(raw: string): string {
+/**
+ * `size` is honoured only on our own gateway. The parameters are Pinata's, and the caller
+ * can pass any gateway here — appending them to a URL on a host that does not understand
+ * them is at best ignored and at worst a 404 on the one image the page needed.
+ */
+export function ipfsToHttp(uri: string, gateway = IPFS_GATEWAYS[0], size?: ImageSize): string {
+  const path = uri.replace(/^ipfs:\/\/(ipfs\/)?/, "");
+  if (!/^[A-Za-z0-9]+(\/.*)?$/.test(path)) return "";
+  return gateway + path + (gateway === IPFS_GATEWAYS[0] ? resizeQuery(size) : "");
+}
+
+/**
+ * An image src, with the same scheme rules as a link.
+ *
+ * `size` applies to `ipfs://` records only. An author can paste an `https://` URL to any
+ * host, and that host has no reason to understand Pinata's resize parameters — so a
+ * pasted URL is passed through exactly as given, unresized.
+ */
+export function safeImage(raw: string, size?: ImageSize): string {
   const value = raw.trim();
   if (!value) return "";
-  if (value.startsWith("ipfs://")) return ipfsToHttp(value);
+  if (value.startsWith("ipfs://")) return ipfsToHttp(value, IPFS_GATEWAYS[0], size);
   const url = safeUrl(value);
   return url.startsWith("http") ? url : "";
 }

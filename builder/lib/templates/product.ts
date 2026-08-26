@@ -1,6 +1,6 @@
 import { MANROPE_400, MANROPE_700, MANROPE_800 } from "./fonts.ts";
 import { ICON_CSS, icon, sprite, type IconId } from "./icons.ts";
-import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, handle, paragraphs, safeImage, safeUrl, shortAddress } from "./html.ts";
+import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, handle, paragraphs, OG_AVATAR, PAGE_AVATAR, safeImage, safeUrl, shortAddress } from "./html.ts";
 import { BUILDER_URL } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
@@ -123,7 +123,9 @@ function heroField(seed: string): string {
 function renderProduct(data: SiteData): string {
   const name = esc(data.displayName || data.label);
   const label = esc(data.label);
-  const avatar = safeImage(data.avatar);
+  const avatar = safeImage(data.avatar, PAGE_AVATAR);
+  // Its own copy, larger: the page slots are 30-140px squares, the card is neither.
+  const avatarOg = safeImage(data.avatar, OG_AVATAR);
   const site = safeUrl(data.website);
   const opensea = safeUrl(data.opensea);
 
@@ -152,7 +154,7 @@ function renderProduct(data: SiteData): string {
 <meta property="og:title" content="${attr(name)}">
 <meta property="og:description" content="${attr(data.tagline)}">
 <meta property="og:type" content="profile">
-${avatar ? `<meta property="og:image" content="${attr(avatar)}">` : ""}
+${avatarOg ? `<meta property="og:image" content="${attr(avatarOg)}">` : ""}
 <meta name="twitter:card" content="summary_large_image">
 <style>
 @font-face{font-family:'Manrope';src:url(data:font/woff2;base64,${MANROPE_400}) format('woff2');font-weight:400;font-style:normal;font-display:swap}

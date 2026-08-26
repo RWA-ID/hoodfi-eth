@@ -7,6 +7,8 @@ import {
   esc,
   handle,
   paragraphs,
+  OG_AVATAR,
+  PAGE_AVATAR,
   safeImage,
   safeUrl,
 } from "./html.ts";
@@ -38,7 +40,9 @@ import type { SiteData, Template } from "./types.ts";
 function renderEditorial(data: SiteData): string {
   const name = esc(data.displayName || data.label);
   const label = esc(data.label);
-  const avatar = safeImage(data.avatar);
+  const avatar = safeImage(data.avatar, PAGE_AVATAR);
+  // Its own copy, larger: the page slots are 30-140px squares, the card is neither.
+  const avatarOg = safeImage(data.avatar, OG_AVATAR);
   const site = safeUrl(data.website);
   const opensea = safeUrl(data.opensea);
 
@@ -83,7 +87,7 @@ function renderEditorial(data: SiteData): string {
 <meta property="og:title" content="${attr(name)}">
 <meta property="og:description" content="${attr(data.tagline)}">
 <meta property="og:type" content="profile">
-${avatar ? `<meta property="og:image" content="${attr(avatar)}">` : ""}
+${avatarOg ? `<meta property="og:image" content="${attr(avatarOg)}">` : ""}
 <meta name="twitter:card" content="summary_large_image">
 <style>
 /* One variable file covering 400-600. The weight RANGE in the descriptor is what lets the
