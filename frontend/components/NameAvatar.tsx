@@ -7,6 +7,17 @@ import { avatarUrls } from "@/lib/ens";
 const FALLBACK_SRC = "/hoodfi-h.png";
 
 /**
+ * The pixel size an `ipfs://` avatar is requested at.
+ *
+ * One constant rather than a prop derived from `className`, because the class is a
+ * Tailwind string this component cannot measure — and the range it spans is small enough
+ * not to need to. The largest box on the site is ProfileCard's 104px, so 256 keeps every
+ * call site crisp on a 2× display with room to grow, while still asking for a fraction of
+ * what an unresized record weighs.
+ */
+const AVATAR_PX = 256;
+
+/**
  * A name's avatar, with a three-step fallback: the owner's `avatar` record, then the
  * HoodFi H, then the name's own initials.
  *
@@ -30,7 +41,7 @@ export function NameAvatar({
   className?: string;
   textClassName?: string;
 }) {
-  const sources = avatarUrls(avatar);
+  const sources = avatarUrls(avatar, AVATAR_PX);
   const [attempt, setAttempt] = useState(0);
   const [markFailed, setMarkFailed] = useState(false);
 

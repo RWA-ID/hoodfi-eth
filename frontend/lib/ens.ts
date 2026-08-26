@@ -134,13 +134,33 @@ const PUBLIC_GATEWAY = "https://ipfs.io/ipfs/";
  * this account pinned and 403s everything else, and the avatar field accepts any URI
  * an owner types, so a CID pinned somewhere else has to fall through to the public one.
  */
-export function avatarUrls(value: string): string[] {
+export function avatarUrls(value: string, maxPx?: number): string[] {
   if (!value) return [];
   if (value.startsWith("ipfs://")) {
     const cid = value.slice("ipfs://".length);
-    return [`${PINNED_GATEWAY}${cid}`, `${PUBLIC_GATEWAY}${cid}`];
+    return [`${PINNED_GATEWAY}${cid}${resizeQuery(maxPx)}`, `${PUBLIC_GATEWAY}${cid}`];
   }
   return [value];
+}
+
+/**
+ * Ask the pinned gateway for the avatar near the size it will actually be drawn.
+ *
+ * The record holds whatever file its owner uploaded, and the largest box on the site is
+ * 104px: one real avatar is a 480KB PNG being downloaded in full to paint a 48px square
+ * in the manage panel. Pinata resizes on the way out, which took that same file to 49KB —
+ * a tenth of the bytes, on a page a wallet-connected owner loads on every visit.
+ *
+ * Only on the pinned gateway. `ipfs.io` has no such parameter, and the fallback exists for
+ * CIDs Pinata refuses to serve at all, so there is nothing there to ask for.
+ *
+ * `img-fit=cover` matters beyond the byte count: every box here is square and the record
+ * accepts any aspect ratio, so cropping server-side is what stops a wide avatar arriving
+ * to be squashed by the CSS.
+ */
+function resizeQuery(maxPx?: number): string {
+  if (!maxPx) return "";
+  return `?img-width=${maxPx}&img-height=${maxPx}&img-fit=cover&img-format=png`;
 }
 
 /** Strips a leading @ and any x.com/twitter.com URL wrapper down to the handle. */
