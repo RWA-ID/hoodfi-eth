@@ -7,6 +7,8 @@ import {
   esc,
   handle,
   paragraphs,
+  fallbackAttr,
+  IMG_FALLBACK_SCRIPT,
   OG_AVATAR,
   PAGE_AVATAR,
   safeImage,
@@ -50,6 +52,8 @@ function renderTerminal(data: SiteData): string {
   const avatar = safeImage(data.avatar, PAGE_AVATAR);
   // Its own copy, larger: the page slots are 30-140px squares, the card is neither.
   const avatarOg = safeImage(data.avatar, OG_AVATAR);
+  // Which gateway can serve it is knowable only on load, not here. See fallbackAttr.
+  const avatarAlt = fallbackAttr(data.avatar);
   const site = safeUrl(data.website);
   const opensea = safeUrl(data.opensea);
 
@@ -259,7 +263,7 @@ ${sprite(usedIcons)}
     ${
       avatar
         ? `<div>
-      <div class="port"><img src="${attr(avatar)}" alt="${attr(name)}"></div>
+      <div class="port"><img src="${attr(avatar)}"${avatarAlt} alt="${attr(name)}"></div>
       <div class="portcap"><span>HOLDER</span><span>${label.toUpperCase()}</span></div>
     </div>`
         : ""
@@ -294,7 +298,8 @@ ${sprite(usedIcons)}
   <footer><span>${label.toUpperCase()}.HOODFI.ETH</span><a href="${BUILDER_URL}" target="_blank" rel="noreferrer">BUILT WITH HOODFI SITES</a></footer>
 </div>
 </div>
-<script>${COPY_SCRIPT}
+<script>${IMG_FALLBACK_SCRIPT}
+${COPY_SCRIPT}
 ${ANCHOR_SCRIPT}</script>
 </body>
 </html>`;

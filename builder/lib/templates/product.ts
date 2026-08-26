@@ -1,6 +1,6 @@
 import { MANROPE_400, MANROPE_700, MANROPE_800 } from "./fonts.ts";
 import { ICON_CSS, icon, sprite, type IconId } from "./icons.ts";
-import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, handle, paragraphs, OG_AVATAR, PAGE_AVATAR, safeImage, safeUrl, shortAddress } from "./html.ts";
+import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, handle, paragraphs, fallbackAttr, IMG_FALLBACK_SCRIPT, OG_AVATAR, PAGE_AVATAR, safeImage, safeUrl, shortAddress } from "./html.ts";
 import { BUILDER_URL } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
@@ -126,6 +126,8 @@ function renderProduct(data: SiteData): string {
   const avatar = safeImage(data.avatar, PAGE_AVATAR);
   // Its own copy, larger: the page slots are 30-140px squares, the card is neither.
   const avatarOg = safeImage(data.avatar, OG_AVATAR);
+  // Which gateway can serve it is knowable only on load, not here. See fallbackAttr.
+  const avatarAlt = fallbackAttr(data.avatar);
   const site = safeUrl(data.website);
   const opensea = safeUrl(data.opensea);
 
@@ -242,7 +244,7 @@ ${sprite(usedIcons)}
        when the headline is left blank this was the one place the placeholder leaked into
        the chrome. The headline belongs to the owner; the identity belongs here. -->
   <span class="brand">
-    <span class="d">${avatar ? `<img src="${attr(avatar)}" alt="">` : ""}</span>${label}.hoodfi.eth
+    <span class="d">${avatar ? `<img src="${attr(avatar)}"${avatarAlt} alt="">` : ""}</span>${label}.hoodfi.eth
   </span>
   <span class="links">
     ${data.bio ? '<a href="#about">About</a>' : ""}
@@ -257,7 +259,7 @@ ${sprite(usedIcons)}
 
 <div class="hero">
   ${heroField(data.label || "hoodfi")}
-  ${avatar ? `<div class="pfp"><img src="${attr(avatar)}" alt="${attr(name)}"></div>` : ""}
+  ${avatar ? `<div class="pfp"><img src="${attr(avatar)}"${avatarAlt} alt="${attr(name)}"></div>` : ""}
   <h1>${name}</h1>
   ${data.tagline ? `<p class="tag">${esc(data.tagline)}</p>` : ""}
   <div class="cta">
@@ -330,7 +332,8 @@ ${
 
 <footer><span>${label}.hoodfi.eth</span><a href="${BUILDER_URL}" target="_blank" rel="noreferrer">Built with HoodFi Sites</a></footer>
 </div>
-<script>${COPY_SCRIPT}
+<script>${IMG_FALLBACK_SCRIPT}
+${COPY_SCRIPT}
 ${ANCHOR_SCRIPT}</script>
 </body>
 </html>`;

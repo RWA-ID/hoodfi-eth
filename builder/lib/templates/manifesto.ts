@@ -1,6 +1,6 @@
 import { ARCHIVO_600_WIDE, ARCHIVO_600_WIDE_ADV, DEPARTURE_MONO } from "./fonts.ts";
 import { ICON_CSS, keyed, sprite, type IconId } from "./icons.ts";
-import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, fitSize, handle, paragraphs, OG_AVATAR, PAGE_AVATAR, safeImage, safeUrl, shortAddress } from "./html.ts";
+import { ANCHOR_SCRIPT, COPY_SCRIPT, attr, esc, fitSize, handle, paragraphs, fallbackAttr, IMG_FALLBACK_SCRIPT, OG_AVATAR, PAGE_AVATAR, safeImage, safeUrl, shortAddress } from "./html.ts";
 import { BUILDER_URL } from "./html.ts";
 import type { SiteData, Template } from "./types.ts";
 
@@ -26,6 +26,8 @@ function renderManifesto(data: SiteData): string {
   const avatar = safeImage(data.avatar, PAGE_AVATAR);
   // Its own copy, larger: the page slots are 30-140px squares, the card is neither.
   const avatarOg = safeImage(data.avatar, OG_AVATAR);
+  // Which gateway can serve it is knowable only on load, not here. See fallbackAttr.
+  const avatarAlt = fallbackAttr(data.avatar);
   const site = safeUrl(data.website);
   const opensea = safeUrl(data.opensea);
 
@@ -148,7 +150,7 @@ ${sprite(usedIcons)}
     <div class="slash">// ${data.tagline ? esc(data.tagline) : `${label}.hoodfi.eth`}</div>
     <h1 style="font-size:${headSize}px">${head ? `${head}<br>` : ""}<span class="a">${accent}.</span></h1>
     ${data.bio ? `<div class="tag">${paragraphs(data.bio)}</div>` : ""}
-    ${avatar ? `<div class="face"><img src="${attr(avatar)}" alt="${attr(raw)}"></div>` : ""}
+    ${avatar ? `<div class="face"><img src="${attr(avatar)}"${avatarAlt} alt="${attr(raw)}"></div>` : ""}
     ${
       links.length
         ? `<div class="links">${links
@@ -176,7 +178,8 @@ ${sprite(usedIcons)}
     <a class="pg" href="${BUILDER_URL}" target="_blank" rel="noreferrer">${year} · BUILT WITH HOODFI SITES</a>
   </div>
 </div>
-<script>${COPY_SCRIPT}
+<script>${IMG_FALLBACK_SCRIPT}
+${COPY_SCRIPT}
 ${ANCHOR_SCRIPT}</script>
 </body>
 </html>`;

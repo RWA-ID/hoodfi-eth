@@ -147,6 +147,51 @@ export function safeImage(raw: string, size?: ImageSize): string {
   return url.startsWith("http") ? url : "";
 }
 
+/**
+ * The second gateway to try for an `ipfs://` image, as a `data-fallback` attribute.
+ *
+ * A published site is the one place in this codebase with no fallback chain: the app and
+ * the card renderer both walk a candidate list, but generated HTML got a single URL on our
+ * own gateway — and that gateway serves **only what this account pinned** and 403s
+ * everything else ([[reference-pinata-dedicated-gateway]]). The avatar field takes any URI
+ * its owner types, so an author whose picture is pinned somewhere else published a site
+ * with a permanently broken image and nothing behind it.
+ *
+ * It has to be an attribute plus a listener rather than a build-time choice, because which
+ * gateway works is not knowable when the HTML is written — only when it loads. No resize
+ * parameters on this one: they are Pinata's, and ipfs.io would serve the full file anyway.
+ *
+ * Empty for a pasted `https://` URL. There is no second host to try for someone else's
+ * server, and guessing one would be inventing a URL the author never gave us.
+ */
+export function fallbackAttr(raw: string): string {
+  const value = raw.trim();
+  if (!value.startsWith("ipfs://")) return "";
+  const url = ipfsToHttp(value, IPFS_GATEWAYS[1]);
+  return url ? ` data-fallback="${attr(url)}"` : "";
+}
+
+/**
+ * Swap an image to its second gateway when the first one fails to serve it.
+ *
+ * Listens in the **capture** phase: `error` from an `<img>` does not bubble, so a
+ * delegated listener without the third argument never fires — the one detail that decides
+ * whether this file is a working fallback or a decoration. Capture also means one listener
+ * for the whole page instead of an inline handler on every tag.
+ *
+ * The attribute is removed before the retry, so a CID that neither gateway can serve fails
+ * once and stops rather than ping-ponging forever.
+ */
+export const IMG_FALLBACK_SCRIPT = `
+document.addEventListener('error',function(e){
+  var i=e.target;
+  if(!i||i.tagName!=='IMG')return;
+  var f=i.getAttribute('data-fallback');
+  if(!f)return;
+  i.removeAttribute('data-fallback');
+  i.src=f;
+},true);`.trim();
+
 /** Plain text into paragraphs, escaped. Blank lines separate; single newlines break. */
 export function paragraphs(text: string): string {
   return text
