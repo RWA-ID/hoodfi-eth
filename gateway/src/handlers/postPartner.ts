@@ -51,8 +51,9 @@ const LIMITS = {
   email: 160,
   org: 100,
   website: 200,
+  x: 60,
   message: 2_000,
-  /* Template submissions carry three extra identifiers. Capped like every other
+  /* Template submissions carry four extra identifiers. Capped like every other
      single-line field, and never trusted as addresses here — they are printed into an
      email a human reads before doing anything, and validating an address in a mail
      handler would only give a false sense that it had been checked on-chain. The form
@@ -68,6 +69,8 @@ type Body = {
   email?: unknown
   org?: unknown
   website?: unknown
+  /** Template submissions only: the collection's own X account. See requireOwnerProof. */
+  x?: unknown
   topic?: unknown
   message?: unknown
   /** Template submissions only: the NFT contract, its OpenSea page, and who gets paid. */
@@ -115,12 +118,34 @@ function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(value)
 }
 
+/**
+ * Turns whatever shape of X reference was typed into a link the reviewer can click.
+ *
+ * `@name`, `name`, `x.com/name`, a full profile URL and a URL carrying a tracking query
+ * all arrive from real people. Normalising here rather than in the form is deliberate:
+ * this endpoint is open to the internet, so anything the browser does is a convenience,
+ * not a guarantee about what the handler receives. Anything that does not reduce to a
+ * plausible handle is passed through untouched — the value is printed into an email a
+ * human reads, and silently rewriting an unrecognised string would hide the oddity that
+ * is precisely worth noticing during a review.
+ */
+function xProfileUrl(value: string): string {
+  const handle = value
+    .replace(/^https?:\/\//i, '')
+    .replace(/^(?:www\.)?(?:twitter|x)\.com\//i, '')
+    .replace(/[?#].*$/, '')
+    .replace(/\/+$/, '')
+    .replace(/^@/, '')
+  return /^[A-Za-z0-9_]{1,15}$/.test(handle) ? `https://x.com/${handle}` : value
+}
+
 /** Renders the enquiry as plain text. No HTML part, so there is nothing to escape. */
 function composeEmail(fields: {
   name: string
   email: string
   org: string
   website: string
+  x: string
   topic: string
   message: string
   country: string
@@ -133,9 +158,11 @@ function composeEmail(fields: {
     ['From', `${fields.name} <${fields.email}>`],
     ['Organisation', fields.org || '—'],
     ['Website', fields.website || '—'],
-    ['Topic', fields.topic],
-    ['Country', fields.country || '—'],
   ]
+  // Beside the website, where the reviewer is already looking, and only when there is
+  // one — the site's general enquiry form does not collect it and should not gain a row.
+  if (fields.x) rows.push(['X', xProfileUrl(fields.x)])
+  rows.push(['Topic', fields.topic], ['Country', fields.country || '—'])
   // Only on a template submission, so an ordinary enquiry does not gain three empty rows.
   if (fields.topic === 'template') {
     rows.push(
@@ -177,6 +204,7 @@ export async function postPartner(request: Request, env: Env) {
   const email = oneLine(body.email, LIMITS.email)
   const org = oneLine(body.org, LIMITS.org)
   const website = oneLine(body.website, LIMITS.website)
+  const x = oneLine(body.x, LIMITS.x)
   const message = multiLine(body.message, LIMITS.message)
   const rawTopic = oneLine(body.topic, 16).toLowerCase()
   const topic = TOPICS.has(rawTopic) ? rawTopic : 'other'
@@ -188,6 +216,33 @@ export async function postPartner(request: Request, env: Env) {
   if (!name) return fail('Tell us who you are.', 400)
   if (!looksLikeEmail(email)) return fail('That email address looks wrong.', 400)
   if (message.length < 10) return fail('Add a line or two about what you have in mind.', 400)
+
+  /*
+   * A template submission must carry both a website and the collection's X account.
+   *
+   * Enforced here and not only on the form. The form marks both `required`, but this
+   * endpoint is open to the internet and a `required` attribute constrains one browser,
+   * not a POST — so on its own it is a hint to honest senders rather than a rule.
+   *
+   * The rule matters because of what approving a template does: it puts a design we
+   * accepted from outside on a hoodfi.eth subdomain, and it points a revenue split at
+   * an address the sender chose. Neither the contract address nor the OpenSea link
+   * establishes who sent it — both are public, so anyone can copy a collection they
+   * have nothing to do with. The site and the X account are what a reviewer checks the
+   * submission against and replies to before approving anything; a submission missing
+   * either leaves nothing to confirm it against, and is not worth a reviewer's time.
+   */
+  if (topic === 'template') {
+    if (!website) {
+      return fail('Add the collection’s website — we check every submission against it.', 400)
+    }
+    if (!x) {
+      return fail(
+        'Add the collection’s X account — we confirm every template submission there before approving it.',
+        400,
+      )
+    }
+  }
 
   const apiKey = envVarOptional('RESEND_API_KEY', env)
   if (!apiKey) {
@@ -226,6 +281,7 @@ export async function postPartner(request: Request, env: Env) {
           email,
           org,
           website,
+          x,
           topic,
           message,
           // Cloudflare's own geo header. No IP is read or stored.
