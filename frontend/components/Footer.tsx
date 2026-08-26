@@ -1,8 +1,28 @@
 import Link from "next/link";
 import { ArrowNE } from "./ArrowNE";
-import { BUILDER_URL } from "@/lib/site";
+import { XLogo } from "./ShareOnX";
+import { DiscordLogo } from "./DiscordLogo";
+import { GitHubLogo } from "./GitHubLogo";
+import { BUILDER_URL, DISCORD_URL, REPO_URL, X_URL } from "@/lib/site";
 
 type FooterLink = { href: string; label: string; external?: boolean };
+
+/**
+ * The three places to find us, as marks rather than words — the same row the builder's
+ * footer carries, so the two surfaces agree.
+ *
+ * X used to sit under "Legal", which it is not, and GitHub under "Learn" beside the
+ * contract links. Both are places to find the project rather than things to read, and
+ * as marks they stop competing with the rows around them for the same glance.
+ *
+ * Each link carries an `aria-label`: the SVGs are `aria-hidden`, and an icon-only link
+ * with no accessible name is announced as its URL.
+ */
+const SOCIALS: { label: string; href: string; icon: React.ReactNode }[] = [
+  { label: "HoodFi on X", href: X_URL, icon: <XLogo size={13} /> },
+  { label: "HoodFi on Discord", href: DISCORD_URL, icon: <DiscordLogo size={15} /> },
+  { label: "HoodFi on GitHub", href: REPO_URL, icon: <GitHubLogo size={14} /> },
+];
 
 const COLUMNS: { title: string; links: FooterLink[] }[] = [
   {
@@ -25,11 +45,6 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { href: "/mcp/", label: "MCP for agents" },
       { href: "/partner/", label: "Become a partner" },
       { href: "/#verify", label: "Contracts" },
-      {
-        href: "https://github.com/RWA-ID/hoodfi-eth",
-        label: "GitHub",
-        external: true,
-      },
     ],
   },
   {
@@ -38,7 +53,6 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { href: "/privacy/", label: "Privacy" },
       { href: "/terms/", label: "Terms" },
       { href: "/disclaimer/", label: "Disclaimer" },
-      { href: "https://x.com/hoodfieth", label: "X", external: true },
     ],
   },
 ];
@@ -75,6 +89,20 @@ export function Footer() {
           <p className="mt-4 max-w-[32ch] text-sm leading-relaxed text-[rgba(241,241,234,0.6)]">
             Lifetime ENS names on Robinhood Chain. Minted once, owned forever.
           </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {SOCIALS.map((social) => (
+              <a
+                key={social.label}
+                href={social.href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={social.label}
+                className="grid h-9 w-9 place-items-center border border-[rgba(241,241,234,0.28)] transition-colors hover:bg-[rgba(241,241,234,0.08)] hover:text-[var(--lime)]"
+              >
+                {social.icon}
+              </a>
+            ))}
+          </div>
         </div>
         {COLUMNS.map((col) => (
           <div key={col.title} className="min-w-0 flex-[1_1_160px]">

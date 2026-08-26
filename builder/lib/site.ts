@@ -19,6 +19,10 @@ export const MINT_URL = "https://www.hoodfi.name/mint/";
 /** Where an owner manages records by hand, for anything this builder doesn't cover. */
 export const MANAGE_URL = "https://www.hoodfi.name/manage/";
 
+/** The project's own accounts, linked from the footer. */
+export const X_URL = "https://x.com/hoodfieth";
+export const DISCORD_URL = "https://discord.gg/4x7pY9jXK";
+
 /**
  * Template submissions post here — the same worker endpoint the site's partner form
  * uses, distinguished by `topic: "template"`. One handler, one mail credential, one

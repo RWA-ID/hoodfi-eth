@@ -101,6 +101,17 @@ export const BUILDER_URL =
   process.env.NEXT_PUBLIC_BUILDER_URL ?? "https://build.hoodfi.name";
 
 /**
+ * The project's own accounts, linked as marks from the footer.
+ *
+ * Constants rather than strings in the markup because the builder's footer carries the
+ * identical row — the two surfaces are separate deployments, and a hand-typed invite
+ * link is exactly the kind of thing that gets rotated on one and not the other.
+ */
+export const X_URL = "https://x.com/hoodfieth";
+export const DISCORD_URL = "https://discord.gg/4x7pY9jXK";
+export const REPO_URL = "https://github.com/RWA-ID/hoodfi-eth";
+
+/**
  * Gateway route serving the donation ledger.
  *
  * Read server-side because a wide `eth_getLogs` needs an archive-capable RPC, and any

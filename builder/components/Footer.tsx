@@ -1,5 +1,7 @@
 import { XLogo } from "./XLogo";
-import { MANAGE_URL, MINT_URL } from "@/lib/site";
+import { DiscordLogo } from "./DiscordLogo";
+import { GitHubLogo } from "./GitHubLogo";
+import { DISCORD_URL, MANAGE_URL, MINT_URL, X_URL } from "@/lib/site";
 import {
   EXPLORER,
   L2_REGISTRY_ADDRESS,
@@ -8,6 +10,18 @@ import {
 } from "@/lib/contracts";
 
 type Link = { label: string; href: string; external?: boolean };
+
+/**
+ * The three places to find us, as marks rather than words.
+ *
+ * Each icon carries an `aria-label`, since the SVGs themselves are `aria-hidden` — an
+ * icon-only link with no accessible name is announced as its URL.
+ */
+const SOCIALS: { label: string; href: string; icon: React.ReactNode }[] = [
+  { label: "HoodFi on X", href: X_URL, icon: <XLogo size={13} /> },
+  { label: "HoodFi on Discord", href: DISCORD_URL, icon: <DiscordLogo size={15} /> },
+  { label: "HoodFi on GitHub", href: REPO_URL, icon: <GitHubLogo size={14} /> },
+];
 
 const COLUMNS: { title: string; links: Link[] }[] = [
   {
@@ -30,11 +44,12 @@ const COLUMNS: { title: string; links: Link[] }[] = [
     ],
   },
   {
+    // No GitHub row: the repo is one of the marks in the icon row above, and a footer
+    // that links the same place twice makes the reader check whether they differ.
     title: "Source",
     links: [
       { label: "Sites contract", href: `${EXPLORER}/address/${SITES_ADDRESS_PUBLIC}`, external: true },
       { label: "Name registry", href: `${EXPLORER}/address/${L2_REGISTRY_ADDRESS ?? ""}`, external: true },
-      { label: "GitHub", href: REPO_URL, external: true },
     ],
   },
   {
@@ -79,15 +94,20 @@ export function Footer() {
           >
             {SITES_ADDRESS_PUBLIC}
           </a>
-          <a
-            href="https://x.com/hoodfieth"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="HoodFi on X"
-            className="mt-4 grid h-9 w-9 place-items-center border border-[rgba(241,241,234,0.28)] transition-colors hover:bg-[rgba(241,241,234,0.08)]"
-          >
-            <XLogo size={13} />
-          </a>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {SOCIALS.map((social) => (
+              <a
+                key={social.label}
+                href={social.href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={social.label}
+                className="grid h-9 w-9 place-items-center border border-[rgba(241,241,234,0.28)] transition-colors hover:bg-[rgba(241,241,234,0.08)] hover:text-[var(--lime)]"
+              >
+                {social.icon}
+              </a>
+            ))}
+          </div>
         </div>
 
         {COLUMNS.map((col) => (
