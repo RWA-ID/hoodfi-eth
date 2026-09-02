@@ -4,13 +4,14 @@ import { ArrowNE } from "@/components/ArrowNE";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PageView } from "@/components/PageView";
+import { PayboxSection } from "@/components/PayboxSection";
 import { ogMetadata } from "@/lib/metadata";
 import { MCP_URL } from "@/lib/site";
 
 export const metadata: Metadata = ogMetadata({
   title: "MCP server",
   description:
-    "Let an AI agent register a *.hoodfi.eth name. A remote MCP server that checks availability, quotes a price and returns unsigned calldata — it holds no keys and never broadcasts.",
+    "Let an AI agent register a *.hoodfi.eth name and set its records. A remote MCP server that checks availability, quotes a price and returns unsigned calldata — it holds no keys and never broadcasts.",
   path: "/mcp/",
   image: "/og/mcp.png",
 });
@@ -41,6 +42,10 @@ const TOOLS = [
   {
     name: "hoodfi_build_set_contenthash_tx",
     body: "The unsigned transaction that points a name at an IPFS or IPNS site, so it answers at name.hoodfi.eth.link with no DNS and no host. Owner-only, and checked against the owner before any calldata comes back.",
+  },
+  {
+    name: "hoodfi_build_set_address_tx",
+    body: "The unsigned transaction that sets the name's Ethereum, Bitcoin and Solana addresses. Any combination in one call, batched so the owner signs once — and an address that isn't valid for its chain is refused rather than stored.",
   },
 ];
 
@@ -78,8 +83,9 @@ export default function McpPage() {
             </div>
             <p className="lede m-0 mb-2.5 max-w-[46ch]">
               An MCP server that answers what a name costs, hands back the transaction
-              that mints it, and points it at a website. It holds no keys and broadcasts
-              nothing — the agent signs, the agent owns.
+              that mints it, then points it at a website and at addresses on Ethereum,
+              Bitcoin and Solana. It holds no keys and broadcasts nothing — the agent
+              signs, the agent owns.
             </p>
           </div>
 
@@ -99,7 +105,7 @@ export default function McpPage() {
 
         <section className="shell section">
           <div className="eyebrow">01 / tools</div>
-          <h2 className="h-page mt-[18px]">Four of them.</h2>
+          <h2 className="h-page mt-[18px]">Five of them.</h2>
           <div className="cells mt-11 border-t border-l border-[var(--line)]">
             {TOOLS.map((tool) => (
               <div
@@ -118,7 +124,7 @@ export default function McpPage() {
         </section>
 
         <section className="shell section">
-          <div className="eyebrow">02 / two rules</div>
+          <div className="eyebrow">02 / three rules</div>
           <h2 className="h-page mt-[18px]">Worth knowing before you wire it up.</h2>
           <div className="duo mt-11">
             <div className="panel p-7">
@@ -143,6 +149,27 @@ export default function McpPage() {
                 .
               </p>
             </div>
+          </div>
+
+          {/* Full width rather than a third cell in the .duo above: three items in
+              that grid orphan the last one at medium widths, and this is a different
+              kind of warning from the two mechanics ones — it is about funds. */}
+          <div className="panel mt-3.5 p-7">
+            <h3 className="h-sub m-0">
+              An address record is a payment instruction.
+            </h3>
+            <p className="mt-3.5 max-w-[76ch] text-sm leading-relaxed text-[var(--dim)]">
+              A name can carry Ethereum, Bitcoin and Solana addresses, and the server
+              refuses one that isn&apos;t valid for its chain. How much that proves is
+              not the same everywhere: Bitcoin is checksummed, so a typo is caught;
+              Ethereum is only verified when the address carries EIP-55 capitalisation;
+              and a Solana address has no checksum at all, so a mistyped one is a
+              different, equally valid-looking key that nothing can detect. The tool
+              returns a{" "}
+              <span className="data text-[12.5px] text-[var(--olive)]">verify</span>{" "}
+              field saying which case applies — relay it rather than reporting the
+              address as checked.
+            </p>
           </div>
         </section>
 
@@ -169,6 +196,8 @@ export default function McpPage() {
             </div>
           </div>
         </section>
+
+        <PayboxSection />
 
         <section className="on-lime mt-28 border-y border-[var(--ink)]">
           <div className="shell py-[clamp(56px,7vw,88px)] text-center">

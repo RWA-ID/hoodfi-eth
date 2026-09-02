@@ -18,13 +18,16 @@ import Image from "next/image";
 const STORES = [
   {
     href: "https://apps.apple.com/us/app/robinhood-wallet/id1634080733",
-    src: "/robinhood/appstore-badge.png",
+    // The badge art is Apple's and Google's own, identical for every app, so it
+    // lives in `/store/` rather than under one vendor — the Paybox row uses the
+    // same two files. Never recolour or resize them past the `.store-badge` rules.
+    src: "/store/appstore-badge.png",
     alt: "Download Robinhood Wallet on the App Store",
   },
   {
     // The Android package is com.robinhood.gateway, not .wallet.
     href: "https://play.google.com/store/apps/details?id=com.robinhood.gateway",
-    src: "/robinhood/googleplay-badge.png",
+    src: "/store/googleplay-badge.png",
     alt: "Get Robinhood Wallet on Google Play",
   },
 ];

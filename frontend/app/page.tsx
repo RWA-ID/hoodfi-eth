@@ -15,6 +15,7 @@ import { ResolutionGrids } from "@/components/ResolutionGrids";
 import { ContractsTable } from "@/components/ContractsTable";
 import { WalletLockup } from "@/components/WalletLockup";
 import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
+import { PayboxBand } from "@/components/PayboxBand";
 import { PageView } from "@/components/PageView";
 import { ROBINHOOD_CHAIN_ID } from "@/lib/chains";
 import { ogMetadata } from "@/lib/metadata";
@@ -253,7 +254,14 @@ export default function Home() {
             </p>
           </section>
 
-          <section className="on-lime mt-28 border-y border-[var(--ink)]">
+          {/* ── The PayBox route in, after the numbered run and before the closing
+              CTA. Placed here rather than directly above <WalletLockup /> so the
+              page alternates paper → paper-alt → lime → paper-alt: putting it after
+              the CTA would have set two lime fields, or two paper-alt bands, side by
+              side. PayboxBand's own header explains the ground it settled on. */}
+          <PayboxBand />
+
+          <section className="on-lime border-y border-[var(--ink)]">
             <div className="shell py-[clamp(64px,8vw,96px)] text-center">
               <h2 className="h-cta m-0">
                 Your name is

@@ -11,7 +11,7 @@ export const metadata: Metadata = ogMetadata({
   image: "/og/legal.png",
 });
 
-const UPDATED = "July 11, 2026";
+const UPDATED = "September 2, 2026";
 
 export default function DisclaimerPage() {
   return (
@@ -46,6 +46,43 @@ export default function DisclaimerPage() {
               of Apple Inc.; Google Play and the Google Play logo are trademarks of
               Google LLC. HoodFi.eth is also not affiliated with ENS Labs, the ENS DAO,
               or the Ethereum Foundation.
+            </>,
+          ],
+        },
+        {
+          /* Sits directly after the Robinhood disclaimer: same kind of statement —
+             someone else's product named on this site — and the agent-spending
+             paragraph is the one a reader most needs before wiring a wallet to a
+             model. Wording supplied verbatim; do not paraphrase it. */
+          heading: "PayBox",
+          paragraphs: [
+            <>
+              PayBox is a non-custodial wallet and credential product operated by
+              MoonPay Inc. It is referenced on this site with MoonPay&apos;s
+              permission. HoodFi Names is an independent project, is not affiliated
+              with or endorsed by MoonPay, receives no compensation for this
+              reference, and has no control over PayBox&apos;s availability, pricing,
+              verification requirements, or continued support for any network.
+            </>,
+            <>
+              HoodFi Names never holds, custodies, or transmits user funds, and
+              performs no identity verification. Funding a PayBox vault, and any
+              purchase of crypto through MoonPay&apos;s ramp, is a transaction
+              between you and MoonPay under their terms. Availability varies by
+              jurisdiction.
+            </>,
+            <>
+              The HoodFi MCP server holds no keys and broadcasts nothing. It returns
+              unsigned transaction data for your agent or wallet to review and sign.
+              You are responsible for what you sign. Registrations are final: a
+              minted name cannot be refunded, reversed, or revoked by us, and
+              transactions submitted to Robinhood Chain cannot be recalled.
+            </>,
+            <>
+              Instructing an AI agent to spend funds carries risk. Set spending
+              limits in PayBox, review calldata before approving, and understand that
+              HoodFi Names is not responsible for actions taken by third-party agents
+              or models.
             </>,
           ],
         },
