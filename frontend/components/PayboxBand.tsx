@@ -77,8 +77,14 @@ export function PayboxBand() {
         </div>
 
         {/* Bordered stack: rules on the container's top and left, on each cell's
-            right and bottom, so no hairline is ever drawn twice. */}
-        <div className="cells border-l border-t border-[var(--line-card)] bg-[var(--paper)]">
+            right and bottom, so no hairline is ever drawn twice.
+
+            `.shadow-lime` goes on the container, never on the cells: the cells
+            share their hairlines, so a per-cell offset would paint lime bars
+            between the rows rather than past the block's edge. The band's own
+            `bg-[var(--paper)]` is what the offset reads against — without a fill
+            the paper-alt band would show straight through it. */}
+        <div className="cells shadow-lime border-l border-t border-[var(--line-card)] bg-[var(--paper)]">
           {PAYBOX_APPS.map((app) => (
             <div
               key={app.id}

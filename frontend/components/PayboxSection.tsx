@@ -3,7 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowNE } from "@/components/ArrowNE";
 import { PayboxFlipWord } from "@/components/PayboxFlipWord";
-import { PAYBOX_APPS, PAYBOX_STORES, PAYBOX_URL } from "@/lib/paybox";
+import { ConnectorDemos } from "@/components/ConnectorDemos";
+import { PAYBOX_STORES, PAYBOX_URL } from "@/lib/paybox";
 
 const STEPS: [string, ReactNode][] = [
   [
@@ -111,59 +112,14 @@ export function PayboxSection() {
           </p>
         </div>
 
-        {/*
-         * Grid, not `.cells`. With flex-wrap a lone third card grows to the full row
-         * and renders its video 1.6× taller than the two above it; `auto-fit` +
-         * `minmax` keeps every column the same width at every breakpoint. Do not
-         * swap this for flex-wrap without capping the basis.
-         */}
-        <div className="mt-9 grid items-start gap-5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))]">
-          {PAYBOX_APPS.map((app, index) => (
-            <div
-              key={app.id}
-              className="flex min-w-0 flex-col border border-[var(--line-card)] bg-[var(--paper-alt)]"
-            >
-              <div className="flex items-center gap-3.5 border-b border-[var(--line-soft)] px-5 py-4">
-                <span className="data text-[10.5px] tracking-[0.18em] text-[var(--faint)]">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <span className="flex h-6 w-[140px] flex-none items-center">
-                  <Image
-                    src={app.lockup.src}
-                    alt={app.label}
-                    width={app.lockup.width}
-                    height={app.lockup.height}
-                    className="block h-auto max-h-full w-auto max-w-full"
-                  />
-                </span>
-              </div>
-              {/*
-               * Muted autoplay is the only kind mobile Safari and Chrome will start.
-               * `preload="metadata"` plus a poster keeps three simultaneous loops off
-               * the critical path — the clips were re-encoded to 960px/30fps for the
-               * same reason, since they render in a ~400px card at most.
-               */}
-              <video
-                src={app.video}
-                poster={app.poster}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                aria-label={`Adding the PayBox connector in ${app.label}`}
-                className="block h-auto w-full bg-[var(--ink)]"
-              />
-              <p className="px-5 pb-5 pt-4 text-sm leading-[1.55] text-[var(--dim)]">
-                {app.step}
-              </p>
-            </div>
-          ))}
-        </div>
+        {/* The one interactive piece of this section, and the only part of it that
+            ships JavaScript — the cards start their own playback and open a centred
+            player. Everything around it stays static. */}
+        <ConnectorDemos />
       </div>
 
       {/* ── records by prompt ── */}
-      <div className="on-ink mt-[clamp(56px,7vw,84px)] grid border border-[var(--line-card)] bg-[var(--ink)] [grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))]">
+      <div className="on-ink shadow-lime mt-[clamp(56px,7vw,84px)] grid border border-[var(--line-card)] bg-[var(--ink)] [grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))]">
         <div className="p-[clamp(24px,3.4vw,40px)]">
           {/*
            * Was "coming next" in the design, drawn while the record tooling was still

@@ -126,8 +126,13 @@ export default function McpPage() {
         <section className="shell section">
           <div className="eyebrow">02 / three rules</div>
           <h2 className="h-page mt-[18px]">Worth knowing before you wire it up.</h2>
+          {/* `.shadow-lime` on each panel rather than `.shadow-card`: these three
+              and the PayBox cards below are the agent-facing blocks, and the lime
+              offset is what ties them together down the page. The `.duo` gap is
+              what makes it safe — the offset needs clear space to land in, so it
+              never goes on the shared-hairline grids above. */}
           <div className="duo mt-11">
-            <div className="panel p-7">
+            <div className="panel shadow-lime p-7">
               <h3 className="h-sub m-0">The signer owns the name.</h3>
               <p className="mt-3.5 text-sm leading-relaxed text-[var(--dim)]">
                 The registrar mints to whoever sends the transaction. There is no
@@ -136,7 +141,7 @@ export default function McpPage() {
                 that wallet needs funds on Robinhood Chain.
               </p>
             </div>
-            <div className="panel p-7">
+            <div className="panel shadow-lime p-7">
               <h3 className="h-sub m-0">Four characters and up.</h3>
               <p className="mt-3.5 text-sm leading-relaxed text-[var(--dim)]">
                 One, two and three character names are premium inventory, reserved for
@@ -153,8 +158,13 @@ export default function McpPage() {
 
           {/* Full width rather than a third cell in the .duo above: three items in
               that grid orphan the last one at medium widths, and this is a different
-              kind of warning from the two mechanics ones — it is about funds. */}
-          <div className="panel mt-3.5 p-7">
+              kind of warning from the two mechanics ones — it is about funds.
+
+              `mt-14`, not the `mt-3.5` this used to carry: the offset shadow is
+              14px, so at the old spacing the lime landed flush on this panel's top
+              border and read as a rule joining the two rows. 56px is the `.duo`
+              gap, which is the grid the shadow now has to clear. */}
+          <div className="panel shadow-lime mt-14 p-7">
             <h3 className="h-sub m-0">
               An address record is a payment instruction.
             </h3>

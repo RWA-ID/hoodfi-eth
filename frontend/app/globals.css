@@ -334,12 +334,45 @@ a {
 .shadow-card {
   box-shadow: 14px 14px 0 rgba(11, 14, 8, 0.1);
 }
-/* Same geometry as .shadow-card, in the accent. Reserved for the one block on
-   the page that is about somebody else — the offset reads as a second edge, so
-   the co-brand gets a lime frame without a lime fill competing with the CTA
-   band above it. */
+/* Same geometry as .shadow-card, in the accent: the offset reads as a second
+   edge, so a block gets a lime frame without a lime fill competing with the CTA
+   bands. Started as the Robinhood co-brand's alone; it now also carries the
+   agent story — the /mcp cards and the home connector band.
+   Only ever on a block with a gap around it. On a shared-hairline grid
+   (`.cells`, or the tools grid on /mcp) the cells butt together, so each cell's
+   offset paints a lime bar across its neighbour instead of past the edge. */
 .shadow-lime {
   box-shadow: 14px 14px 0 var(--lime);
+}
+
+/* The centred connector player on /mcp. A `<dialog>` gets no useful defaults —
+   the UA sheet gives it `width: fit-content` and a 2px inset border — so the box
+   is rebuilt here rather than fought with utilities. Sized in vw/vh because the
+   clips are 16:9 and the point is to be bigger than the ~300px card, not to be
+   full-screen. */
+.player-dialog {
+  width: min(880px, 92vw);
+  max-width: none;
+  max-height: 92vh;
+  margin: auto; /* centres in the top layer in both axes */
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  overflow: visible;
+}
+.player-dialog::backdrop {
+  /* Ink at 72%, not black: the page ground is warm off-white and a neutral
+     scrim reads blue against it. */
+  background: rgba(11, 14, 8, 0.72);
+}
+/* The dialog is in the top layer, outside every ancestor's stacking context, so
+   it inherits none of the page's `.on-ink` role tokens. The panel inside it sets
+   `.on-ink` itself — this only has to stop the UA's focus ring from drawing a
+   second box around the whole thing. */
+.player-dialog:focus,
+.player-dialog:focus-visible {
+  outline: none;
 }
 
 .hairline-t {
