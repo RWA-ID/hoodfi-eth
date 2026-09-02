@@ -3,6 +3,28 @@ main = "./src/index.ts"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 
+# `true` is already the default, but it is written out because the line below it is
+# exactly what tempts someone to turn it off. An MCP endpoint is not a link people
+# follow — it is a string copied into a client's own config file — so every agent that
+# connected before hoodfi-mcp.com existed still holds hoodfi-mcp.dmpay.workers.dev/mcp,
+# in a file this repo cannot reach and cannot migrate. Dropping the subdomain would
+# disconnect all of them at once, and nothing here would report an error. The custom
+# domains are an addition, never a replacement.
+workers_dev = true
+
+# The two hostnames the site advertises. Both existed as dashboard-created Custom
+# Domains before they were written here; declaring them keeps the worker reproducible
+# if it is ever rebuilt from scratch, which the dashboard alone does not.
+#
+# `custom_domain` and a plain route are different things: a custom domain creates the
+# DNS record and provisions the certificate itself, while a route needs a proxied
+# record to already exist. Each hostname is its own entry — the apex does not imply
+# `www` and `www` does not imply the apex.
+routes = [
+  { pattern = "hoodfi-mcp.com", custom_domain = true },
+  { pattern = "www.hoodfi-mcp.com", custom_domain = true },
+]
+
 [observability]
 enabled = true
 

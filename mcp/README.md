@@ -9,9 +9,20 @@ move funds, so the worst an abusive caller can do is spend compute.
 ## Endpoint
 
 ```
-https://hoodfi-mcp.dmpay.workers.dev/mcp     Streamable HTTP (stateless)
-https://hoodfi-mcp.dmpay.workers.dev/        plain-JSON description of the server
+https://hoodfi-mcp.com/mcp                   Streamable HTTP (stateless)
+https://hoodfi-mcp.com/                      plain-JSON description of the server
 ```
+
+`www.hoodfi-mcp.com` and `hoodfi-mcp.dmpay.workers.dev` answer identically. All three
+are the same worker, and nothing in it is host-aware: CORS is `*`, and the description
+at `/` builds its own `endpoint` field from the request URL rather than a constant, so
+it reports whichever host it was reached on.
+
+**The workers.dev URL has to keep working.** An MCP endpoint is not a link people
+follow, it is a string copied into a client's config file — so every agent that
+connected before this domain existed still holds `hoodfi-mcp.dmpay.workers.dev/mcp`,
+in a file this repo cannot reach. Adding a custom domain leaves it enabled; **setting
+`workers_dev = false` would silently disconnect all of them.**
 
 Stateless means no session is issued and no Durable Object sits behind it: each POST
 is a self-contained JSON-RPC call. `GET /mcp` deliberately 405s rather than holding
@@ -129,6 +140,13 @@ curl -s -X POST localhost:8787/mcp -H 'content-type: application/json' \
 npm run deploy
 wrangler secret put ROBINHOOD_RPC_URL   # dedicated endpoint — see below
 ```
+
+`hoodfi-mcp.com` and `www.hoodfi-mcp.com` are Cloudflare **Custom Domains** on this
+worker, added through the dashboard rather than declared in `wrangler.toml`. They are
+not in the config, so `wrangler deploy` neither creates nor removes them — recreate
+them by hand if this worker is ever rebuilt from scratch. Each hostname is its own
+custom domain: adding `www` does not imply the apex, and adding the apex does not
+imply `www`.
 
 ### Why this worker is separate from `gateway/`
 

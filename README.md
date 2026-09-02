@@ -37,6 +37,7 @@ and app through the ENS Universal Resolver.
 | Per-name share page | Cloudflare Workers | `https://www.hoodfi.name/{label}` → `/n/{label}` (per-name OG tags) |
 | Per-name share card | Cloudflare Workers | `https://www.hoodfi.name/card/{label}.png` (generated 1200×630) |
 | Donation ledger | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/donations` |
+| MCP server (for agents) | Cloudflare Workers | `https://hoodfi-mcp.com/mcp` (own worker; `www.` and `hoodfi-mcp.dmpay.workers.dev` also answer) |
 | Site publishing | Cloudflare Workers | `POST /site/{label}` → pin · `POST /site/{label}/confirm` → verify payment on chain |
 | Website | hosted + IPFS | `https://www.hoodfi.name` · `https://hoodfi.eth.limo` |
 | Website builder | hosted | `https://build.hoodfi.name` |

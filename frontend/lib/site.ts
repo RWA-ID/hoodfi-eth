@@ -85,9 +85,15 @@ export const VOUCHER_URL =
  * Its own worker, not a gateway route: the gateway's URL is baked into
  * HoodfiL1Resolver on mainnet and answers every CCIP-Read lookup for the domain, so a
  * publicly listed agent endpoint sharing it could degrade resolution under load.
+ *
+ * The worker also still answers on `hoodfi-mcp.dmpay.workers.dev`, and must keep doing
+ * so — an MCP endpoint is copied into a client's own config file, so every agent that
+ * connected before this domain existed holds the workers.dev URL and there is no way to
+ * migrate it for them. Never set `workers_dev = false` in `mcp/wrangler.toml`. This
+ * constant is only what the site *advertises* to whoever connects next.
  */
 export const MCP_URL =
-  process.env.NEXT_PUBLIC_MCP_URL ?? "https://hoodfi-mcp.dmpay.workers.dev/mcp";
+  process.env.NEXT_PUBLIC_MCP_URL ?? "https://hoodfi-mcp.com/mcp";
 
 /**
  * HoodFi Sites — the website builder, which is a deployment of its own.
