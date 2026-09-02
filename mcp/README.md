@@ -25,6 +25,7 @@ open a stream that would never carry a message.
 | `hoodfi_build_registration_tx` | Unsigned calldata to register — one step for ETH, up to two for USDG |
 | `hoodfi_resolve_name` | Owner, address records, text records and website for a minted name |
 | `hoodfi_build_set_contenthash_tx` | Unsigned calldata to point a name at an IPFS or IPNS site, or to clear it |
+| `hoodfi_build_set_address_tx` | Unsigned calldata to set the name's Ethereum, Bitcoin and Solana addresses |
 
 ### A name can be a website
 
@@ -46,7 +47,40 @@ Two properties worth knowing before wiring it in:
   that resolves to nothing; the header comment there explains why it lives under
   `frontend/`.
 
-### Two things the tool descriptions tell agents, because they will otherwise assume otherwise
+### A name can hold addresses for other chains
+
+`hoodfi_build_set_address_tx` writes ENSIP-9 `addr` records for Ethereum, Bitcoin and
+Solana, so paying the name resolves to the right address on each. Any combination in one
+call; when more than one record moves they are batched through the resolver's
+`multicall`, so the owner signs once. Like the contenthash tool it reads `ownerOf` first
+and refuses a no-op, and it encodes before it reads so a bad address costs no RPC budget.
+
+Two properties that are not obvious:
+
+- **An EVM address is two records, not one.** It is written under both mainnet ETH
+  (coinType 60) and the Robinhood Chain coinType, because they answer different
+  questions — 60 is what mainnet ENS clients read, the chain-specific record is what
+  resolution on Robinhood Chain keys on. `HoodfiRegistrar._register` sets both at mint
+  and `/manage` keeps them in step. Writing only 60 leaves a name resolving on mainnet
+  while going quietly dead on its own chain, so the tool takes no `coinType` argument
+  and always writes the pair.
+
+- **"It encoded cleanly" means different things per chain**, and the tool says which in
+  a `verify` field. Bitcoin is checksummed, so a typo is caught. Ethereum is checked
+  only when the caller supplied EIP-55 capitalisation. **Solana has no checksum at
+  all** — any 32 bytes of base58 is a well-formed address, so a one-character typo
+  becomes a different, equally valid key that nothing can detect. These are payment
+  records, so that caveat is returned to be relayed, not swallowed. All three claims
+  are pinned by vectors in `src/coins.test.mjs` (`npm test`).
+
+The codecs come from `@ensdomains/address-encoder`, a direct dependency of this package
+rather than a copy in `frontend/shared/`. That is not a departure from the one-copy rule:
+shared files there must be dependency-free (see the header of `shared/contenthash.ts`),
+base58check and bech32m are not worth hand-rolling twice, and the site imports the same
+package — so the byte format still has exactly one definition. `src/coins.ts` explains
+the split.
+
+### Three things the tool descriptions tell agents, because they will otherwise assume otherwise
 
 **The name lands with whoever signs.** `HoodfiRegistrar._register` mints to
 `msg.sender` — there is no recipient argument, so an agent cannot register a name on
@@ -58,6 +92,11 @@ inventory reserved for donors spending short-name credits, and stay locked until
 reports them as `locked` with the reason; `build_registration_tx` refuses them before
 spending any RPC budget. When shorts open they become ordinary priced mints and both
 tools cover them with no code change.
+
+**An address record is a payment instruction, and not every chain can check one.** See
+above: only Bitcoin catches a typo outright. The tool descriptions and the server
+`instructions` both say so, because an agent that gets calldata back without complaint
+will otherwise report the address as validated.
 
 ## Contracts
 

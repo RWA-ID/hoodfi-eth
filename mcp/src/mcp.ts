@@ -28,9 +28,10 @@ const INSTRUCTIONS = [
   '',
   'This server holds no private keys and never broadcasts a transaction. It answers questions and returns unsigned calldata; the caller signs and submits it.',
   '',
-  'Two rules to hold on to:',
+  'Three rules to hold on to:',
   '- The registrar mints to the transaction sender. Whichever wallet signs owns the name. There is no recipient argument, so a name cannot be registered on behalf of another address.',
   '- Only names of 4 or more characters can be registered. Names of 1-3 characters are premium inventory reserved for donors holding short-name credits, and stay unavailable until the 100-year donation goal is reached.',
+  '- A name can carry Ethereum, Bitcoin and Solana addresses. These are payment records: before relaying one as somewhere to send funds, note that only Bitcoin is checksummed. A Solana address has no checksum at all, so a mistyped one is indistinguishable from a correct one, and an Ethereum address is only verified when it carries EIP-55 capitalisation. hoodfi_build_set_address_tx returns a "verify" field whenever that applies; pass it on rather than reporting the address as validated.',
 ].join('\n')
 
 type JsonRpcId = string | number | null

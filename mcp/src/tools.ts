@@ -1,5 +1,6 @@
 import {
   type Address,
+  type ContractFunctionParameters,
   type Hex,
   encodeFunctionData,
   formatEther,
@@ -27,6 +28,14 @@ import {
   type RobinhoodClient,
   robinhoodClient,
 } from './chain'
+import {
+  BTC_COIN_TYPE,
+  COINS,
+  COIN_KEYS,
+  type CoinKey,
+  SOL_COIN_TYPE,
+  verificationCaveat,
+} from './coins'
 import { erc20Abi, registrarAbi, registryAbi } from './contracts'
 import { type Env, envVar } from './env'
 import {
@@ -50,10 +59,10 @@ export interface ToolDefinition {
 }
 
 /**
- * Tool descriptions carry two facts agents cannot infer from the schema and get
+ * Tool descriptions carry three facts agents cannot infer from the schema and get
  * wrong every time otherwise: the name lands with whoever signs (the registrar mints
- * to msg.sender, there is no recipient argument), and 1-3 character names cannot be
- * bought at any price right now.
+ * to msg.sender, there is no recipient argument), 1-3 character names cannot be bought
+ * at any price right now, and an EVM address is two records rather than one.
  */
 export const TOOLS: ToolDefinition[] = [
   {
@@ -150,6 +159,44 @@ export const TOOLS: ToolDefinition[] = [
         },
       },
       required: ['name', 'content', 'address'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'hoodfi_build_set_address_tx',
+    title: 'Build a transaction to set a name’s address records',
+    description:
+      'Build the unsigned transaction that points a name at wallet addresses on Ethereum, Bitcoin and Solana, so paying the name resolves to the right address on each chain. Pass any combination of the three; when more than one changes they are batched through the registry\'s multicall, so the owner signs once. IMPORTANT: setting "ethereum" writes TWO records — mainnet ETH (coinType 60) and the Robinhood Chain coinType — because a name carrying only one resolves in some clients and silently fails in others. The tool does this itself; there is no coinType parameter. Bitcoin and Solana are stored in each chain\'s own encoding, so an address that does not parse is refused here with a reason rather than stored as bytes that resolve to nothing. How much that check proves differs by chain, and the response says so in a "verify" field you should relay: a Bitcoin address is checksummed and a typo is caught; an Ethereum address is only checked when it carries EIP-55 capitalisation; a Solana address has NO checksum at all, so a mistyped character is a different, equally valid-looking address that nothing here can detect. Pass "" for bitcoin or solana to clear that record; the ethereum record cannot be cleared, because the name would then resolve nowhere. Only the name\'s current owner can sign it — pass their address and the tool checks it before returning calldata. Nothing is signed or sent here.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description:
+            'The name to set records on, with or without the .hoodfi.eth suffix.',
+        },
+        address: {
+          type: 'string',
+          description:
+            'The wallet that will sign. Must currently own the name, or the transaction would revert.',
+        },
+        ethereum: {
+          type: 'string',
+          description:
+            'The address the name should resolve to on Ethereum and every EVM chain, including Robinhood Chain. A 0x-prefixed 20-byte address. Cannot be cleared.',
+        },
+        bitcoin: {
+          type: 'string',
+          description:
+            'The Bitcoin address the name should resolve to: legacy (1…), P2SH (3…) or bech32 (bc1…). An empty string clears the record.',
+        },
+        solana: {
+          type: 'string',
+          description:
+            'The Solana address the name should resolve to, base58. An empty string clears the record.',
+        },
+      },
+      required: ['name', 'address'],
       additionalProperties: false,
     },
   },
@@ -413,6 +460,16 @@ const TEXT_KEYS = [
   'email',
 ] as const
 
+/** An `addr(node, coinType)` read, in the shape multicall wants. */
+function addrRead(registry: Address, node: Hex, coinType: bigint) {
+  return {
+    address: registry,
+    abi: registryAbi,
+    functionName: 'addr',
+    args: [node, coinType],
+  } as const
+}
+
 async function resolveName(args: Record<string, unknown>, env: Env) {
   const label = requireLabel(args.name)
   const client = robinhoodClient(env)
@@ -422,7 +479,7 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
   /**
    * Every record in one round-trip.
    *
-   * The batching is not only about latency. Nine separate reads from a Worker is the
+   * The batching is not only about latency. Twelve separate reads from a Worker is the
    * exact shape a public RPC throttles, and the previous version caught a failed
    * `ownerOf` and reported the name as unregistered — so a rate-limited call turned a
    * registered name into a confident "registered: false". Same failure mode as a CCIP
@@ -434,13 +491,15 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
    * and a reverted call identically, so the batch does *not* throw on transport the way
    * this comment used to claim. Read that function before trusting a failure here.
    *
-   * `batchSize: 0` is what makes "one round-trip" true rather than nearly true. viem
-   * splits a multicall once the accumulated calldata passes `batchSize`, default **1024
-   * bytes** — and these ten reads encode to exactly 1000 (36 for ownerOf, 68 per addr,
-   * 36 for contenthash, 132 per text key). One more text record crosses it and quietly
-   * turns this back into two requests, which is the shape being avoided; adding the
-   * contenthash read is what brought it within 24 bytes, so it is pinned rather than
-   * left to arithmetic. There is no gas cost to a wide `eth_call`, nothing to trade off.
+   * `batchSize: 0` is what makes "one round-trip" true rather than nearly true, and it
+   * is now load-bearing rather than headroom. viem splits a multicall once the
+   * accumulated calldata passes `batchSize`, default **1024 bytes**; these twelve reads
+   * encode to 1136 (36 for ownerOf, 68 per addr, 36 for contenthash, 132 per text key),
+   * so on the default they would arrive as two requests — which is the shape being
+   * avoided. Adding the Bitcoin and Solana records is what took it past the limit; the
+   * earlier note that the batch sat 24 bytes under it no longer holds. Do not restore a
+   * default here on the assumption there is room. There is no gas cost to a wide
+   * `eth_call`, so nothing is traded away by pinning it off.
    */
   const text = (key: (typeof TEXT_KEYS)[number]) =>
     ({
@@ -450,10 +509,14 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
       args: [node, key],
     }) as const
 
+  const addrAt = (coinType: bigint) => addrRead(registry, node, coinType)
+
   const [
     ownerResult,
     l2AddrResult,
     ethAddrResult,
+    btcAddrResult,
+    solAddrResult,
     contenthashResult,
     avatar,
     description,
@@ -469,18 +532,10 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
         functionName: 'ownerOf',
         args: [BigInt(node)],
       },
-      {
-        address: registry,
-        abi: registryAbi,
-        functionName: 'addr',
-        args: [node, ROBINHOOD_COIN_TYPE],
-      },
-      {
-        address: registry,
-        abi: registryAbi,
-        functionName: 'addr',
-        args: [node, ETH_COIN_TYPE],
-      },
+      addrAt(ROBINHOOD_COIN_TYPE),
+      addrAt(ETH_COIN_TYPE),
+      addrAt(BTC_COIN_TYPE),
+      addrAt(SOL_COIN_TYPE),
       {
         address: registry,
         abi: registryAbi,
@@ -503,6 +558,8 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
       ownerResult,
       l2AddrResult,
       ethAddrResult,
+      btcAddrResult,
+      solAddrResult,
       contenthashResult,
       avatar,
       description,
@@ -524,9 +581,8 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
   }
 
   const owner = getAddress(ownerResult.result)
-  const l2Addr = l2AddrResult.status === 'success' ? l2AddrResult.result : '0x'
-  const ethAddr =
-    ethAddrResult.status === 'success' ? ethAddrResult.result : '0x'
+  const stored = (entry: (typeof l2AddrResult)): Hex =>
+    entry.status === 'success' ? entry.result : '0x'
 
   const records: Record<string, string> = {}
   for (const [key, entry] of [
@@ -546,9 +602,17 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
     registered: true,
     owner,
     node,
+    /**
+     * `robinhoodChain` and `mainnet` are the same EVM address held under two
+     * coinTypes — see COINS.ethereum. They are reported separately rather than folded
+     * into one field precisely so a name where they have drifted apart is visible
+     * instead of averaged away.
+     */
     addresses: {
-      robinhoodChain: decodeAddr(l2Addr),
-      mainnet: decodeAddr(ethAddr),
+      robinhoodChain: COINS.ethereum.decode(stored(l2AddrResult)),
+      mainnet: COINS.ethereum.decode(stored(ethAddrResult)),
+      bitcoin: COINS.bitcoin.decode(stored(btcAddrResult)),
+      solana: COINS.solana.decode(stored(solAddrResult)),
     },
     records,
     website: describeWebsite(
@@ -617,12 +681,6 @@ function batchFailed(
 
 const UNREADABLE =
   'Could not read Robinhood Chain right now: the reads failed rather than coming back empty, so this says nothing about whether the name exists. Try again shortly.'
-
-/** The registry stores addr records as raw bytes; 20 of them is an address. */
-function decodeAddr(value: Hex): string | null {
-  if (!value || value === '0x' || value.length !== 42) return null
-  return getAddress(value)
-}
 
 /**
  * Publishing a website onto a name, as calldata the owner signs.
@@ -742,6 +800,256 @@ async function buildSetContenthashTx(args: Record<string, unknown>, env: Env) {
   }
 }
 
+/**
+ * Address records, as calldata the owner signs.
+ *
+ * Three things this does that an agent composing `setAddr` calls itself would not:
+ *
+ * **It encodes before it reads.** A Bitcoin or Solana address is stored in its own
+ * chain's binary form, so the string an agent was handed is not what goes on chain.
+ * Encoding first means a bad address comes back as a sentence naming the chain and
+ * spends no RPC budget; `setAddr` takes `bytes` and would accept anything.
+ *
+ * How much that catches is *not* uniform, which is why `verificationCaveat` exists and
+ * why its output is returned rather than logged. Bitcoin is checksummed end to end.
+ * Ethereum is only checked when the caller supplied EIP-55 capitalisation. Solana has
+ * no checksum whatsoever — any 32 bytes of base58 is a well-formed address, so a
+ * one-character typo silently becomes a different valid key. Verified in
+ * `coins.test.mjs`, and the reason this tool cannot promise a stored address is the
+ * one that was meant.
+ *
+ * **It refuses a no-op.** Setting a record to the value it already holds is a real
+ * transaction that emits a real event and changes nothing, which reads to an agent as
+ * success. Having read the current values to report `replaces` anyway, saying so costs
+ * nothing.
+ *
+ * **It checks `ownerOf` first**, for the same reason the contenthash tool does: the
+ * ERC-721 and the address records are separate things, so an agent acting for a user
+ * whose wallet merely *resolves* from the name would otherwise get calldata that looks
+ * right and reverts.
+ */
+async function buildSetAddressTx(args: Record<string, unknown>, env: Env) {
+  const label = requireLabel(args.name)
+  const address = requireAddress(args.address)
+
+  interface Pending {
+    key: CoinKey
+    coin: (typeof COINS)[CoinKey]
+    /** The address as given, or null when the record is being cleared. */
+    text: string | null
+    bytes: Hex
+    /** Set when encoding proved less than the caller is likely to assume. */
+    caveat?: string | null
+  }
+
+  const pending: Pending[] = []
+  for (const key of COIN_KEYS) {
+    const raw = args[key]
+    // Absent and empty are different asks: absent leaves the record alone, empty
+    // clears it. Conflating them would make "set only bitcoin" wipe the others.
+    if (raw === undefined || raw === null) continue
+    if (typeof raw !== 'string')
+      throw new ToolError(
+        `\`${key}\` must be a string. Pass "" to clear the record, or leave it out to make no change.`
+      )
+
+    const coin = COINS[key]
+    const trimmed = raw.trim()
+
+    if (trimmed === '') {
+      if (!coin.clearable)
+        throw new ToolError(
+          `The ${coin.label} record cannot be cleared: it is what ${fullName(label)} resolves to, and emptying it would leave the name resolving nowhere. Pass a different address to change it, or leave \`${key}\` out to make no change.`
+        )
+      pending.push({ key, coin, text: null, bytes: '0x' })
+      continue
+    }
+
+    const bytes = coin.encode(trimmed)
+    if (!bytes)
+      throw new ToolError(
+        `${JSON.stringify(trimmed.slice(0, 80))} is not a valid ${coin.label} address. Expected ${coin.hint}.`
+      )
+    pending.push({
+      key,
+      coin,
+      text: trimmed,
+      bytes,
+      caveat: verificationCaveat(coin, trimmed),
+    })
+  }
+
+  if (pending.length === 0)
+    throw new ToolError(
+      `Nothing to set. Pass at least one of ${COIN_KEYS.map((key) => `\`${key}\``).join(', ')}.`
+    )
+
+  const client = robinhoodClient(env)
+  const registry = envVar('L2_REGISTRY_ADDRESS', env)
+  const node = namehash(fullName(label))
+
+  // One row per record that will actually be written — Ethereum contributes two.
+  const writes = pending.flatMap((entry) =>
+    entry.coin.coinTypes.map((coinType) => ({ entry, coinType }))
+  )
+
+  /**
+   * Annotated rather than inferred: viem types a multicall from the literal shape of
+   * its `contracts` array, and this one is built at runtime — the length depends on
+   * which coins were passed. Inference collapses the mixed array onto the `addr` entry
+   * and rejects the `ownerOf` call, so the array is widened here and each result is
+   * narrowed at the point it is read.
+   */
+  const reads: ContractFunctionParameters[] = [
+    {
+      address: registry,
+      abi: registryAbi,
+      functionName: 'ownerOf',
+      args: [BigInt(node)],
+    },
+    ...writes.map(({ coinType }) => addrRead(registry, node, coinType)),
+  ]
+
+  const results = await client.multicall({
+    contracts: reads,
+    allowFailure: true,
+    batchSize: 0,
+  })
+
+  // Same trap as resolve and the contenthash tool: `allowFailure: true` reports a dead
+  // connection and a reverted call identically, so only a batch where something came
+  // back says anything about whether this name exists.
+  if (batchFailed(results)) throw new ToolError(UNREADABLE)
+
+  const ownerResult = results[0]
+  if (!ownerResult || ownerResult.status === 'failure')
+    throw new ToolError(
+      `${fullName(label)} has not been minted, so it has no records to set. Register it first with hoodfi_build_registration_tx.`
+    )
+
+  const owner = getAddress(ownerResult.result as Address)
+  if (owner !== address)
+    throw new ToolError(
+      `${fullName(label)} is owned by ${owner}, not ${address}. Only the owner can set its records, so this transaction would revert. Note that owning the name is what counts here — holding its address record is not the same thing.`
+    )
+
+  const calls: Array<{ coinType: bigint; entry: Pending; data: Hex }> = []
+  const unchanged: string[] = []
+  const replaces: Record<string, string | null> = {}
+
+  writes.forEach(({ entry, coinType }, index) => {
+    const read = results[index + 1]
+    const current: Hex =
+      read && read.status === 'success' ? (read.result as Hex) : '0x'
+
+    // A record already holding these exact bytes is dropped from the batch rather
+    // than rewritten. Comparing the encoded form, not the text, is what makes this
+    // correct for a Bitcoin address typed in a different case.
+    if (current.toLowerCase() === entry.bytes.toLowerCase()) {
+      unchanged.push(`${entry.coin.label} (coinType ${coinType})`)
+      return
+    }
+
+    if (current !== '0x')
+      replaces[entry.key] = entry.coin.decode(current) ?? current
+
+    calls.push({
+      coinType,
+      entry,
+      data: encodeFunctionData({
+        abi: registryAbi,
+        functionName: 'setAddr',
+        args: [node, coinType, entry.bytes],
+      }),
+    })
+  })
+
+  if (calls.length === 0)
+    throw new ToolError(
+      `${fullName(label)} already holds ${unchanged.length === 1 ? 'that record' : 'those records'} exactly as given — ${unchanged.join(', ')}. There is nothing to change, and sending the transaction would emit an event without altering anything.`
+    )
+
+  const clearing = calls.filter(({ entry }) => entry.text === null)
+  const setting = calls.filter(({ entry }) => entry.text !== null)
+  const described = [
+    ...setting.map(({ entry }) => `${entry.coin.label} to ${entry.text}`),
+    ...clearing.map(({ entry }) => `clear ${entry.coin.label}`),
+  ].join(', ')
+
+  /**
+   * One call goes direct; several are batched through the resolver's `multicall`, so
+   * the owner signs once however many records moved — the same batching `/manage`
+   * does. Each inner call re-enters the registry and is authorised on its own, so
+   * this grants nothing the direct calls would not.
+   */
+  const step =
+    calls.length === 1 && calls[0]
+      ? { to: registry, data: calls[0].data }
+      : {
+          to: registry,
+          data: encodeFunctionData({
+            abi: registryAbi,
+            functionName: 'multicall',
+            args: [calls.map((call) => call.data)],
+          }),
+        }
+
+  return {
+    name: fullName(label),
+    label,
+    owner,
+    node,
+    steps: [
+      {
+        description: `Set ${described} on ${fullName(label)}`,
+        ...step,
+        value: '0x0',
+        chainId: ROBINHOOD_CHAIN_ID,
+      },
+    ],
+    /** Every record this writes, including the second one Ethereum always carries. */
+    sets: calls.map(({ entry, coinType }) => ({
+      coin: entry.key,
+      coinType: coinType.toString(),
+      address: entry.text,
+      bytes: entry.bytes,
+      cleared: entry.text === null,
+    })),
+    ...(Object.keys(replaces).length > 0 ? { replaces } : {}),
+    ...(unchanged.length > 0
+      ? {
+          skipped: `Already set to the requested value, so left out of the transaction: ${unchanged.join(', ')}.`,
+        }
+      : {}),
+    /**
+     * Where "it encoded cleanly" is weaker evidence than it looks. Returned as its own
+     * field rather than folded into `note`, so an agent relaying anything at all to a
+     * user relays this: these are payment addresses, and Solana in particular has no
+     * checksum to catch a typo.
+     */
+    ...(() => {
+      const caveats = calls
+        .map(({ entry }) => entry.caveat)
+        .filter((caveat): caveat is string => Boolean(caveat))
+      // Ethereum writes two coinTypes, so the same caveat can arrive twice.
+      const unique = [...new Set(caveats)]
+      return unique.length > 0 ? { verify: unique } : {}
+    })(),
+    /**
+     * Keyed off what is actually being written, not off what was asked for. When the
+     * address is already set, both coinTypes drop out as no-ops and a note claiming
+     * "both are in this transaction" would be describing calldata that isn't there.
+     */
+    ...(calls.some(({ entry }) => entry.key === 'ethereum')
+      ? {
+          ethereumNote: `The Ethereum address is written twice — once under coinType ${ETH_COIN_TYPE} for mainnet ENS clients and once under ${ROBINHOOD_COIN_TYPE} for Robinhood Chain. A name carrying only one of them resolves in some wallets and fails in others, so both are in this transaction${calls.filter(({ entry }) => entry.key === 'ethereum').length === 1 ? ' — except the one already holding this exact value, listed under `skipped`' : ''}.`,
+        }
+      : {}),
+    ownershipNote: `This transaction must be sent by ${owner}. It sets records on the name and transfers nothing — no funds move and the name itself does not change hands.`,
+    note: 'Records live on Robinhood Chain and resolve through CCIP-Read, so they answer on mainnet ENS resolvers too. Propagation is not instant: gateways and wallets cache the old value for a few minutes.',
+  }
+}
+
 export async function callTool(
   name: string,
   args: Record<string, unknown>,
@@ -761,6 +1069,9 @@ export async function callTool(
         break
       case 'hoodfi_build_set_contenthash_tx':
         result = await buildSetContenthashTx(args, env)
+        break
+      case 'hoodfi_build_set_address_tx':
+        result = await buildSetAddressTx(args, env)
         break
       default:
         throw new ToolError(`Unknown tool: ${name}`)

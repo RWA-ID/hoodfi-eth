@@ -108,6 +108,30 @@ export const registryAbi = [
     ],
     outputs: [],
   },
+  {
+    // ENSIP-9. Owner-only on the same `isAuthorised(node)` check as setContenthash.
+    // `a` is the chain's own encoding, not address text — see coins.ts.
+    type: 'function',
+    name: 'setAddr',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'node', type: 'bytes32' },
+      { name: 'coinType', type: 'uint256' },
+      { name: 'a', type: 'bytes' },
+    ],
+    outputs: [],
+  },
+  {
+    // From the resolver's Multicallable: several record writes in one transaction, so
+    // an owner setting three addresses signs once rather than three times. Each entry
+    // re-enters this contract and is authorised individually, so it grants nothing a
+    // direct call would not.
+    type: 'function',
+    name: 'multicall',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'data', type: 'bytes[]' }],
+    outputs: [{ type: 'bytes[]' }],
+  },
 ] as const
 
 export const erc20Abi = [
