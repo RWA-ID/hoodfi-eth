@@ -61,4 +61,26 @@ assert.equal(isDeadConnector(null), false, "null must not read as dead");
 // A non-object can't be a connector; it must not throw on the property reads either.
 assert.equal(isDeadConnector("walletConnect"), false, "a string must not read as dead");
 
-console.log("session: 7 assertions passed");
+/* AppKit's embedded-wallet connector, as read out of a healthy Google login on
+   www.hoodfi.name 2026-09-04 — connector AUTH on chainId 4663, funds on chain, minting
+   fine. It carries no `getChainId`, so the method test alone called it dead and
+   ConnectionGuard warned every social user that signing would fail. It has no relay
+   session to hang on, so the fault that test detects cannot happen to it. */
+const AUTH_CONNECTOR = {
+  id: "AUTH",
+  name: "Auth",
+  type: "AUTH",
+  uid: "9a6f381d663",
+  disconnect: async () => {},
+};
+assert.equal(isDeadConnector(AUTH_CONNECTOR), false, "auth connector must read as alive");
+
+// The exemption is by connector id and must not leak to anything else: an identically
+// shaped stub from a real wallet is still dead.
+assert.equal(
+  isDeadConnector({ ...AUTH_CONNECTOR, id: "walletConnect" }),
+  true,
+  "the exemption must not extend past the auth connector",
+);
+
+console.log("session: 9 assertions passed");

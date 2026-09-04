@@ -43,9 +43,33 @@
  * Lives here rather than beside the banner so it can be unit-tested without React, and so
  * the button and the guard cannot drift apart on what "dead" means.
  */
+export const AUTH_CONNECTOR_ID = "AUTH";
+
 export function isDeadConnector(connector: unknown): boolean {
   if (!connector || typeof connector !== "object") return false;
   const c = connector as Record<string, unknown>;
+
+  /**
+   * Email and social logins are exempt.
+   *
+   * The method test above is a proxy for one specific fault: wagmi rehydrating a
+   * WalletConnect connection into a `{id,name,type,uid}` stub because the relay session
+   * never answered. AppKit's embedded wallet has no relay session to hang on — it is an
+   * iframe on secure.walletconnect.org — so that fault cannot occur for it, and the
+   * proxy stops meaning what it was written to mean.
+   *
+   * Observed live on www.hoodfi.name 2026-09-04: a healthy Google login (connector AUTH,
+   * chainId 4663, funds on chain, minting fine) failed this predicate on every reload,
+   * so ConnectionGuard told every social user their session was broken and signing would
+   * fail. A false alarm on every page load is worse than the dead Disconnect button this
+   * was built to catch.
+   *
+   * The cost is real and accepted: a genuinely broken auth connection now shows no
+   * banner. Nothing observed suggests that state exists, and if it turns up it needs its
+   * own detector rather than this one — the two failures have nothing in common.
+   */
+  if (c.id === AUTH_CONNECTOR_ID) return false;
+
   return typeof c.getChainId !== "function" || typeof c.disconnect !== "function";
 }
 

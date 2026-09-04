@@ -3,7 +3,7 @@
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useAccount } from "wagmi";
 import { formatAddress } from "@/lib/format";
-import { isDeadConnector, resetWalletSession } from "@/lib/session";
+import { AUTH_CONNECTOR_ID, isDeadConnector, resetWalletSession } from "@/lib/session";
 
 /**
  * The header's wallet control: an ink button when there's nothing connected, and the
@@ -24,7 +24,16 @@ export function ConnectButton() {
    * suggests it can be clicked — so the wallet this site just created for them stays
    * invisible. Naming the thing is what makes it findable.
    */
-  const isSocial = Boolean(embeddedWalletInfo?.authProvider);
+  /**
+   * `embeddedWalletInfo` is populated when the login happens and is NOT restored on
+   * rehydration, so on every reload it is undefined and the label fell back to the
+   * address — exactly the state this is meant to fix (observed live 2026-09-04). The
+   * connector id survives, because wagmi persists it, so it is the reliable half.
+   * authProvider is still checked first: it is the public API and it is right at connect
+   * time, before wagmi has stored anything.
+   */
+  const isSocial =
+    Boolean(embeddedWalletInfo?.authProvider) || connector?.id === AUTH_CONNECTOR_ID;
 
   /**
    * Open the account view — balance, copy address, receive, and "Upgrade Wallet".
@@ -63,8 +72,10 @@ export function ConnectButton() {
                 still has to hold the logo, the X square and this. "View Social Wallet"
                 does not fit a 375px phone beside them, and a clipped label is worse
                 than a short one. The address stays in the tooltip either way. */}
-            <span className="hidden min-[560px]:inline">View Social Wallet</span>
-            <span className="min-[560px]:hidden">Wallet</span>
+            {/* Uppercase to match MINT / LOOK UP / MANAGE across the header — this is a
+                label now, and every other label in that strip is set this way. */}
+            <span className="hidden uppercase min-[560px]:inline">View Social Wallet</span>
+            <span className="uppercase min-[560px]:hidden">Wallet</span>
           </>
         ) : (
           formatAddress(address)
