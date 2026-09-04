@@ -1,6 +1,6 @@
 "use client";
 
-import { useAppKit } from "@reown/appkit/react";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useAccount } from "wagmi";
 import { formatAddress } from "@/lib/format";
 import { isDeadConnector, resetWalletSession } from "@/lib/session";
@@ -13,6 +13,18 @@ import { isDeadConnector, resetWalletSession } from "@/lib/session";
 export function ConnectButton() {
   const { open } = useAppKit();
   const { address, connector, isConnected } = useAccount();
+  const { embeddedWalletInfo } = useAppKitAccount();
+
+  /**
+   * A social or email login is labelled, not addressed.
+   *
+   * `0x6af2…0C7A` is a useful label for someone who arrived with MetaMask: they know
+   * what it is and they have somewhere else to go if this page disappoints them. To
+   * someone who signed in with Google it is a meaningless string, and nothing about it
+   * suggests it can be clicked — so the wallet this site just created for them stays
+   * invisible. Naming the thing is what makes it findable.
+   */
+  const isSocial = Boolean(embeddedWalletInfo?.authProvider);
 
   /**
    * Open the account view — balance, copy address, receive, and "Upgrade Wallet".
@@ -42,10 +54,21 @@ export function ConnectButton() {
       <button
         className="data h-9 border border-[color-mix(in_srgb,var(--ink)_35%,transparent)] px-3 text-[12px] font-medium transition-colors hover:bg-[var(--hover-fill)]"
         onClick={onAccount}
-        title="Account"
+        title={isSocial ? `Social wallet — ${formatAddress(address)}` : "Account"}
         type="button"
       >
-        {formatAddress(address)}
+        {isSocial ? (
+          <>
+            {/* Two labels, not one truncated: the header loses its nav under 880px and
+                still has to hold the logo, the X square and this. "View Social Wallet"
+                does not fit a 375px phone beside them, and a clipped label is worse
+                than a short one. The address stays in the tooltip either way. */}
+            <span className="hidden min-[560px]:inline">View Social Wallet</span>
+            <span className="min-[560px]:hidden">Wallet</span>
+          </>
+        ) : (
+          formatAddress(address)
+        )}
       </button>
     );
   }

@@ -8,6 +8,7 @@ import { mainnet } from "@reown/appkit/networks";
 import { config, networks, projectId, wagmiAdapter } from "@/lib/wagmi";
 import { SITE } from "@/lib/site";
 import { ConnectionGuard } from "@/components/ConnectionGuard";
+import { SocialDefaultNetwork } from "@/components/SocialDefaultNetwork";
 
 /**
  * wagmi (via Reown AppKit adapter) + react-query. createAppKit mounts the
@@ -106,6 +107,8 @@ export function Providers({ children }: { children: ReactNode }) {
         {/* Above the page rather than inside Header, because Header is rendered per
             route — mounting here is what puts the escape hatch on every one of them. */}
         <ConnectionGuard />
+        {/* Renders nothing; mounted here so it sees every connection, on every route. */}
+        <SocialDefaultNetwork />
         {children}
       </QueryClientProvider>
     </WagmiProvider>
