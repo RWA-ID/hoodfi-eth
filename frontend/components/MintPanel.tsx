@@ -43,7 +43,7 @@ import { useEthUsd, weiToUsd } from "@/lib/ethUsd";
 import { formatEth } from "@/lib/format";
 import { BUILDER_URL, VOUCHER_URL, nameShareUrl } from "@/lib/site";
 import { track } from "@/lib/analytics";
-import { walletErrorMessage } from "@/lib/errors";
+import { describeWalletError, walletErrorMessage } from "@/lib/errors";
 import { ArrowNE } from "./ArrowNE";
 import { DonatePanel } from "./DonatePanel";
 import { ShareOnX } from "./ShareOnX";
@@ -529,6 +529,10 @@ export function MintPanel({
       setMinted(snapshot);
     } catch (error) {
       track("mint_failed", { tier: String(tier) });
+      // The page gets a sentence; the console gets the exception. Redacted, so the
+      // transport URL in viem's error metadata cannot carry a key into someone's
+      // devtools. See describeWalletError.
+      console.error("[hoodfi] mint failed", describeWalletError(error));
       setActionError(walletErrorMessage(error));
     }
   }

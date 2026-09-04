@@ -106,6 +106,61 @@ function firstMeaningfulLine(raw: string): string {
   return head;
 }
 
+/**
+ * Replaces every URL with just its host.
+ *
+ * viem puts the transport URL into `details` and `metaMessages` on most errors, and the
+ * mainnet transport carries an Alchemy key in its path. Logging a raw viem error would
+ * therefore print that key into the console of every person it happened to. The host is
+ * the useful half for diagnosis and carries no secret.
+ */
+function redactUrls(text: string): string {
+  return text.replace(/https?:\/\/[^\s"'`)\]]+/gi, (url) => {
+    try {
+      return `<${new URL(url).host}>`;
+    } catch {
+      return "<url>";
+    }
+  });
+}
+
+/**
+ * A structured, redacted view of a wallet error, for the console.
+ *
+ * `walletErrorMessage` deliberately throws away everything except a sentence, which is
+ * right for the page and wrong for diagnosis: a mint that failed on 2026-09-04 rendered
+ * as "add Robinhood Chain manually", and the real exception — never seen, because nothing
+ * kept it — sent the investigation through a CORS theory, a proxy worker and most of a
+ * day before anyone could say what had actually been thrown. This keeps the original
+ * where support can read it, without putting a key in anyone's console.
+ */
+export function describeWalletError(error: unknown): Record<string, string> {
+  const e = error as {
+    name?: unknown;
+    code?: unknown;
+    message?: unknown;
+    shortMessage?: unknown;
+    details?: unknown;
+    cause?: { name?: unknown; message?: unknown };
+  } | null;
+
+  const out: Record<string, string> = { name: String(e?.name ?? typeof error) };
+  const put = (key: string, value: unknown, limit = 400) => {
+    if (value === undefined || value === null || value === "") return;
+    out[key] = redactUrls(String(value)).slice(0, limit);
+  };
+
+  put("code", e?.code, 40);
+  put("shortMessage", e?.shortMessage);
+  put("details", e?.details);
+  put("causeName", e?.cause?.name, 80);
+  put("causeMessage", e?.cause?.message);
+  // Last, and longest: the full message often repeats the above, but when a wrapper
+  // carries no shortMessage it is the only thing that says what happened.
+  put("message", e?.message, 800);
+  return out;
+}
+
 export function walletErrorMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
 
