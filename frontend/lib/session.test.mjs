@@ -61,26 +61,26 @@ assert.equal(isDeadConnector(null), false, "null must not read as dead");
 // A non-object can't be a connector; it must not throw on the property reads either.
 assert.equal(isDeadConnector("walletConnect"), false, "a string must not read as dead");
 
-/* AppKit's embedded-wallet connector, as read out of a healthy Google login on
-   www.hoodfi.name 2026-09-04 — connector AUTH on chainId 4663, funds on chain, minting
-   fine. It carries no `getChainId`, so the method test alone called it dead and
-   ConnectionGuard warned every social user that signing would fail. It has no relay
-   session to hang on, so the fault that test detects cannot happen to it. */
-const AUTH_CONNECTOR = {
+/* AppKit's embedded-wallet connector after a reload, read off www.hoodfi.name
+   2026-09-04. A social login rehydrates into the same methodless stub as any other
+   connection, and the session behind it is gone: the auth iframe reports "Wallet Load
+   Failed", AppKit's own account button renders empty, and nothing can sign.
+
+   This connector was briefly exempted from the check that same day, on the reasoning
+   that an embedded wallet has no relay session to hang on. The reasoning was wrong about
+   what matters — it asked what could fail, not whether anything still worked — and the
+   exemption suppressed an accurate warning while the header cell had also stopped
+   offering disconnect, leaving no way out at all. Kept here so it is not re-argued. */
+const AUTH_STUB = {
   id: "AUTH",
   name: "Auth",
   type: "AUTH",
   uid: "9a6f381d663",
-  disconnect: async () => {},
 };
-assert.equal(isDeadConnector(AUTH_CONNECTOR), false, "auth connector must read as alive");
+assert.equal(isDeadConnector(AUTH_STUB), true, "rehydrated auth stub must read as dead");
 
-// The exemption is by connector id and must not leak to anything else: an identically
-// shaped stub from a real wallet is still dead.
-assert.equal(
-  isDeadConnector({ ...AUTH_CONNECTOR, id: "walletConnect" }),
-  true,
-  "the exemption must not extend past the auth connector",
-);
+// And the live one, before any reload, must not raise a banner.
+const liveAuth = { ...AUTH_STUB, getChainId: async () => 4663, disconnect: async () => {} };
+assert.equal(isDeadConnector(liveAuth), false, "live auth connector must read as alive");
 
 console.log("session: 9 assertions passed");

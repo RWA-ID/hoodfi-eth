@@ -36,6 +36,17 @@ export function ConnectButton() {
     Boolean(embeddedWalletInfo?.authProvider) || connector?.id === AUTH_CONNECTOR_ID;
 
   /**
+   * A dead connection is labelled with its address, never with "View Social Wallet".
+   *
+   * The account view behind that label cannot render once the session is gone — AppKit's
+   * own account button comes up empty — so the click resets instead, and a cell offering
+   * to show a wallet while actually logging you out is worse than one that says nothing.
+   * The banner above the page is what explains the state; this just stops contradicting it.
+   */
+  const dead = isDeadConnector(connector);
+  const showWalletLabel = isSocial && !dead;
+
+  /**
    * Open the account view — balance, copy address, receive, and "Upgrade Wallet".
    *
    * This used to disconnect on click, which was fine while every connection came from a
@@ -51,7 +62,7 @@ export function ConnectButton() {
    * one; clicking the cell does the same thing rather than opening a view that cannot act.
    */
   const onAccount = () => {
-    if (isDeadConnector(connector)) {
+    if (dead) {
       void resetWalletSession();
       return;
     }
@@ -63,10 +74,16 @@ export function ConnectButton() {
       <button
         className="data h-9 border border-[color-mix(in_srgb,var(--ink)_35%,transparent)] px-3 text-[12px] font-medium transition-colors hover:bg-[var(--hover-fill)]"
         onClick={onAccount}
-        title={isSocial ? `Social wallet — ${formatAddress(address)}` : "Account"}
+        title={
+          dead
+            ? "Session needs reconnecting — click to reset"
+            : isSocial
+              ? `Social wallet — ${formatAddress(address)}`
+              : "Account"
+        }
         type="button"
       >
-        {isSocial ? (
+        {showWalletLabel ? (
           <>
             {/* Two labels, not one truncated: the header loses its nav under 880px and
                 still has to hold the logo, the X square and this. "View Social Wallet"

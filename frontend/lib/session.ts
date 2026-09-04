@@ -50,31 +50,36 @@ export function isDeadConnector(connector: unknown): boolean {
   const c = connector as Record<string, unknown>;
 
   /**
-   * Email and social logins are exempt.
+   * The auth connector is NOT exempt, though it briefly was — see below.
    *
-   * The method test above is a proxy for one specific fault: wagmi rehydrating a
-   * WalletConnect connection into a `{id,name,type,uid}` stub because the relay session
-   * never answered. AppKit's embedded wallet has no relay session to hang on — it is an
-   * iframe on secure.walletconnect.org — so that fault cannot occur for it, and the
-   * proxy stops meaning what it was written to mean.
+   * An email or social login rehydrates into the same methodless stub as any other
+   * connection, and the whole session behind it is gone with it. Captured on
+   * www.hoodfi.name 2026-09-04, in this order:
    *
-   * Observed live on www.hoodfi.name 2026-09-04: a healthy Google login (connector AUTH,
-   * chainId 4663, funds on chain, minting fine) failed this predicate on every reload,
-   * so ConnectionGuard told every social user their session was broken and signing would
-   * fail. A false alarm on every page load is worse than the dead Disconnect button this
-   * was built to catch.
+   *   fresh Google login   no banner, account view renders, methods present
+   *   after one reload     banner, account view blank, "Wallet Load Failed" from the
+   *                        auth iframe, AppKit's own account button empty
    *
-   * The cost is real and accepted: a genuinely broken auth connection now shows no
-   * banner. Nothing observed suggests that state exists, and if it turns up it needs its
-   * own detector rather than this one — the two failures have nothing in common.
+   * So the predicate was right and the exemption added here earlier that day was wrong.
+   * It read the banner as a false alarm because the connection looked healthy from the
+   * outside — an address, a chain id, funds on chain — without checking whether anything
+   * behind it could still sign. Nothing could. Suppressing the warning did not make the
+   * session work, it only removed the last way out of it, because the cell in the header
+   * had by then stopped disconnecting too.
    */
-  if (c.id === AUTH_CONNECTOR_ID) return false;
-
   return typeof c.getChainId !== "function" || typeof c.disconnect !== "function";
 }
 
-/** localStorage keys belonging to wagmi, AppKit or WalletConnect. Nothing else. */
-const KEY_PATTERN = /^(@appkit\/|wagmi\.|wc@|walletconnect)/i;
+/**
+ * localStorage keys belonging to wagmi, AppKit or WalletConnect. Nothing else.
+ *
+ * `@appkit-wallet/` is separate from `@appkit/` and was missing until 2026-09-04, so a
+ * reset left the embedded wallet's own state behind — EMAIL, LAST_USED_CHAIN_KEY,
+ * SMART_ACCOUNT_ENABLED_NETWORKS — and the reload rebuilt the same broken session from
+ * it. That is the same bug this whole module exists to fix, one prefix over: the button
+ * appeared to do nothing, for a social login specifically.
+ */
+const KEY_PATTERN = /^(@appkit\/|@appkit-wallet\/|wagmi\.|wc@|walletconnect)/i;
 
 /** The database WalletConnect v2 keeps its session, keychain and pairings in. */
 const WC_DATABASE = "WALLET_CONNECT_V2_INDEXED_DB";
