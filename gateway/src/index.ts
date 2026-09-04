@@ -12,6 +12,7 @@ import { getVoucher } from './handlers/getVoucher'
 import { postAvatar } from './handlers/postAvatar'
 import { postEvent } from './handlers/postEvent'
 import { postPartner } from './handlers/postPartner'
+import { postRpc } from './handlers/postRpc'
 import { postSite, postSiteConfirm, sweepUnpaidSites } from './handlers/postSite'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -72,6 +73,11 @@ app.post('/e', async (c) => postEvent(c.req.raw, c.env))
 // only path from /partner/ to an inbox. Delivers to one fixed address, never a
 // caller-supplied one — see the handler for why that constraint is the whole design.
 app.post('/partner', async (c) => postPartner(c.req.raw, c.env))
+
+// Robinhood Chain JSON-RPC, proxied. The chain's own RPC answers POST with a duplicated
+// `access-control-allow-origin: *,*`, which every browser rejects, so nothing on the site
+// could read or write L2 state directly. Server-to-server has no CORS; see postRpc.
+app.post('/rpc', async (c) => postRpc(c.req.raw, c.env))
 
 // Publishing, in two phases. The site is pinned first — a CID cannot be paid for
 // before it exists — then confirmed against the chain once HoodfiSites says that exact
