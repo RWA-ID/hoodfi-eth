@@ -797,3 +797,72 @@ a {
     scroll-behavior: auto;
   }
 }
+
+/* ── Reown AppKit connect modal ──────────────────────────────────────────────
+ *
+ * Styles the stock AppKit modal to the Connect Wallet Modal design: paper field,
+ * card-white rows, hard ink borders, zero radius, lime as the one accent fill.
+ *
+ * These are AppKit *internals*, not public API. `themeVariables` in createAppKit
+ * only reaches corners, font and an accent — it does not even reach the accent
+ * *background*, so the primary button stays default blue (#0988F0) without the
+ * `backgroundAccentPrimary` line below. If a version bump turns that button blue
+ * again, or flattens these surfaces back to stock grey, this block is why.
+ *
+ * `html:root`, NOT `:root` — AppKit injects its own `:root` block into <head>
+ * when the modal first opens, i.e. after this stylesheet. Specificity is equal,
+ * so the later rule would win; `html:root` outranks it.
+ *
+ * Token names verified against @reown/appkit-ui 1.8.22 — the component styles
+ * under dist/esm/src, which read `tokens.theme.` and `tokens.core.` keys.
+ */
+html:root {
+  /* Grounds. backgroundPrimary is the modal field, foregroundPrimary the rows,
+     inputs and social buttons that sit on it. */
+  --apkt-tokens-theme-backgroundPrimary: #dcdcd2;
+  --apkt-tokens-theme-foregroundPrimary: #fbfbf6;
+  --apkt-tokens-theme-foregroundSecondary: var(--paper);
+  --apkt-tokens-theme-foregroundTertiary: #d2d2c7;
+
+  /* Borders. The design is one weight of one colour everywhere; only the
+     divider rules are lighter. */
+  --apkt-tokens-theme-borderPrimary: var(--ink);
+  --apkt-tokens-theme-borderSecondary: rgba(11, 14, 8, 0.25);
+
+  /* Type and icons, on the same alpha ramp as the rest of the page. */
+  --apkt-tokens-theme-textPrimary: var(--ink);
+  --apkt-tokens-theme-textSecondary: var(--label);
+  --apkt-tokens-theme-textTertiary: var(--faint);
+  --apkt-tokens-theme-iconDefault: var(--ink);
+
+  /* The accent *fill* is lime and its text is ink.
+   *
+   * `textInvert` is shared: wui-button paints accent-primary as
+   * backgroundAccentPrimary + textInvert, and neutral-primary as
+   * backgroundInvert + textInvert. One token, two grounds — so the two
+   * backgrounds have to agree on what is readable against ink text, and both
+   * are therefore lime. Setting backgroundInvert to ink here would render
+   * ink-on-ink and the label would vanish.
+   */
+  --apkt-tokens-core-backgroundAccentPrimary: var(--lime);
+  --apkt-tokens-theme-backgroundInvert: var(--lime);
+  --apkt-tokens-theme-textInvert: var(--ink);
+  --apkt-tokens-theme-iconInverse: var(--ink);
+
+  /* Accent as *text* on a paper ground: lime is unreadable there, so these take
+     olive, exactly as --accent does for the rest of the site. */
+  --apkt-tokens-core-textAccentPrimary: var(--olive);
+  --apkt-tokens-core-iconAccentPrimary: var(--olive);
+  --apkt-tokens-core-borderAccentPrimary: var(--ink);
+
+  /* Success is the one status colour that does get recoloured, because on this
+   * site lime IS the affirmative colour (--status-ok is lime, and so is LIVE and
+   * PAY IN ETH). AppKit's default green "INSTALLED" / "QR CODE" chips are the
+   * single most off-brand thing left in the modal, and the design specifies them
+   * as lime pills with ink text. Warning and error keep AppKit's own amber/red —
+   * those genuinely mean "stop" and have no counterpart in the brand palette. */
+  --apkt-tokens-core-backgroundSuccess: var(--lime);
+  --apkt-tokens-core-textSuccess: var(--ink);
+  --apkt-tokens-core-borderSuccess: var(--ink);
+  --apkt-tokens-core-iconSuccess: var(--ink);
+}
