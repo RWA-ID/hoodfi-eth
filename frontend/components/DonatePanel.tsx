@@ -7,8 +7,8 @@ import {
   useReadContract,
   useSwitchChain,
   useWaitForTransactionReceipt,
-  useWriteContract,
 } from "wagmi";
+import { useWriteContractCompat } from "@/lib/useWriteContractCompat";
 import { mainnet } from "wagmi/chains";
 import { useAppKit } from "@reown/appkit/react";
 import { DONATIONS_ADDRESS, donationsAbi } from "@/lib/contracts";
@@ -43,7 +43,7 @@ export function DonatePanel({ embedded = false }: { embedded?: boolean }) {
     data: txHash,
     isPending,
     error: writeError,
-  } = useWriteContract();
+  } = useWriteContractCompat();
   const receipt = useWaitForTransactionReceipt({
     hash: txHash,
     chainId: mainnet.id,

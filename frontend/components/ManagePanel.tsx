@@ -20,8 +20,8 @@ import {
   useReadContract,
   useSwitchChain,
   useWaitForTransactionReceipt,
-  useWriteContract,
 } from "wagmi";
+import { useWriteContractCompat } from "@/lib/useWriteContractCompat";
 import { useAppKit } from "@reown/appkit/react";
 import { robinhoodChain } from "@/lib/chains";
 import { L2_REGISTRY_ADDRESS, registryAbi } from "@/lib/contracts";
@@ -185,7 +185,7 @@ function NameEditor({
     data: txHash,
     isPending,
     error,
-  } = useWriteContract();
+  } = useWriteContractCompat();
   const receipt = useWaitForTransactionReceipt({
     hash: txHash,
     chainId: robinhoodChain.id,

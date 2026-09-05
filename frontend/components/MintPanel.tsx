@@ -9,8 +9,8 @@ import {
   useReadContract,
   useSwitchChain,
   useWaitForTransactionReceipt,
-  useWriteContract,
 } from "wagmi";
+import { useWriteContractCompat } from "@/lib/useWriteContractCompat";
 import { useAppKit } from "@reown/appkit/react";
 import { BaseError, ContractFunctionRevertedError } from "viem";
 import { robinhoodChain } from "@/lib/chains";
@@ -109,7 +109,7 @@ export function MintPanel({
     data: txHash,
     isPending,
     error: writeError,
-  } = useWriteContract();
+  } = useWriteContractCompat();
   const receipt = useWaitForTransactionReceipt({
     hash: txHash,
     chainId: robinhoodChain.id,

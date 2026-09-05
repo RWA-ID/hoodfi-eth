@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useAccount, useSwitchChain, useWaitForTransactionReceipt } from "wagmi";
+import { useWriteContractCompat } from "@/lib/useWriteContractCompat";
 import { robinhoodChain } from "@/lib/chains";
 import { L2_REGISTRY_ADDRESS, registryAbi } from "@/lib/contracts";
 import { walletErrorMessage } from "@/lib/errors";
@@ -30,7 +31,7 @@ export function TransferName({
 }) {
   const { address, chainId } = useAccount();
   const { switchChainAsync } = useSwitchChain();
-  const { writeContractAsync, data: txHash, isPending, error } = useWriteContract();
+  const { writeContractAsync, data: txHash, isPending, error } = useWriteContractCompat();
   const receipt = useWaitForTransactionReceipt({
     hash: txHash,
     chainId: robinhoodChain.id,
