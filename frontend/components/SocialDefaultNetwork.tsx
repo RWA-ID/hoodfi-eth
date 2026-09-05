@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useAccount, useSwitchChain } from "wagmi";
 import { ROBINHOOD_CHAIN_ID } from "@/lib/chains";
+import { normalizeAuthChainId } from "@/lib/appkitChainId";
 
 /**
  * Put social and email logins on Robinhood Chain, once, on connect.
@@ -45,6 +46,19 @@ export function SocialDefaultNetwork() {
       switchChain({ chainId: ROBINHOOD_CHAIN_ID });
     }
   }, [isConnected, isEmbedded, chainId, switchChain]);
+
+  /**
+   * Separate effect, and deliberately not guarded by `handled`: the stored chain id has
+   * to be narrowed after *every* connect and chain change, not once per session, because
+   * AppKit rewrites that key each time. See lib/appkitChainId.
+   *
+   * This covers the panels that sign without going through MintPanel — manage, transfer,
+   * subname creation. It is not airtight for them: AppKit can rewrite the key between
+   * this running and their write. Only the mint normalises immediately before signing.
+   */
+  useEffect(() => {
+    if (isEmbedded) normalizeAuthChainId();
+  }, [isEmbedded, chainId, isConnected]);
 
   return null;
 }

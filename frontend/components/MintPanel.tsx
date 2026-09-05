@@ -44,6 +44,7 @@ import { formatEth } from "@/lib/format";
 import { BUILDER_URL, VOUCHER_URL, nameShareUrl } from "@/lib/site";
 import { track } from "@/lib/analytics";
 import { describeWalletError, walletErrorMessage } from "@/lib/errors";
+import { normalizeAuthChainId } from "@/lib/appkitChainId";
 import { ArrowNE } from "./ArrowNE";
 import { DonatePanel } from "./DonatePanel";
 import { ShareOnX } from "./ShareOnX";
@@ -448,6 +449,10 @@ export function MintPanel({
     }
     if (!REGISTRAR_ADDRESS || !debouncedLabel) return;
     setActionError(null);
+    // An embedded wallet stores its chain id as "eip155:4663" and hands that string back
+    // from eth_chainId, which viem cannot convert. Narrow it immediately before signing:
+    // AppKit rewrites the key on every connect, so doing it once at startup does not hold.
+    normalizeAuthChainId();
 
     const snapshot = debouncedLabel;
 
