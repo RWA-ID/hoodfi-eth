@@ -46,6 +46,32 @@ const ALLOWED_ORIGINS = [
   'https://build.hoodfi.name',
   'https://hoodfi.eth.limo',
   'https://hoodfi.eth.link',
+
+  /*
+   * The embedded wallet's iframe, and it is NOT the site's origin.
+   *
+   * An email or social login runs inside a cross-origin iframe, and that iframe
+   * makes its own RPC calls — it signs against the chain itself rather than
+   * borrowing the page's transport. So its requests arrive here stamped
+   * `secure.walletconnect.org` and were rejected by a list written before social
+   * login existed, when the only caller was the site.
+   *
+   * What that looked like from the outside: a mint prompted for a signature and
+   * then failed with `Magic RPC Error: [-32603] Failed to fetch`, which reads as
+   * a wallet defect and is really this 403. Confirmed 2026-09-05 by replaying
+   * the POST with each Origin — hoodfi.name 200, secure.walletconnect.org 403 —
+   * and by reading the live iframe's origin off the page.
+   *
+   * Note the failure shape, because it is the same one the upstream RPC bug had
+   * and it is why neither is obviously CORS: the OPTIONS preflight returns 204
+   * with `access-control-allow-origin: *` and passes, and only the real POST is
+   * refused. The browser then reports a bare "Failed to fetch".
+   *
+   * secure.reown.com is the same product's newer hostname, allowed now so the
+   * mint does not break the day AppKit moves to it.
+   */
+  'https://secure.walletconnect.org',
+  'https://secure.reown.com',
 ]
 
 function originAllowed(origin: string | null): boolean {
