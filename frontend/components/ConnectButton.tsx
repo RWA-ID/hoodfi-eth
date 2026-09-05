@@ -1,9 +1,11 @@
 "use client";
 
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+import { useState } from "react";
 import { useAccount } from "wagmi";
 import { formatAddress } from "@/lib/format";
 import { AUTH_CONNECTOR_ID, isDeadConnector, resetWalletSession } from "@/lib/session";
+import WalletSheet from "./WalletSheet";
 
 /**
  * The header's wallet control: an ink button when there's nothing connected, and the
@@ -14,6 +16,7 @@ export function ConnectButton() {
   const { open } = useAppKit();
   const { address, connector, isConnected } = useAccount();
   const { embeddedWalletInfo } = useAppKitAccount();
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   /**
    * A social or email login is labelled, not addressed.
@@ -61,9 +64,25 @@ export function ConnectButton() {
    * this page 2026-08-24. ConnectionGuard raises a reset banner site-wide when it sees
    * one; clicking the cell does the same thing rather than opening a view that cannot act.
    */
+  /*
+   * A social login opens OUR wallet sheet, not AppKit's account view.
+   *
+   * AppKit's view is the right thing for a wallet the person brought with them,
+   * but for the embedded wallet it is the wrong tool twice over: it renders
+   * blank after any reload (reown-com/appkit#5765), which is precisely the
+   * state someone is in when they come back to fund it, and its "Buy crypto"
+   * hands Meld no chain — for any EVM chain it hardcodes USDC on mainnet, so on
+   * Robinhood Chain it charges card fees and delivers an asset that is neither
+   * here nor spendable. WalletSheet shows the address in full and the two
+   * routes that actually reach this chain.
+   */
   const onAccount = () => {
     if (dead) {
       void resetWalletSession();
+      return;
+    }
+    if (isSocial) {
+      setSheetOpen(true);
       return;
     }
     void open({ view: "Account" });
@@ -71,6 +90,7 @@ export function ConnectButton() {
 
   if (isConnected && address) {
     return (
+      <>
       <button
         className="data h-9 border border-[color-mix(in_srgb,var(--ink)_35%,transparent)] px-3 text-[12px] font-medium transition-colors hover:bg-[var(--hover-fill)]"
         onClick={onAccount}
@@ -98,6 +118,8 @@ export function ConnectButton() {
           formatAddress(address)
         )}
       </button>
+      <WalletSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+      </>
     );
   }
   return (
