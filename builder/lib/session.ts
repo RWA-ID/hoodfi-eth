@@ -45,14 +45,43 @@
  * Lives here rather than beside the banner so it can be unit-tested without React, and so
  * every caller agrees on what "dead" means.
  */
+/** AppKit's id for the connector behind an email or social login. */
+export const AUTH_CONNECTOR_ID = "AUTH";
+
 export function isDeadConnector(connector: unknown): boolean {
   if (!connector || typeof connector !== "object") return false;
   const c = connector as Record<string, unknown>;
+
+  /**
+   * The auth connector is NOT exempt, and it was tempting to exempt it.
+   *
+   * An email or social login rehydrates into the same methodless stub as any other
+   * connection, and the whole session behind it is gone with it. Captured on the
+   * sibling site 2026-09-04, in this order:
+   *
+   *   fresh Google login   no banner, account view renders, methods present
+   *   after one reload     banner, account view blank, "Wallet Load Failed" from the
+   *                        auth iframe, AppKit's own account button empty
+   *
+   * Exempting it there was wrong: it read the banner as a false alarm because the
+   * connection looked healthy from the outside — an address, a chain id, funds on
+   * chain — without checking whether anything behind it could still sign. Nothing
+   * could. Suppressing the warning did not make the session work, it only removed the
+   * last way out of it. Upstream: reown-com/appkit#5765.
+   */
   return typeof c.getChainId !== "function" || typeof c.disconnect !== "function";
 }
 
-/** localStorage keys belonging to wagmi, AppKit or WalletConnect. Nothing else. */
-const KEY_PATTERN = /^(@appkit\/|wagmi\.|wc@|walletconnect)/i;
+/**
+ * localStorage keys belonging to wagmi, AppKit or WalletConnect. Nothing else.
+ *
+ * `@appkit-wallet/` is a separate prefix from `@appkit/` and was missing until social
+ * login was wired up here, so a reset left the embedded wallet's own state behind —
+ * EMAIL, LAST_USED_CHAIN_KEY, SMART_ACCOUNT_ENABLED_NETWORKS — and the reload rebuilt
+ * the same broken session from it. That is the bug this whole module exists to fix, one
+ * prefix over: the button appeared to do nothing, for a social login specifically.
+ */
+const KEY_PATTERN = /^(@appkit\/|@appkit-wallet\/|wagmi\.|wc@|walletconnect)/i;
 
 /** The database WalletConnect v2 keeps its session, keychain and pairings in. */
 const WC_DATABASE = "WALLET_CONNECT_V2_INDEXED_DB";

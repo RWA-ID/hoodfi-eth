@@ -7,7 +7,6 @@ import {
   usePublicClient,
   useSignMessage,
   useSwitchChain,
-  useWriteContract,
 } from "wagmi";
 import { ArrowNE } from "./ArrowNE";
 import { robinhoodChain } from "@/lib/chains";
@@ -29,6 +28,7 @@ import {
 } from "@/lib/publish";
 import { encodeContenthash } from "@/shared/contenthash";
 import { isDeadConnector, resetWalletSession } from "@/lib/session";
+import { useWriteContractCompat } from "@/lib/useWriteContractCompat";
 import { templateHash, useQuote } from "./useQuote";
 import { useUsdg } from "./useUsdg";
 import type { OwnedName } from "./useMyNames";
@@ -168,8 +168,13 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
    * writeContractAsync asks the connector at the moment of the write, which is also what
    * wakes the session and deep-links the wallet app. There is nothing to hold and
    * nothing to be stale.
+   *
+   * The `Compat` wrapper is `useWriteContract` for every wallet except AppKit's embedded
+   * one, which answers `eth_chainId` with a CAIP-2 string that viem cannot parse — so
+   * every one of the four writes below would die inside viem before reaching the wallet.
+   * See lib/useWriteContractCompat.ts.
    */
-  const { writeContractAsync } = useWriteContract();
+  const { writeContractAsync } = useWriteContractCompat();
   const client = usePublicClient({ chainId: robinhoodChain.id });
   const quote = useQuote(name.node, templateId, address);
   const usdg = useUsdg(address);
