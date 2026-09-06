@@ -7,7 +7,7 @@ import { createAppKit } from "@reown/appkit/react";
 import { mainnet } from "@reown/appkit/networks";
 import { config, networks, projectId, wagmiAdapter } from "@/lib/wagmi";
 import { SITE } from "@/lib/site";
-import { ROBINHOOD_CHAIN_ID, ROBINHOOD_RPC } from "@/lib/chains";
+import { ROBINHOOD_CHAIN_ID } from "@/lib/chains";
 import { ConnectionGuard } from "@/components/ConnectionGuard";
 import { SocialDefaultNetwork } from "@/components/SocialDefaultNetwork";
 
@@ -28,27 +28,49 @@ createAppKit({
     icons: [`${SITE.url}/icon.svg`],
   },
   /*
-   * The documented way to hand AppKit an RPC, declared even though it resolves
-   * to the URL we already supply.
+   * Point the EMBEDDED WALLET at Reown's own Blockchain API for this chain.
    *
-   * `CaipNetworksUtil.extendCaipNetwork` builds a network's endpoints as
-   * `[...customRpcUrls[caipNetworkId], ...(reownRpcUrl ? [reownRpcUrl] : [])]`,
-   * and `getDefaultRpcUrl` returns Reown's Blockchain API only for chains in
-   * `WC_HTTP_RPC_SUPPORTED_CHAINS` — a list holding eip155:1, 8453, 42161 and
-   * about twenty others, but NOT eip155:4663. So for Robinhood Chain the
-   * fallback is already `robinhoodChain.rpcUrls.default.http[0]`, which is this
-   * same gateway, and this line changes the resolved array not at all.
+   * This steers the social-login wallet ONLY. The app's own reads and writes go
+   * through explicit transports in lib/wagmi.ts (`[ROBINHOOD_CHAIN_ID]:
+   * http(ROBINHOOD_RPC)`), which this does not touch — so the gateway remains
+   * the site's RPC and the Blockchain API is not billed for page traffic.
    *
-   * It is here because the embedded wallet cannot transact on this chain
-   * (reown-com/appkit#5764) and "you didn't use the documented option" is a
-   * cheap way for that report to be dismissed. Declaring it costs nothing and
-   * removes the deflection. It is NOT a fix and should not be read as one — a
-   * mint through a social login still fails with `Magic RPC Error: [-32603]
-   * Failed to fetch`, and a `wrangler tail` through a full attempt shows the
-   * wallet never requests this URL, or any URL of ours, at all.
+   * WHY. `W3mFrameProvider.getRpcUrl()` returns
+   * `activeNetwork.rpcUrls.default.http[0]`, and `extendCaipNetwork` builds that
+   * array as `[...customRpcUrls[caipNetworkId], ...(reownRpcUrl ? [reownRpcUrl]
+   * : [])]` — so whatever is put here becomes the URL the wallet is handed.
+   * Left to itself, `getDefaultRpcUrl` hands over Reown's Blockchain API only
+   * for chains in `WC_HTTP_RPC_SUPPORTED_CHAINS`, which lists eip155:1, 8453,
+   * 42161 and ~20 more but NOT 4663 — so this chain fell back to our gateway,
+   * and a `wrangler tail` through a full mint shows the wallet never fetched it.
+   *
+   * THE BET. The Blockchain API demonstrably serves 4663 even though it is
+   * absent from the docs table AND from that constant: `eth_blockNumber`
+   * returns a live block matching our gateway to ~20 blocks, and `eth_getCode`
+   * returns the registrar's real bytecode, while a genuinely unknown id
+   * (eip155:999999) is refused outright. So the RPC layer is fine and the
+   * constant looks stale. If the secure site simply uses the URL it is given,
+   * this works. If it independently refuses chains outside its own list, it
+   * changes nothing.
+   *
+   * EXPECTATION: LOW, and documented as such. docs.reown.com/appkit/networks/overview
+   * says embedded wallets are "limited to the chains the secure site and
+   * Blockchain API support" and that others "will allow login but transactions
+   * won't reliably work" — which describes this exactly. Reown also state they
+   * do not accept requests for new Blockchain API chains, so this is not
+   * something to wait on. If the mint still fails, social login should be
+   * turned OFF for this project in the Reown dashboard rather than left
+   * offering a path that dead-ends after someone has funded a wallet.
+   *
+   * The projectId is public and already in this bundle, so putting it in a URL
+   * here reveals nothing new.
    */
   customRpcUrls: {
-    [`eip155:${ROBINHOOD_CHAIN_ID}`]: [{ url: ROBINHOOD_RPC }],
+    [`eip155:${ROBINHOOD_CHAIN_ID}`]: [
+      {
+        url: `https://rpc.walletconnect.org/v1/?chainId=eip155:${ROBINHOOD_CHAIN_ID}&projectId=${projectId}`,
+      },
+    ],
   },
   // Wallet ids from the WalletConnect explorer: Robinhood Wallet, MetaMask
   featuredWalletIds: [
