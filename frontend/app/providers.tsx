@@ -7,6 +7,7 @@ import { createAppKit } from "@reown/appkit/react";
 import { mainnet } from "@reown/appkit/networks";
 import { config, networks, projectId, wagmiAdapter } from "@/lib/wagmi";
 import { SITE } from "@/lib/site";
+import { ROBINHOOD_CHAIN_ID, ROBINHOOD_RPC } from "@/lib/chains";
 import { ConnectionGuard } from "@/components/ConnectionGuard";
 import { SocialDefaultNetwork } from "@/components/SocialDefaultNetwork";
 
@@ -25,6 +26,29 @@ createAppKit({
     description: SITE.description,
     url: SITE.url,
     icons: [`${SITE.url}/icon.svg`],
+  },
+  /*
+   * The documented way to hand AppKit an RPC, declared even though it resolves
+   * to the URL we already supply.
+   *
+   * `CaipNetworksUtil.extendCaipNetwork` builds a network's endpoints as
+   * `[...customRpcUrls[caipNetworkId], ...(reownRpcUrl ? [reownRpcUrl] : [])]`,
+   * and `getDefaultRpcUrl` returns Reown's Blockchain API only for chains in
+   * `WC_HTTP_RPC_SUPPORTED_CHAINS` — a list holding eip155:1, 8453, 42161 and
+   * about twenty others, but NOT eip155:4663. So for Robinhood Chain the
+   * fallback is already `robinhoodChain.rpcUrls.default.http[0]`, which is this
+   * same gateway, and this line changes the resolved array not at all.
+   *
+   * It is here because the embedded wallet cannot transact on this chain
+   * (reown-com/appkit#5764) and "you didn't use the documented option" is a
+   * cheap way for that report to be dismissed. Declaring it costs nothing and
+   * removes the deflection. It is NOT a fix and should not be read as one — a
+   * mint through a social login still fails with `Magic RPC Error: [-32603]
+   * Failed to fetch`, and a `wrangler tail` through a full attempt shows the
+   * wallet never requests this URL, or any URL of ours, at all.
+   */
+  customRpcUrls: {
+    [`eip155:${ROBINHOOD_CHAIN_ID}`]: [{ url: ROBINHOOD_RPC }],
   },
   // Wallet ids from the WalletConnect explorer: Robinhood Wallet, MetaMask
   featuredWalletIds: [
