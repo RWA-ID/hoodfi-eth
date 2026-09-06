@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatEther } from "viem";
 import qrcode from "qrcode-generator";
-import { useAccount, useBalance } from "wagmi";
+import { useAccount, useBalance, useDisconnect } from "wagmi";
 import { robinhoodChain, ROBINHOOD_CHAIN_ID } from "@/lib/chains";
+import { isDeadConnector, resetWalletSession } from "@/lib/session";
 
 /*
  * "Where is my wallet, and how do I put money in it?"
@@ -53,7 +54,8 @@ export default function WalletSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const { address } = useAccount();
+  const { address, connector } = useAccount();
+  const { disconnect } = useDisconnect();
   const [copied, setCopied] = useState(false);
 
   /* Polled while open — this is the moment somebody is watching for a deposit
@@ -99,6 +101,32 @@ export default function WalletSheet({
       sel?.removeAllRanges();
       sel?.addRange(range);
     }
+  };
+
+  /**
+   * The way out, which for a social login exists nowhere else.
+   *
+   * AppKit puts Disconnect inside its own account view, and this sheet replaces that
+   * view for the embedded wallet — so until this row existed, somebody who signed in
+   * with Google had no way to sign out short of clearing site data. A wallet you
+   * brought with you keeps reaching AppKit's view from the header, and its Disconnect
+   * with it.
+   *
+   * A connection that has gone dead has no `disconnect` method, so wagmi's
+   * `disconnect()` resolves against an object that cannot act and the click is a
+   * silent no-op. The header cell will not open this sheet over a dead connector, but
+   * an embedded session also drops mid-session with no reload — so it can die while
+   * this sheet is on screen, and this has to survive that. Clearing the stored session
+   * and reloading is the only way out, and it is what the person pressing this is
+   * asking for either way.
+   */
+  const signOut = () => {
+    if (isDeadConnector(connector)) {
+      void resetWalletSession();
+      return;
+    }
+    disconnect();
+    onClose();
   };
 
   const empty = balance != null && balance.value === 0n;
@@ -274,6 +302,30 @@ export default function WalletSheet({
               with the canonical Arbitrum bridge. A few dollars of ETH covers a
               name and its network fee.
             </p>
+          </div>
+
+          {/* ------------------------------------------------- sign out */}
+          <div className="mt-7 border-t border-[color:var(--line)] pt-5">
+            <div className="data text-[11px] tracking-[0.12em] text-[color:var(--label)] uppercase">
+              Signed in
+            </div>
+            {/*
+              Said before the button, not after, because the fear is the reason
+              somebody hesitates over it: a wallet they did not choose, holding a
+              name they paid for, behind a button marked "sign out". Nothing is
+              deleted and nothing moves — the wallet is derived from the account
+              they signed in with, so the same login brings back the same address.
+            */}
+            <p className="m-0 mt-2 text-[12.5px] leading-[1.55] text-[color:var(--faint)]">
+              Signing out only forgets this browser. Your names and your money
+              stay exactly where they are — sign back in the same way and this
+              wallet comes back with them.
+            </p>
+            {/* Ghost, not lime: this is the one thing on the card nobody should
+                land on by accident, and lime is what the page uses to mean go. */}
+            <button onClick={signOut} type="button" className="btn btn-ghost mt-3 w-full">
+              Sign out
+            </button>
           </div>
         </div>
       </div>
