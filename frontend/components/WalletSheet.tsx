@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatEther } from "viem";
+import qrcode from "qrcode-generator";
 import { useAccount, useBalance } from "wagmi";
 import { robinhoodChain, ROBINHOOD_CHAIN_ID } from "@/lib/chains";
 
@@ -153,6 +154,13 @@ export default function WalletSheet({
             {copied ? "Copied ✓" : "Copy address"}
           </button>
 
+          {/*
+            The QR is for the second device, which is the normal case here: the
+            money is in Robinhood Wallet on a phone and the address is on a
+            laptop. Copy/paste doesn't cross that gap; a camera does.
+          */}
+          <AddressQr address={address} />
+
           <p className="m-0 mt-3 text-[12.5px] leading-[1.55] text-[color:var(--faint)]">
             This is where your names and your money live. Safe to share — anyone
             can send to it, nobody can take from it.
@@ -191,18 +199,22 @@ export default function WalletSheet({
 
             <Option
               index="01"
+              icon={
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src="/robinhood/robinhood-wallet-app-icon.png"
+                  alt=""
+                  className="block h-[34px] w-[34px] flex-none"
+                />
+              }
               title="From Robinhood Wallet"
               blurb="The self-custody Robinhood app — not the brokerage one. It's the only wallet that sends straight to this chain, so it's the shortest route."
             >
               <Step n={1}>
                 Get Robinhood Wallet.
                 <div className="mt-2.5 flex flex-wrap gap-2">
-                  <StoreLink href={RH_WALLET_IOS} caption="Download on" name="App Store">
-                    <AppleMark />
-                  </StoreLink>
-                  <StoreLink href={RH_WALLET_ANDROID} caption="Get it on" name="Google Play">
-                    <PlayMark />
-                  </StoreLink>
+                  <StoreLink href={RH_WALLET_IOS} src="/store/appstore-badge.png" alt="Download Robinhood Wallet on the App Store" />
+                  <StoreLink href={RH_WALLET_ANDROID} src="/store/googleplay-badge.png" alt="Get Robinhood Wallet on Google Play" />
                 </div>
               </Step>
               <Step n={2}>
@@ -217,18 +229,15 @@ export default function WalletSheet({
 
             <Option
               index="02"
+              icon={<MoonPayMark />}
               title="Buy with your card"
               blurb="New to this? MoonPay sells ETH on Robinhood Chain straight to a wallet — no exchange account to open, and nothing to bridge."
             >
               <Step n={1}>
                 Get the MoonPay app.
                 <div className="mt-2.5 flex flex-wrap gap-2">
-                  <StoreLink href={MOONPAY_IOS} caption="Download on" name="App Store">
-                    <AppleMark />
-                  </StoreLink>
-                  <StoreLink href={MOONPAY_ANDROID} caption="Get it on" name="Google Play">
-                    <PlayMark />
-                  </StoreLink>
+                  <StoreLink href={MOONPAY_IOS} src="/store/appstore-badge.png" alt="Download MoonPay on the App Store" />
+                  <StoreLink href={MOONPAY_ANDROID} src="/store/googleplay-badge.png" alt="Get MoonPay on Google Play" />
                 </div>
               </Step>
               <Step n={2}>
@@ -275,15 +284,74 @@ export default function WalletSheet({
 
 /* ------------------------------------------------------------------ parts */
 
+/**
+ * The address as a scannable QR.
+ *
+ * ALWAYS dark-on-white, in both themes. A QR is read by a camera, not by a
+ * person, and inverting it for dark mode is the fastest way to make one that
+ * scanners refuse — the quiet zone and the contrast direction are part of the
+ * spec, not styling. So it sits in its own white plate whatever the page is
+ * doing, with the 4-module quiet zone the spec requires.
+ *
+ * Encodes the bare address rather than an `ethereum:` URI. EIP-681 would let a
+ * wallet prefill the chain as well, but support is patchy and a scanner that
+ * doesn't understand the scheme shows the user a URL instead of an address.
+ * Every wallet's "scan to send" understands a bare address.
+ */
+function AddressQr({ address }: { address: string }) {
+  const { count, path } = useMemo(() => {
+    // Type 0 = pick the smallest version that fits. 'M' tolerates ~15% damage,
+    // which is the usual choice for something photographed off a screen.
+    const qr = qrcode(0, "M");
+    qr.addData(address);
+    qr.make();
+    const n = qr.getModuleCount();
+    let d = "";
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (qr.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+      }
+    }
+    return { count: n, path: d };
+  }, [address]);
+
+  const quiet = 4;
+  const size = count + quiet * 2;
+
+  return (
+    <div className="mt-3 flex justify-center">
+      <div className="border border-[color:var(--line-card)] bg-white p-3">
+        <svg
+          width={168}
+          height={168}
+          viewBox={`0 0 ${size} ${size}`}
+          shapeRendering="crispEdges"
+          role="img"
+          aria-label="QR code of your wallet address"
+        >
+          <rect width={size} height={size} fill="#fff" />
+          <g transform={`translate(${quiet} ${quiet})`} fill="#000">
+            <path d={path} />
+          </g>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 function Option({
   index,
   title,
   blurb,
+  icon,
   children,
 }: {
   index: string;
   title: string;
   blurb: string;
+  /* The provider's own mark. Both are square app icons rather than wordmarks,
+     so they read at 34px and stay legible in either theme. */
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -291,9 +359,12 @@ function Option({
       <div className="data text-[10.5px] tracking-[0.14em] text-[color:var(--label)] uppercase">
         Option {index}
       </div>
-      <h3 className="m-0 mt-1.5 text-[18px] leading-[1.15] font-semibold tracking-[-0.01em]">
-        {title}
-      </h3>
+      <div className="mt-1.5 flex items-center gap-2.5">
+        {icon}
+        <h3 className="m-0 text-[18px] leading-[1.15] font-semibold tracking-[-0.01em]">
+          {title}
+        </h3>
+      </div>
       <p className="m-0 mt-2 text-[12.5px] leading-[1.55] text-[color:var(--faint)]">
         {blurb}
       </p>
@@ -317,78 +388,42 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
   );
 }
 
-function StoreLink({
-  href,
-  caption,
-  name,
-  children,
-}: {
-  href: string;
-  caption: string;
-  name: string;
-  children: React.ReactNode;
-}) {
+/*
+ * The official store badges, which the repo already carries at 419x141 with
+ * transparency — better than the Apple and Play marks this drew by hand, and
+ * the treatment both stores actually ask for. Rendered at a fixed height so the
+ * two sit on one baseline, and they wrap rather than squeeze on a narrow phone.
+ */
+function StoreLink({ href, src, alt }: { href: string; src: string; alt: string }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex h-[50px] min-w-0 flex-1 basis-[132px] items-center justify-center gap-2 border border-[color:var(--line-card)] bg-[color:var(--bg)] no-underline transition-colors hover:bg-[var(--hover-fill)]"
+      className="inline-flex min-w-0 flex-1 basis-[104px] items-center justify-center no-underline"
     >
-      {children}
-      <span className="min-w-0">
-        <span className="data block text-[7.5px] tracking-[0.1em] whitespace-nowrap text-[color:var(--faint)] uppercase">
-          {caption}
-        </span>
-        <span className="block text-[12.5px] leading-[1.2] font-semibold whitespace-nowrap">
-          {name}
-        </span>
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* 36px, not 42: the badge is 419x141, so at 42 each is ~125px wide and two
+          will not fit the ~238px a step column leaves on a 390px phone — they
+          wrapped to one per line. At 36 they are ~107px and sit side by side. */}
+      <img src={src} alt={alt} className="block h-[36px] w-auto max-w-full" />
     </a>
   );
 }
 
-/* Drawn, not fetched: these sit in the first paint of a panel whose job is
-   "get the app", and a logo that arrives late — or not at all behind a blocked
-   CDN — undercuts exactly that. Apple's mark follows the page's ink so it stays
-   legible in dark mode; the Play arrow keeps its own colours, which are the
-   part people recognise. */
-function AppleMark({ size = 18 }: { size?: number }) {
+/*
+ * MoonPay's mark: a large disc with a smaller one at its shoulder.
+ *
+ * Drawn rather than shipped as an asset, and only the MARK, not the lockup.
+ * The lockup sets "MoonPay" in black, which disappears against this site's dark
+ * theme; two circles in the brand purple read correctly on either ground and
+ * stay sharp at any size. #7715F4 sampled from the official artwork.
+ */
+function MoonPayMark({ size = 34 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden className="block flex-none">
-      <path
-        fill="currentColor"
-        d="M17.05 12.72c-.02-2.2 1.8-3.26 1.88-3.31-1.02-1.5-2.62-1.7-3.18-1.72-1.35-.14-2.64.79-3.33.79-.69 0-1.75-.77-2.87-.75-1.48.02-2.84.86-3.6 2.18-1.54 2.66-.39 6.6 1.1 8.76.73 1.06 1.6 2.25 2.74 2.2 1.1-.04 1.52-.71 2.85-.71s1.7.71 2.87.69c1.19-.02 1.94-1.08 2.66-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.34-3.51zM14.9 5.86c.6-.74 1.01-1.75.9-2.76-.87.04-1.93.58-2.56 1.31-.56.65-1.05 1.69-.92 2.68.97.08 1.96-.49 2.58-1.23z"
-      />
-    </svg>
-  );
-}
-
-function PlayMark({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="30 336.7 120.9 129.2"
-      aria-hidden
-      className="block flex-none"
-    >
-      <path
-        fill="#FFCD00"
-        d="M119.2,421.2c15.3-8.4,27-14.8,28-15.3c3.2-1.7,6.5-6.2,0-9.7c-2.1-1.1-13.4-7.3-28-15.3l-20.1,20.2L119.2,421.2z"
-      />
-      <path
-        fill="#FF3A44"
-        d="M99.1,401.1l-64.2,64.7c1.5,0.2,3.2-0.2,5.2-1.3c4.2-2.3,48.8-26.7,79.1-43.3L99.1,401.1z"
-      />
-      <path
-        fill="#00E576"
-        d="M99.1,401.1l20.1-20.2c0,0-74.6-40.7-79.1-43.1c-1.7-1-3.6-1.3-5.3-1L99.1,401.1z"
-      />
-      <path
-        fill="#00C3FF"
-        d="M99.1,401.1l-64.3-64.3c-2.6,0.6-4.8,2.9-4.8,7.6c0,7.5,0,107.5,0,113.8c0,4.3,1.7,7.4,4.9,7.7L99.1,401.1z"
-      />
+    <svg width={size} height={size} viewBox="0 0 34 34" aria-hidden className="block flex-none">
+      <circle cx="14" cy="21" r="11" fill="#7715F4" />
+      <circle cx="25.5" cy="9.5" r="5.5" fill="#7715F4" />
     </svg>
   );
 }
