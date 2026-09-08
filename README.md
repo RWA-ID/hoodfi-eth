@@ -1,3 +1,5 @@
+![HoodFi Names — ENS names on Robinhood Chain](docs/banner.png)
+
 # hoodfi.eth — lifetime names on Robinhood Chain
 
 **hoodfi.eth** is an ENS subname service on **Robinhood Chain** (chain id **4663**,
@@ -398,6 +400,7 @@ Resolution design notes:
 | `mcp/src/coins.ts` | Bitcoin and Solana address parsing into each chain's own encoding, and the honest per-chain account of what a check proves |
 | `DEPLOY.md` | The v2 deploy runbook, in the order it must be run |
 | `SECURITY.md` | How to report a vulnerability |
+| `docs/make-banner.mjs` | Renders the README banner in the OG cards' own system. Lives outside `frontend/public/` so it isn't pinned to IPFS on every deploy |
 
 ## Contract reference
 
