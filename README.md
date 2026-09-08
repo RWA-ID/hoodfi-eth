@@ -109,6 +109,41 @@ the name rather than to the CID's IPFS gateway.
 | 3 characters | $5 | credit holders only, until the 100-year goal |
 | 4+ characters | $3 | public, now |
 
+### Social login — minting without bringing a wallet
+
+A visitor can sign in with **email, Google, X, Discord, Apple, GitHub or Farcaster**
+and mint a name in that session. Reown AppKit mints a Reown **embedded wallet** behind
+the login, so someone who has never held crypto gets an address, funds it, mints, and
+signs record changes without installing anything. Self-custodial wallets are untouched
+and remain the default path — Robinhood Wallet and MetaMask are the two featured
+connectors.
+
+Getting an embedded wallet to *sign* on chain 4663 took two fixes that are worth
+recording, because neither is documented and both fail silently:
+
+- **`chain: null` on writes** (`frontend/lib/useWriteContractCompat.ts`). wagmi asserts
+  the connector's chain before sending, and the embedded wallet cannot answer that
+  question the way an injected wallet does. The wallet is not the problem; the
+  assertion is. `chain: null` skips it, and only for the `AUTH` connector — every other
+  wallet keeps wagmi's normal path.
+- **`customRpcUrls` pointing at Reown's Blockchain API** (`frontend/app/providers.tsx`).
+  `W3mFrameProvider.getRpcUrl()` hands the secure site whatever sits first in
+  `rpcUrls.default.http`, and Reown's own `WC_HTTP_RPC_SUPPORTED_CHAINS` does not list
+  4663 — so the embedded wallet fell back to our gateway and never completed a write.
+  The Blockchain API does in fact serve 4663; the constant is stale. This steers the
+  embedded wallet only: the app's own reads and writes keep the explicit transports in
+  `lib/wagmi.ts`, so the Blockchain API is never billed for page traffic.
+
+Proven live on Robinhood Chain and on mainnet. A signing prompt from an embedded
+wallet still reads "On Unknown" — cosmetic, upstream, and tracked at
+[reown-com/appkit#5765](https://github.com/reown-com/appkit/issues/5765) alongside a
+session that does not survive a page reload.
+
+Signing out needs `resetWalletSession` (`frontend/lib/session.ts`) rather than wagmi's
+`disconnect`: the embedded wallet keeps its own state — `EMAIL`, `LAST_USED_CHAIN_KEY`
+— in IndexedDB, where localStorage holds only wagmi's pointer to it. Clearing the
+pointer alone leaves a wallet that reconnects to an account nobody is logged into.
+
 ### Short-name credits
 
 Donating a year to hoodfi.eth's expiry earns **one credit**, and one credit mints
@@ -135,10 +170,21 @@ same repo (root directory `builder/`). A name owner picks one of four templates,
 form, and publishes; the site is pinned to IPFS and their own `contenthash` record serves
 it at `<label>.hoodfi.eth.link`. No hosting, no renewals, no account.
 
-**Prices are currently ZERO.** The paid path runs in full at zero — the same transaction,
-the same records, the same code — so what ships when prices go live is a path that has
-already been exercised rather than a branch nobody took. Turning it on is one `setPrices`
-call, no redeploy.
+**The first site on a name is free; republishing it costs $9.99.** Live prices, read
+straight off `HoodfiSites`:
+
+| | ETH | USDG |
+|---|---|---|
+| First site on a name | free | free |
+| Republish (any content change) | 0.003998 ETH | 9.99 |
+
+Both launched at zero and ran that way through the paid path in full — the same
+transaction, the same records, the same code — so the price that went live in August
+2026 switched on a path already exercised rather than a branch nobody took. It moved
+with one `setPrices` call and no redeploy, and the first build stays free.
+
+`setPrices` is the only source of truth here; if this table and the chain ever disagree,
+the chain is right.
 
 #### The payment names the site
 
@@ -215,12 +261,46 @@ The form validates the collection address against Robinhood Chain as it is typed
 reports "couldn't reach the chain" separately from "not a valid collection" — a read that
 did not happen is not a read that returned no.
 
+### MCP server — names an agent can register and manage
+
+**`https://hoodfi-mcp.com/mcp`** — a Model Context Protocol server over
+streamable-HTTP, its own Cloudflare Worker in `mcp/`. It lets an AI agent search,
+register and manage a name on Robinhood Chain conversationally. ENS has no
+first-party equivalent.
+
+| Tool | What it does |
+|---|---|
+| `hoodfi_check_name` | Availability, the reason when a name is unavailable, and the price in both ETH and USDG |
+| `hoodfi_build_registration_tx` | The unsigned mint. Paying in USDG returns two steps (approve, then register) to run in order |
+| `hoodfi_resolve_name` | Owner, address records, text records and the website a name serves |
+| `hoodfi_build_set_contenthash_tx` | Points a name at an IPFS/IPNS site. Accepts a bare CID, an `ipfs://`/`ipns://` URI or a gateway URL; `""` clears it |
+| `hoodfi_build_set_address_tx` | Sets Ethereum, Bitcoin and Solana records, batched through `multicall` so the owner signs once |
+
+**The server holds no keys and never broadcasts.** Every write tool returns unsigned
+calldata for the caller's own wallet to sign and submit. It cannot mint a name, move
+one, or touch a record on its own.
+
+Three things the tool descriptions state outright, because agents infer them wrong
+otherwise: the registrar mints to `msg.sender`, so **the name lands with whoever
+signs** and there is no recipient argument; 1–3 character names cannot be bought at
+any price until the goal; and setting an "ethereum" address writes **two** records —
+mainnet coinType 60 and the Robinhood Chain coinType — because a name carrying only
+one resolves in some clients and silently fails in others.
+
+Address validation is refused rather than stored when it cannot be parsed, and the
+response says how much the check actually proved: a Bitcoin address is checksummed
+and a typo is caught; an Ethereum address is only verified when it carries EIP-55
+capitalisation; **a Solana address has no checksum at all**, so a mistyped character
+is a different, equally valid-looking address that nothing here can detect. Agents
+are told to relay that distinction rather than report a uniform "valid".
+
 ### Label rules
 
 `a–z`, `0–9`, hyphens (not leading/trailing), 1–32 characters onchain; public
 minting requires 4+ until `openShorts()`. Infra labels (`www`, `api`, `hood`,
-`robinhood`, …) are permanently blocklisted. Frontends should ENSIP-15-normalize
-before submitting.
+`robinhood`, …) are permanently blocklisted **on chain** — no policy, no takedown
+process, and no way to mint `robinhood.hoodfi.eth` and point it anywhere. Frontends
+should ENSIP-15-normalize before submitting.
 
 ## Architecture
 
@@ -301,6 +381,9 @@ Resolution design notes:
 | `frontend/components/ProfileCard.tsx` | The shareable card, used read-only on `/search` and as a live draft preview on `/manage` |
 | `frontend/app/partner/` | Partner enquiries. Posts to the worker, since a static export has no server of its own; `AddressToName.tsx` makes the case by typing a 42-character address out and replacing it with a name |
 | `frontend/lib/resolution.ts` | Mainnet resolution check and the mint-date lookup, shared by both pages |
+| `frontend/app/providers.tsx` | AppKit + wagmi setup: email/social login, and the `customRpcUrls` entry that points the embedded wallet at Reown's Blockchain API for 4663 |
+| `frontend/lib/useWriteContractCompat.ts` | `useWriteContract` minus the chain assertion the embedded wallet cannot answer. `chain: null`, for the `AUTH` connector only |
+| `frontend/lib/session.ts` | Sign-out that clears IndexedDB, not just wagmi's localStorage pointer — the embedded wallet's own state lives there |
 | `frontend/vercel.json` | Rewrites `/{label}`, `/n/`, `/card/` onto the worker. Not `next.config` — `rewrites` there are unsupported under `output: export` |
 | `builder/` | **HoodFi Sites** — the website builder at build.hoodfi.name. A second Next.js static export from this repo; its own Vercel project with root directory `builder/` |
 | `builder/lib/templates/` | The four templates. One render function each, used for both the live preview and the pinned file — two renderers would let the preview disagree with what someone paid for |
@@ -310,7 +393,11 @@ Resolution design notes:
 | `builder/components/PublishPanel.tsx` | Five named steps. A single spinner over two wallet prompts and a chain read is how somebody pays twice |
 | `builder/components/ConnectionGuard.tsx` | Detects a rehydrated WalletConnect connector stub by the method it is missing (`getChainId`); storage looks healthy in that state and is a dead end |
 | `builder/shared/` | Generated copy of `frontend/shared/` — Turbopack will not resolve a symlink out of the project root, so the codec is copied on `prebuild` |
+| `mcp/` | The MCP server at hoodfi-mcp.com. Its own Cloudflare Worker (Hono + viem), streamable-HTTP transport, five tools |
+| `mcp/src/tools.ts` | The tool definitions and handlers. Every write tool returns unsigned calldata — the server holds no keys |
+| `mcp/src/coins.ts` | Bitcoin and Solana address parsing into each chain's own encoding, and the honest per-chain account of what a check proves |
 | `DEPLOY.md` | The v2 deploy runbook, in the order it must be run |
+| `SECURITY.md` | How to report a vulnerability |
 
 ## Contract reference
 
@@ -363,7 +450,7 @@ over the name itself.
 | `canUseTemplate(templateId, buyer) → bool` | Drives the picker; batched across templates through Multicall3 |
 | `withdraw()` | Pays out everything owed to the caller, both currencies. Pull, never push |
 | `setTemplate(id, payee, collection, shareBps, active)` | Owner only. `shareBps` capped at 5000 |
-| `setPrices(firstWei, republishWei, firstUsdg, republishUsdg)` | Owner only. All four launch at zero |
+| `setPrices(firstWei, republishWei, firstUsdg, republishUsdg)` | Owner only. All four launched at zero; since August 2026 the first site is still free and republishing is `0.003998 ETH` / `9.99 USDG` |
 
 Only the name's owner may publish on it — otherwise a stranger could flip a name onto the
 republish price permanently. Holdership for a gated template is checked with a low-level
@@ -391,6 +478,12 @@ MAINNET_RPC_URL=https://ethereum-rpc.publicnode.com forge test --match-path "tes
 cd gateway && bun install && bunx tsc --noEmit
 SIGNER_PRIVATE_KEY=0x… L2_REGISTRY_ADDRESS=0x… bun src/index.ts   # terminal 1
 bun scripts/smoke.ts                                              # terminal 2
+
+# MCP server — its own worker, its own deploy
+cd mcp && npm install
+npm run typecheck
+npm test                                        # coin encoding vectors
+npm run dev                                     # wrangler dev; POST /mcp, GET / describes it
 
 # Builder (HoodFi Sites) — its own Next app, its own Vercel project
 cd builder && npm install && npm run build      # static export in out/
@@ -445,6 +538,28 @@ cast send <registrar> "openShorts()" --rpc-url robinhood # owner, one-way
 `openShorts()` cannot be undone. Credits keep minting short names free afterwards,
 so nobody who donated loses anything by the sale opening.
 
+### Then: ownership moves to a multisig
+
+At the goal, ownership of the contracts and of the **hoodfi.eth name itself** moves to
+a multisig rather than staying on one key. This is the last step of the launch, not a
+someday-maybe.
+
+What it changes is bounded, and worth stating precisely, because most of the system is
+already outside anyone's control:
+
+- **Minted names are already seizure-proof.** No admin burn or transfer function
+  exists. Owners already write their own records.
+- **Donations are already trustless.** ETH goes to the official ENS controller inside
+  the donor's own transaction, and `HoodfiDonations` has no withdraw function.
+- **Published sites already outlive us.** The CID belongs to the owner, and
+  `HoodfiSites` cannot write, move or remove a `contenthash` record.
+
+What the multisig covers is the remaining admin surface: registry admin, `setPaused`,
+`setCreditSigner`, pricing, `setTemplate`, and custody of the parent name. Those are
+the powers that should not sit behind a single key on a system meant to last a
+century. Renouncing them instead would freeze the system permanently, which is why
+the answer is a multisig and not `renounceOwnership`.
+
 ## Trust model, stated honestly
 
 | Component | Guarantee |
@@ -453,7 +568,7 @@ so nobody who donated loses anything by the sale opening.
 | Minted names | Seizure-proof ERC-721s. No admin burn/transfer exists; re-minting an existing name reverts. Owners set their own records. |
 | Short-name credits | Earned onchain on L1 (`shortCredits`), readable by anyone. The gateway only *attests* that public value — it grants nothing a donation didn't already earn, and the registrar enforces spending on-chain. A compromised signer could mint short names, not touch existing ones. |
 | CCIP gateway | **Trusted-signer**: a malicious gateway could misreport records to L1 clients, but cannot touch L2 ownership. Signer is rotatable (`setSigner`); upgrade path to Arbitrum storage-proof verification with no ABI change. |
-| Registry admin | Can approve registrars (which can edit records, never seize names). Post-launch plan: move to a multisig; renouncing freezes the system permanently. |
+| Registry admin | Can approve registrars (which can edit records, never seize names). **Moves to a multisig at the goal** — see [Launch operations](#then-ownership-moves-to-a-multisig); renouncing instead would freeze the system permanently. |
 | Published sites | **Yours, and outlive us.** The site is a static bundle on IPFS and the pointer is a `contenthash` on a name you own — neither depends on this service. The CID is handed to you at publish time precisely so you can re-pin it anywhere. `HoodfiSites` records payment; it cannot write, move or remove your record. |
 | Site pinning | **Trusted for availability, nothing else.** We keep the pin alive; if we stop, the site stops resolving from our gateway but the CID stays valid and anyone can re-pin it. Unpaid pins are swept after 24 hours — paid ones never are, and the sweeper asks the chain rather than a flag we control. |
 | Partner templates | Curated by hand, OpenSea-verified collections only, and **only our code emits the published HTML**. A partner supplies a design, never markup or script — a partner-authored script would run on a `hoodfi.eth` subdomain. Any template can be switched off on-chain with no redeploy. |
@@ -467,4 +582,8 @@ offchain subnames; ETH addresses resolve everywhere.
 Built on [Durin](https://github.com/namestonehq/durin) by NameStone (MIT) —
 `contracts/src/{L2Registry,L2RegistryFactory,L2Resolver,L1Resolver}.sol` and the
 gateway skeleton are vendored from it; `HoodfiL1Resolver` is a modified fork.
-Everything else in this repository is MIT as well (see `contracts/LICENSE`).
+NameStone's copyright notice is kept at [`contracts/LICENSE`](contracts/LICENSE).
+
+Everything else in this repository is MIT as well — see [`LICENSE`](LICENSE).
+
+Security reports: [`SECURITY.md`](SECURITY.md).
