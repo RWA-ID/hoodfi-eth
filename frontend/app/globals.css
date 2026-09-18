@@ -713,28 +713,11 @@ a {
   background: var(--paper-alt);
 }
 
-/* The co-brand coda above the footer. Both signs are the same glyph at two jobs:
-   in the heading it is punctuation between two names, in the lockup it is the
-   join between two marks.
-
-   The opening `/*` here had been lost, which is not a cosmetic problem: the orphaned
-   prose parsed as part of the next selector, so `.lockup-x` was an invalid rule and got
-   dropped entirely — the separator in the wallet lockup lost its spacing and its
-   colour, silently, on every page carrying the band. */
-.lockup-x {
-  /* A real word space sits either side of this in the markup — the break
-     opportunity the heading needs — so the padding only tops it up. */
-  padding: 0 0.16em;
-  color: var(--faint);
-  font-weight: 600;
-}
-.lockup-sign {
-  font-family: var(--font-display), sans-serif;
-  font-size: 26px;
-  font-weight: 500;
-  line-height: 1;
-  color: var(--faint);
-}
+/* `.lockup-x` and `.lockup-sign` lived here: the two `×` glyphs that joined
+   `HoodFi Names` to `Robinhood Wallet` in the heading and the two app icons in
+   the card. Both were deleted with the co-brand framing in 2026-09 — the band
+   is a recommendation, and a multiplication sign between two marks reads as a
+   deal. If either selector comes back, the framing has regressed with it. */
 
 /* Apple and Google both require their badge unmodified — no recolour, no
    stroke on the art. The ring is held off the badge in its own clear space,

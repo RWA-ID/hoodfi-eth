@@ -1,18 +1,21 @@
 import Image from "next/image";
 
 /**
- * HoodFi Names × Robinhood Wallet — the co-brand coda, between the closing CTA
- * and the footer.
+ * The wallet recommendation, between the closing CTA and the footer.
+ *
+ * This is HoodFi's own recommendation, NOT a partnership — there is no
+ * agreement with Robinhood of any kind. It read as a co-brand until the
+ * 2026-09 pass: a `Names × Robinhood Wallet` headline over a two-icon lockup
+ * joined by a multiplication sign, which is the visual grammar of a deal. Both
+ * are gone. One mark, one voice, and a disclaimer under the card. Do not
+ * reintroduce the `×`, a second icon beside it, or any "together"/"partner"
+ * phrasing — that is the whole reason this file was rewritten.
  *
  * Kept on paper rather than ink for one hard reason: Apple ships a black badge
  * for light grounds and a white one for dark, and only the black pair is in this
  * repo. A black badge on `--ink` is both invisible and off-guideline, and the
  * badge art itself must never be recoloured to fix that. Paper also lets the
  * app icon's own navy read as a tile instead of dissolving into the footer.
- *
- * This replaces the `WalletBand` deleted in the paper/lime redesign — that one
- * was built for the old terminal-ledger theme and used a keyed product render.
- * Here the mark does the work: two app icons and a multiplication sign.
  */
 
 const STORES = [
@@ -40,63 +43,37 @@ export function WalletLockup() {
      * Measured, the two grounds were pixel-identical — but this is the only paper
      * section with the lime band above it and the black footer below, so it read
      * brighter than every other one. One step down settles it, and gives the
-     * co-brand its own zone, which suits a block that is about someone else.
+     * recommendation its own zone, which suits a block that is about someone else.
      */
     <section id="wallet" className="wallet-band border-t border-[var(--line-soft)]">
       <div className="shell py-[clamp(72px,9vw,112px)]">
-        <div className="eyebrow">wallet</div>
+        <div className="eyebrow">recommended wallet</div>
 
-        {/* Full width, wrapping freely. This headline is far longer than the
-            one-phrase section titles the `.duo` split was built for — inside a
-            half column it overran into the lede at every width above 900px. */}
-        <h2 className="h-section mt-[18px]">
-          {/* The `{" "}` are load-bearing. JSX drops the newline between text and
-              an adjacent element, so writing these on separate lines glues them
-              into `Names×Robinhood` — one unbreakable 369px token that overran
-              the phone by 19px while the sign's padding made it *look* spaced. */}
-          HoodFi Names{" "}
-          <span className="lockup-x" aria-hidden>
-            ×
-          </span>{" "}
-          {/* Break after the sign, so the two names stack as a lockup rather than
-              wrapping mid-phrase. Only once "Robinhood Wallet" fits a line on its
-              own — below that the browser's own wrap is the better of two bad
-              options. */}
-          <br className="hidden min-[900px]:block" />
-          Robinhood Wallet
-        </h2>
+        {/* Full width, as the co-brand heading was — it had to be, being far
+            longer than the `.duo` split allows. This one would fit a half column,
+            but the band keeps the full measure so the section still opens at the
+            same width as the lede and card beneath it. */}
+        <h2 className="h-section mt-[18px]">Which wallet we recommend.</h2>
 
         <p className="lede mt-6 max-w-[52ch]">
-          Making sending and receiving crypto simple and safe — on the chain your
-          name already lives on.
+          A name is only as useful as the wallet holding it. Robinhood Chain is new
+          enough that most wallets have not added it yet — this is the one we point
+          people to.
         </p>
 
-        {/* The lockup itself: both marks at the same optical size, the sign
-            between them, and the two badges closing the row. Stacks below 980px,
-            where the three blocks side by side crush the copy to a ribbon.
-            Plain paper, not `.panel` — on this band `--paper-alt` is the ground,
-            so a `.panel` fill would make the card vanish into it. */}
+        {/* One mark, not two. Stacks below 980px, where the three blocks side by
+            side crush the copy to a ribbon. Plain paper, not `.panel` — on this
+            band `--paper-alt` is the ground, so a `.panel` fill would make the
+            card vanish into it. */}
         <div className="shadow-lime mt-11 flex flex-col gap-8 border border-[var(--line-card)] bg-[var(--paper)] p-[clamp(24px,3.4vw,40px)] min-[980px]:flex-row min-[980px]:items-center min-[980px]:gap-10">
-          <div className="flex flex-none items-center gap-6">
-            <Image
-              src="/hoodfi-h.png"
-              alt="HoodFi Names"
-              width={512}
-              height={512}
-              className="h-[76px] w-[76px] object-contain"
-            />
-            <span className="lockup-sign" aria-hidden>
-              ×
-            </span>
-            <Image
-              src="/robinhood/robinhood-wallet-app-icon.png"
-              alt="Robinhood Wallet"
-              width={512}
-              height={512}
-              /* The icon ships square; app icons are always seen masked. */
-              className="h-[76px] w-[76px] rounded-[18px]"
-            />
-          </div>
+          <Image
+            src="/robinhood/robinhood-wallet-app-icon.png"
+            alt="Robinhood Wallet"
+            width={512}
+            height={512}
+            /* The icon ships square; app icons are always seen masked. */
+            className="h-[76px] w-[76px] flex-none rounded-[18px]"
+          />
 
           <div className="min-[980px]:flex-1">
             <div className="label">Robinhood Wallet</div>
@@ -132,6 +109,15 @@ export function WalletLockup() {
             ))}
           </div>
         </div>
+
+        {/* The line that makes the recommendation a recommendation. It is doing
+            real work directly under a card of someone else's brand art — keep it
+            adjacent to the card, not exiled to the footer. */}
+        <p className="mt-6 max-w-[62ch] text-sm leading-[1.6] text-[var(--faint)]">
+          HoodFi Names is independent and has no affiliation with Robinhood. Your
+          name is an ERC-721 you hold yourself, so any wallet that supports
+          Robinhood Chain will do — this is simply the one we use.
+        </p>
       </div>
     </section>
   );
