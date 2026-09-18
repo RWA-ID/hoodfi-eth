@@ -5,12 +5,12 @@ import { LegalPage } from "@/components/LegalPage";
 export const metadata: Metadata = ogMetadata({
   title: "Privacy Policy",
   description:
-    "How the HoodFi.eth interface handles data: no accounts, no cookies, no tracking of personal information.",
+    "How the HoodFi.eth interface handles data: no accounts, no personal data, and exactly which analytics run on the site.",
   path: "/privacy/",
   image: "/og/legal.png",
 });
 
-const UPDATED = "July 11, 2026";
+const UPDATED = "September 18, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -21,9 +21,11 @@ export default function PrivacyPage() {
       intro={
         <>
           HoodFi.eth is a static website served over IPFS. It has no server, no
-          database, no user accounts, no cookies, and no analytics or tracking scripts.
-          We do not collect, store, sell, or share personal data. This policy explains
-          the little that does happen with data when you use the site.
+          database, and no user accounts. We do not collect, store, sell, or share
+          personal data, and we never ask you for a name, an email address, or a
+          password. The site does measure its own traffic, in the two ways described
+          under &ldquo;Analytics&rdquo; below. This policy explains everything that
+          happens with data when you use the site.
         </>
       }
       sections={[
@@ -31,10 +33,39 @@ export default function PrivacyPage() {
           heading: "What we don't collect",
           paragraphs: [
             <>
-              We do not collect names, email addresses, IP addresses, device
-              fingerprints, or usage analytics. There is no backend to send them to:
-              the site is published as static files and everything runs in your
-              browser.
+              We do not collect names, email addresses, passwords, or device
+              fingerprints, and we never link what we do measure to a wallet address.
+              The site is published as static files with no backend of our own, so
+              there is nowhere for a user profile to accumulate even if we wanted one.
+            </>,
+          ],
+        },
+        {
+          heading: "Analytics",
+          paragraphs: [
+            <>
+              Two things measure traffic here, and it is worth being exact about which
+              does what. The first is our own counter: it records an event name, the
+              page path, the host that referred you, and a random session id that lives
+              in your tab&apos;s session storage and is destroyed when you close it. It
+              sets no cookie, reads no wallet address, and cannot follow you between
+              visits or across sites.
+            </>,
+            <>
+              The second is Google Analytics 4, which we use to understand where
+              visitors arrive from and which pages hold their attention. It is a
+              third-party script from Google and it does set cookies on your device,
+              which distinguish repeat visits from new ones. It receives your IP
+              address, the pages you view, and general details about your browser and
+              region, and Google handles that data under its own privacy policy rather
+              than this one. It is never given your wallet address, and it plays no part
+              in minting, resolving, or owning a name.
+            </>,
+            <>
+              Both are about the site, not about you. If you would rather not be counted
+              at all, any content blocker or the browser&apos;s &ldquo;do not
+              track&rdquo; tooling will stop both, and nothing on the site behaves
+              differently when they are blocked.
             </>,
           ],
         },
@@ -57,8 +88,9 @@ export default function PrivacyPage() {
             <>
               Using the site necessarily involves third-party infrastructure that we do
               not operate: public RPC endpoints (to read and broadcast transactions),
-              the Reown/WalletConnect relay (if you connect via WalletConnect), and
-              IPFS gateways such as eth.limo (to serve the site). These services may
+              the Reown/WalletConnect relay (if you connect via WalletConnect), IPFS
+              gateways such as eth.limo (to serve the site), and Google Analytics (to
+              count visits, as described above). These services may
               see your IP address, wallet address, and request data, and handle them
               under their own privacy policies. If you prefer, you can use your own RPC
               endpoint, your own IPFS node, or a VPN.
