@@ -62,10 +62,16 @@ export default function PrivacyPage() {
               in minting, resolving, or owning a name.
             </>,
             <>
-              Both are about the site, not about you. If you would rather not be counted
-              at all, any content blocker or the browser&apos;s &ldquo;do not
-              track&rdquo; tooling will stop both, and nothing on the site behaves
-              differently when they are blocked.
+              HoodFi Sites, the website builder at build.hoodfi.name, points here for its
+              privacy policy and is covered by everything above. It runs its own separate
+              Google Analytics property, which measures that tool alone; the two are not
+              linked, and nothing follows you from one to the other.
+            </>,
+            <>
+              All of it is about the sites, not about you. If you would rather not be
+              counted at all, any content blocker or the browser&apos;s &ldquo;do not
+              track&rdquo; tooling will stop all of them, and nothing on either site
+              behaves differently when they are blocked.
             </>,
           ],
         },
