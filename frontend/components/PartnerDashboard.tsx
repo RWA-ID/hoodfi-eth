@@ -79,6 +79,24 @@ export function PartnerDashboard() {
     query: { enabled: configured && Boolean(address) },
   });
 
+  /**
+   * What this wallet can actually withdraw.
+   *
+   * Read straight from `earnings`, not from `partnerInfo(...).accrued`. Those are not the
+   * same thing: partnerInfo reports what is owed to *that partner's payout address*, so a
+   * payout address connecting to collect its own money read zero and found the Withdraw
+   * button disabled — the one wallet that could withdraw was the one told it had nothing.
+   * `withdraw()` spends `earnings[msg.sender]`, so that is the number to show.
+   */
+  const { data: withdrawable, refetch: refetchEarnings } = useReadContract({
+    address: PARTNER_ROUTER_ADDRESS,
+    abi: partnerRouterAbi,
+    functionName: "earnings",
+    args: [address ?? ZERO_ADDRESS],
+    chainId: robinhoodChain.id,
+    query: { enabled: configured && Boolean(address), refetchInterval: 15_000 },
+  });
+
   const currentPrice = info?.[0];
   const currentName = info?.[1];
   const currentPayout = info?.[2];
@@ -126,9 +144,10 @@ export function PartnerDashboard() {
   useEffect(() => {
     if (receipt.isSuccess) {
       void refetchInfo();
+      void refetchEarnings();
       setConfirmPayout(false);
     }
-  }, [receipt.isSuccess, refetchInfo]);
+  }, [receipt.isSuccess, refetchInfo, refetchEarnings]);
 
   const payoutChanged =
     isAddress(payout) &&
@@ -287,7 +306,7 @@ export function PartnerDashboard() {
       <section>
         <div className="eyebrow">01 / your earnings</div>
         <div className="cells mt-8 border-l border-t border-[var(--line)]">
-          <Cell label="ready to withdraw" value={`$${usdg(accrued)}`} />
+          <Cell label="ready to withdraw" value={`$${usdg(withdrawable)}`} />
           <Cell label="names sold" value={sales ? String(sales.totals.count) : "—"} />
           <Cell
             label="earned, lifetime"
@@ -298,12 +317,12 @@ export function PartnerDashboard() {
           <button
             className="btn btn-ink btn-sm"
             onClick={withdraw}
-            disabled={busy || (accrued ?? 0n) === 0n}
+            disabled={busy || (withdrawable ?? 0n) === 0n}
             type="button"
           >
             {busy ? "Confirm in wallet…" : "Withdraw USDG"}
           </button>
-          {(accrued ?? 0n) === 0n && (
+          {(withdrawable ?? 0n) === 0n && (
             <span className="data text-[12px] text-[var(--dim)]">
               nothing owed right now
             </span>
@@ -314,6 +333,17 @@ export function PartnerDashboard() {
       {/* ── settings ─────────────────────────────────────────────── */}
       <section>
         <div className="eyebrow">02 / your listing</div>
+        {/* Two roles, one contract: the key that manages the listing and the address the
+            money goes to are deliberately allowed to differ. Connecting as the latter and
+            being shown an empty listing reads as data loss unless it says otherwise. */}
+        {!active && (withdrawable ?? 0n) > 0n && (
+          <p className="mt-4 max-w-[62ch] text-sm leading-relaxed text-[var(--dim)]">
+            This wallet is a payout address — it has ${usdg(withdrawable)} to collect above,
+            and you can withdraw it here. The listing itself is managed by whichever wallet
+            called <span className="data">setPartner</span>; connect that one to change the
+            price or the embed.
+          </p>
+        )}
         <h2 className="h-sub mt-4">
           {active ? "Update your price" : "Set your price to go live"}
         </h2>
