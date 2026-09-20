@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HoodFi widget demo</title>
+<style>
+ body{margin:0;padding:32px;background:#c6f702;font:14px system-ui;display:grid;gap:32px;
+      grid-template-columns:repeat(auto-fit,minmax(460px,1fr))}
+ h2{font:600 12px/1 ui-monospace,monospace;letter-spacing:.2em;text-transform:uppercase;margin:0 0 10px}
+ .slot{min-width:0}
+</style></head><body>
+ <div class="slot"><h2>dark / default lime</h2><div id="a"></div></div>
+ <div class="slot"><h2>light / default lime</h2><div id="b"></div></div>
+ <div class="slot"><h2>dark / orange accent</h2><div id="c"></div></div>
+ <div class="slot"><h2>light / blue accent + price</h2><div id="d"></div></div>
+<script src="../dist/widget.js"></script>
+<script>
+ var P="0x5f11a48230f7CdaB91A2361576239091E4b1165b";
+ HoodFiWidget.mount(document.getElementById("a"),{partner:P,theme:"dark"});
+ HoodFiWidget.mount(document.getElementById("b"),{partner:P,theme:"light"});
+ HoodFiWidget.mount(document.getElementById("c"),{partner:P,theme:"dark",accent:"#ff6a00",price:"$10"});
+ HoodFiWidget.mount(document.getElementById("d"),{partner:P,theme:"light",accent:"#2563eb",price:"$10",label:"stonks"});
+</script></body></html>

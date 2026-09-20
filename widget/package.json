@@ -1,0 +1,18 @@
+{
+  "name": "@hoodfi/widget",
+  "version": "0.2.0",
+  "description": "Embeddable HoodFi Names widget — let your users register *.hoodfi.eth names at your price and keep the margin on-chain.",
+  "main": "dist/widget.js",
+  "browser": "dist/widget.js",
+  "unpkg": "dist/widget.js",
+  "files": ["dist", "README.md"],
+  "keywords": ["hoodfi", "ens", "names", "web3", "widget", "robinhood-chain"],
+  "homepage": "https://www.hoodfi.name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RWA-ID/hoodfi-eth.git",
+    "directory": "widget"
+  },
+  "license": "MIT",
+  "publishConfig": { "access": "public" }
+}

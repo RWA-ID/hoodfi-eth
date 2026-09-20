@@ -35,6 +35,10 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       // the second thing you do with a name, after pointing it at a wallet.
       { href: BUILDER_URL, label: "Build a website", external: true },
       { href: "/short-names/", label: "Short names" },
+      // Sits under Product rather than Learn: for a platform this is a thing to ship,
+      // not a thing to read. It lands on the partner page's integration section, which
+      // carries the steps and the link out to the widget README.
+      { href: "/partner/#integrate", label: "Integration widget" },
     ],
   },
   {

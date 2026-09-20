@@ -563,3 +563,80 @@ export const aggregatorV3Abi = [
     ],
   },
 ] as const;
+
+/**
+ * The partner router — how a platform resells names at its own price and keeps the margin.
+ *
+ * Deployed 2026-09-20 to Robinhood Chain. Deliberately NOT a registrar on the L2Registry:
+ * it calls the same public `registerWithUsdc` anyone can, so the blocklist, the tier prices
+ * and the short-name lock all still bind it.
+ *
+ * A partner sale is USDG-only. The partner's price is stored in USDG and a wei price would
+ * drift against it, so the router has no ETH path — the mint card hides the ETH option
+ * whenever `?partner=` is present rather than offering a choice that cannot settle.
+ */
+export const PARTNER_ROUTER_ADDRESS = addressEnv(
+  process.env.NEXT_PUBLIC_PARTNER_ROUTER_ADDRESS
+);
+
+export const partnerRouterAbi = [
+  {
+    type: "function",
+    name: "registerViaPartner",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "label", type: "string" },
+      { name: "partner", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    // price, baseFee, sellable, nameStatus — everything the card needs in one read.
+    // `sellable` already folds in the 4+ character rule and the registrar's own status,
+    // so the UI never has to re-derive the partner rules and get them subtly wrong.
+    type: "function",
+    name: "quote",
+    stateMutability: "view",
+    inputs: [
+      { name: "label", type: "string" },
+      { name: "partner", type: "address" },
+    ],
+    outputs: [
+      { name: "price", type: "uint256" },
+      { name: "baseFee", type: "uint256" },
+      { name: "sellable", type: "bool" },
+      { name: "nameStatus", type: "uint8" },
+    ],
+  },
+  {
+    type: "function",
+    name: "partnerInfo",
+    stateMutability: "view",
+    inputs: [{ name: "partner", type: "address" }],
+    outputs: [
+      { name: "price", type: "uint256" },
+      { name: "name", type: "string" },
+      { name: "payout", type: "address" },
+      { name: "baseFee", type: "uint256" },
+      { name: "accrued", type: "uint256" },
+    ],
+  },
+  { type: "error", name: "UnknownPartner", inputs: [{ name: "partner", type: "address" }] },
+  { type: "error", name: "NotAPublicName", inputs: [{ name: "label", type: "string" }] },
+  {
+    type: "error",
+    name: "NameNotAvailable",
+    inputs: [
+      { name: "label", type: "string" },
+      { name: "status", type: "uint8" },
+    ],
+  },
+  {
+    type: "error",
+    name: "PriceBelowBaseFee",
+    inputs: [
+      { name: "price", type: "uint256" },
+      { name: "baseFee", type: "uint256" },
+    ],
+  },
+] as const;

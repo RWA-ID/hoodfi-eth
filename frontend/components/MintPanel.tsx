@@ -25,12 +25,15 @@ const INPUT_MAX_SIZE = 24;
  */
 const INPUT_MIN_SIZE = 10;
 import {
+  PARTNER_ROUTER_ADDRESS,
   REGISTRAR_ADDRESS,
   USDC_ADDRESS,
   ZERO_ADDRESS,
   erc20Abi,
+  partnerRouterAbi,
   registrarAbi,
 } from "@/lib/contracts";
+import { usePartner } from "@/lib/usePartner";
 import {
   CREDIT_USD,
   MINT_STATUS,
@@ -125,6 +128,19 @@ export function MintPanel({
   const short = isShort(debouncedLabel);
   const tier = debouncedLabel ? tierOf(debouncedLabel) : 3;
 
+  /**
+   * A partner sale, handed over by an embedded widget as `?partner=0x…`.
+   *
+   * Everything below treats this as a modifier on the normal flow rather than a separate
+   * card: same input, same availability read, same success state. What changes is who the
+   * buyer pays (the router, at the partner's price), what they approve, and that ETH is
+   * off the table — the router settles in USDG only.
+   */
+  const partner = usePartner();
+  const viaPartner = Boolean(partner && PARTNER_ROUTER_ADDRESS);
+  // The spender for the USDG approval, and the contract the mint goes to.
+  const spender = viaPartner ? PARTNER_ROUTER_ADDRESS : REGISTRAR_ADDRESS;
+
   // Opened from the locked-short-name state; never shown unprompted.
   const [showDonate, setShowDonate] = useState(false);
   const searched = useRef<string>("");
@@ -165,15 +181,35 @@ export function MintPanel({
     address: USDC_ADDRESS,
     abi: erc20Abi,
     functionName: "allowance",
-    args: [address ?? ZERO_ADDRESS, REGISTRAR_ADDRESS ?? ZERO_ADDRESS],
+    // The spender is the router on a partner sale: approving the registrar there would
+    // leave the router with no allowance and the mint would revert on transferFrom.
+    args: [address ?? ZERO_ADDRESS, spender ?? ZERO_ADDRESS],
     chainId: robinhoodChain.id,
     query: {
       enabled:
-        Boolean(USDC_ADDRESS && REGISTRAR_ADDRESS && address) &&
-        method === "usdg",
+        Boolean(USDC_ADDRESS && spender && address) &&
+        (method === "usdg" || viaPartner),
       refetchInterval: 10_000,
     },
   });
+
+  /**
+   * The partner's price for this exact name, straight from the router.
+   *
+   * `sellable` already folds in the partner being active, the 4+ character rule and the
+   * registrar's own status, so the card never re-derives those and never disagrees with
+   * the contract that is about to run.
+   */
+  const { data: partnerQuote } = useReadContract({
+    address: PARTNER_ROUTER_ADDRESS,
+    abi: partnerRouterAbi,
+    functionName: "quote",
+    args: [debouncedLabel, partner ?? ZERO_ADDRESS],
+    chainId: robinhoodChain.id,
+    query: { enabled: viaPartner && Boolean(debouncedLabel), refetchInterval: 30_000 },
+  });
+  const partnerPrice = partnerQuote?.[0];
+  const partnerSellable = partnerQuote?.[2] ?? false;
 
   const weiPrice = price?.[0];
   const usdgPrice = price?.[1];
@@ -182,7 +218,9 @@ export function MintPanel({
   // Fetch the voucher for *any* short name, not just locked ones. Credits still mint
   // short names free after the goal opens them to public sale, so gating this on
   // `!shortsOpen` would silently charge a donor who already holds a free credit.
-  const needsVoucher = short;
+  // Not on a partner sale: the router cannot sell a short name at all, so asking the
+  // gateway for a credit voucher is a call whose answer can never be used.
+  const needsVoucher = short && !viaPartner;
   const shortsLocked = short && !shortsOpen;
   useEffect(() => {
     if (!needsVoucher || !address) {
@@ -249,13 +287,19 @@ export function MintPanel({
   // block, the ETH/USDG toggle and the mint button are all dead weight — and they
   // push the one thing that *is* actionable, "Earn a credit", off the screen. Taken
   // and reserved names keep the paid block, because that is where "Try another" lives.
+  // Never inside a partner sale: "earn a credit" sends someone to donate on our site for
+  // a name this checkout cannot sell them either way.
   const showCredit =
+    !viaPartner &&
     shortsLocked &&
     !creditUnknown &&
     creditsLeft === 0 &&
     settledStatus !== MINT_STATUS.TAKEN &&
     settledStatus !== MINT_STATUS.BLOCKED;
-  const canMint = enabled && (canMintPublic || canMintWithCredit);
+  // On a partner sale the router is the authority on what may be sold — `sellable`
+  // already folds in the partner being active, the 4+ character rule and availability.
+  // Deriving it again here is how the button and the contract end up disagreeing.
+  const canMint = enabled && (viaPartner ? partnerSellable : canMintPublic || canMintWithCredit);
 
   // The currency toggle is inert until there is a price to pay, but it stays on show
   // and keeps its row: holding the space and drawing nothing in it left a hole in the
@@ -285,6 +329,12 @@ export function MintPanel({
     if (!check.ok) return { text: check.reason.toLowerCase(), color: "var(--status-bad)" };
     if (!enabled) return { text: "minting opens soon", color: "var(--status-warn)" };
     if (settledStatus === undefined) return { text: "checking…", color: LABEL };
+    // In a partner sale a short name is refused whatever its availability, so say that
+    // rather than let the generic "premium · credit holders only" imply a credit would
+    // help here. It would not: the router rejects 1-3 characters outright.
+    if (viaPartner && short) {
+      return { text: "4+ characters only here", color: "var(--status-warn)" };
+    }
     const name = `${debouncedLabel}.hoodfi.eth`;
     switch (settledStatus) {
       case MINT_STATUS.AVAILABLE:
@@ -310,8 +360,22 @@ export function MintPanel({
    * carries the real number for anyone paying that way — this one stays put rather
    * than twitching with every round of the price feed.
    */
+  const partnerUsd =
+    partnerPrice !== undefined ? (Number(partnerPrice) / 1e6).toFixed(2) : null;
+
   const priceLabel = !debouncedLabel
     ? "—"
+    : // A partner sets their own price, so the tier figure is not what this buyer pays.
+    // Short names are never sellable through a partner, which is why the credit case
+    // is not consulted here at all.
+    viaPartner
+    ? // Only quote a price the router would actually honour. A short name, a taken one,
+      // or an inactive partner all come back `sellable: false`, and printing the
+      // partner's headline price beside "4+ characters only here" reads as if the name
+      // were one click from being bought.
+      partnerUsd && partnerSellable
+      ? `$${partnerUsd}`
+      : "—"
     : canMintWithCredit
     ? "FREE"
     : `$${TIER_USD[tier]}`;
@@ -319,6 +383,10 @@ export function MintPanel({
   /** The same figure in the currency actually leaving the wallet. */
   const chainPrice = !debouncedLabel
     ? null
+    : viaPartner
+    ? partnerUsd && partnerSellable
+      ? `${partnerUsd} USDG, paid to the site you came from`
+      : null
     : canMintWithCredit
     ? "one short-name credit"
     : creditUnknown
@@ -371,6 +439,14 @@ export function MintPanel({
     ? `Claim ${debouncedLabel}.hoodfi.eth free`
     : !isConnected
     ? "Connect & mint"
+    : viaPartner
+    ? partnerSellable && partnerUsd
+      ? isConnected
+        ? `Mint for $${partnerUsd}`
+        : "Connect & mint"
+      : short
+      ? "Not available here"
+      : "Unavailable"
     : canMintPublic
     ? `Mint for $${TIER_USD[tier]}`
     : "Mint";
@@ -414,8 +490,12 @@ export function MintPanel({
    */
   async function preflight(call: {
     readonly address: `0x${string}`;
-    readonly abi: typeof registrarAbi;
-    readonly functionName: "register" | "registerWithUsdc" | "mintShortWithVoucher";
+    readonly abi: typeof registrarAbi | typeof partnerRouterAbi;
+    readonly functionName:
+      | "register"
+      | "registerWithUsdc"
+      | "mintShortWithVoucher"
+      | "registerViaPartner";
     readonly args: readonly unknown[];
     readonly value?: bigint;
     readonly chainId: number;
@@ -456,7 +536,43 @@ export function MintPanel({
       // escape as an unhandled rejection with nothing shown to the user.
       if (!(await ensureChain())) return;
 
-      if (canMintWithCredit && voucher) {
+      if (viaPartner) {
+        // Deliberately first: a partner sale is always USDG through the router, even for a
+        // name the visitor could have minted with a credit. Falling through to the credit
+        // branch would spend a donor's credit and pay the partner nothing, which is the
+        // wrong outcome for both of them.
+        if (!PARTNER_ROUTER_ADDRESS || !USDC_ADDRESS || !partner) return;
+        if (partnerPrice === undefined || !partnerSellable) return;
+        track("mint_started", { tier: String(tier), method: "partner" });
+
+        if ((allowance ?? 0n) < partnerPrice) {
+          await writeContractAsync({
+            address: USDC_ADDRESS,
+            abi: erc20Abi,
+            functionName: "approve",
+            args: [PARTNER_ROUTER_ADDRESS, partnerPrice],
+            chainId: robinhoodChain.id,
+          });
+        }
+        const call = {
+          address: PARTNER_ROUTER_ADDRESS,
+          abi: partnerRouterAbi,
+          functionName: "registerViaPartner",
+          args: [snapshot, partner],
+          chainId: robinhoodChain.id,
+        } as const;
+        // Same reasoning as the direct USDG path: before the approval lands every
+        // simulation fails on the allowance and tells the user nothing useful.
+        if ((allowance ?? 0n) >= partnerPrice) {
+          const refused = await preflight(call);
+          if (refused) {
+            track("mint_failed", { tier: String(tier) });
+            setActionError(refused);
+            return;
+          }
+        }
+        await writeContractAsync(call);
+      } else if (canMintWithCredit && voucher) {
         track("short_mint_started", { tier: String(tier) });
         const call = {
           address: REGISTRAR_ADDRESS,
@@ -721,26 +837,37 @@ export function MintPanel({
           {/* The currency choice. Inert until there is a price, but never hidden while
               there is one to make — the design's own rule is that a disabled control
               goes inert, not faint. */}
-          <div
-            className={`mt-5 flex ${canMintWithCredit ? "invisible" : ""}`}
-            aria-hidden={canMintWithCredit}
-          >
-            {(["eth", "usdg"] as PayMethod[]).map((m) => (
-              <button
-                key={m}
-                className={`data flex-1 border py-2.5 text-[11px] uppercase tracking-[0.16em] transition-colors ${
-                  method === m
-                    ? "border-[var(--lime)] bg-[var(--lime)] text-[var(--ink)]"
-                    : "border-[rgba(241,241,234,0.28)] text-[var(--label)] enabled:hover:text-[var(--fg)]"
-                } ${m === "eth" ? "border-r-0" : ""}`}
-                onClick={() => setMethod(m)}
-                type="button"
-                disabled={(m === "usdg" && !USDC_ADDRESS) || !canChooseCurrency}
-              >
-                Pay in {m === "eth" ? "ETH" : "USDG"}
-              </button>
-            ))}
-          </div>
+          {viaPartner ? (
+            /* No choice to make: the router settles in USDG only, because a partner's
+               price is stored in USDG and a wei price would drift against it. Rendering
+               the pair with ETH disabled would be a control that looks live and can
+               never work, so the row states the method instead of offering one. */
+            <div className="data mt-5 flex items-center justify-center gap-2.5 border border-[rgba(241,241,234,0.28)] py-2.5 text-[11px] uppercase tracking-[0.16em] text-[var(--label)]">
+              <span className="h-2 w-2 bg-[var(--lime)]" aria-hidden />
+              Pay in USDG
+            </div>
+          ) : (
+            <div
+              className={`mt-5 flex ${canMintWithCredit ? "invisible" : ""}`}
+              aria-hidden={canMintWithCredit}
+            >
+              {(["eth", "usdg"] as PayMethod[]).map((m) => (
+                <button
+                  key={m}
+                  className={`data flex-1 border py-2.5 text-[11px] uppercase tracking-[0.16em] transition-colors ${
+                    method === m
+                      ? "border-[var(--lime)] bg-[var(--lime)] text-[var(--ink)]"
+                      : "border-[rgba(241,241,234,0.28)] text-[var(--label)] enabled:hover:text-[var(--fg)]"
+                  } ${m === "eth" ? "border-r-0" : ""}`}
+                  onClick={() => setMethod(m)}
+                  type="button"
+                  disabled={(m === "usdg" && !USDC_ADDRESS) || !canChooseCurrency}
+                >
+                  Pay in {m === "eth" ? "ETH" : "USDG"}
+                </button>
+              ))}
+            </div>
+          )}
 
           <button
             className="btn btn-lime btn-lg mt-5 w-full"
