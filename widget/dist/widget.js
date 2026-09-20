@@ -339,7 +339,7 @@
     return render(host, o);
   }
 
-  window.HoodFiWidget = { mount: mount, version: "0.2.0" };
+  window.HoodFiWidget = { mount: mount, version: "0.2.1" };
 
   // auto-init: <script src="…" data-partner="0x…" data-accent="#ff6a00"></script>
   var script = document.currentScript;
