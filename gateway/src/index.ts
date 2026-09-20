@@ -5,6 +5,7 @@ import { type Env } from './env'
 import { getCcipRead, getHealth } from './handlers/getCcipRead'
 import { getDonations } from './handlers/getDonations'
 import { getNameCard } from './handlers/getNameCard'
+import { getPartnerSales } from './handlers/getPartnerSales'
 import { getSharePage } from './handlers/getSharePage'
 import { getTokenArt } from './handlers/getTokenArt'
 import { getTokenMetadata } from './handlers/getTokenMetadata'
@@ -65,6 +66,14 @@ app.post('/avatar/:label', async (c) => postAvatar(c.req.param('label'), c.req.r
 // Donation ledger. Proxied because a wide eth_getLogs needs an archive endpoint, and
 // the browser can only be given one by publishing the key in the bundle.
 app.get('/donations', async (c) => getDonations(c.env))
+
+// A partner's own sales, for the dashboard. Proxied for the same archive reason, plus
+// one specific to this chain: Robinhood Chain's public RPC answers POST with a
+// duplicated CORS header that browsers reject, so the page cannot read these itself.
+// GET rather than POST so the CDN can cache it — the rows are public either way.
+app.get('/partner/:address/sales', async (c) =>
+  getPartnerSales(c.req.param('address'), c.env)
+)
 
 // Cookieless analytics sink. Always 204s — the site must never break on a bad beacon.
 app.post('/e', async (c) => postEvent(c.req.raw, c.env))

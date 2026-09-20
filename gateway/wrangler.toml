@@ -50,6 +50,11 @@ L2_REGISTRY_ADDRESS = "0xf2bABA012244bdD7445129597350054E1B3aEe5C"
 SITES_ADDRESS = "0x90517237F52caC977398CA1391b3B006bA028c99"
 # Public information, so a plain var — only the RPC URL behind it is secret.
 DONATIONS_DEPLOY_BLOCK = "25698544"
+# HoodfiPartnerRouter and the block it was deployed in, for the sales query. Public
+# addresses, and the deploy block is what keeps a partner's getLogs from scanning the
+# whole chain every time the dashboard loads.
+PARTNER_ROUTER_ADDRESS = "0xb7bd5f2c7c445ddc5d55ebd9b8f6a20c2e6e4b5d"
+PARTNER_ROUTER_DEPLOY_BLOCK = "68081151"
 
 # Where /partner delivers. A var rather than a secret: it is a destination, not a
 # credential, and having it in the repo is what makes it reviewable. RESEND_API_KEY is
