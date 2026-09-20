@@ -82,9 +82,10 @@ HoodFiWidget.mount(document.querySelector("#slot"), {
 });
 ```
 
-### Headless — keep it on your own page
+### Headless — the mode to use if you have a wallet
 
-If your site already connects a wallet, don't send anyone to hoodfi.name. Pass `onSubmit`
+**If your site already connects a wallet, use this one.** Sending a signed-in visitor to
+hoodfi.name to connect a second wallet is where most of them stop. Pass `onSubmit`
 and the widget stops being a link: it keeps the card, the charset rules and the 4+
 character floor, and hands you the name to buy with your own signer.
 
@@ -125,6 +126,74 @@ router.withdraw();   // called from the payout address
 ```
 
 It is a pull-payment, so a payout address that reverts on receipt can never block a sale.
+
+## Things that will bite you
+
+Every one of these came out of the first real integration. None is visible from the API.
+
+### Two wallets, two jobs
+
+`setPartner` is called by your **managing key**. The **payout address** is a separate
+argument and can be a Safe. That split is the point — configure from a hot wallet, get paid
+into a cold one — but it means the two wallets see different things:
+
+| | managing key | payout address |
+| --- | --- | --- |
+| `data-partner` in the embed | this one | — |
+| Sales history, price, embed builder | this one | — |
+| Money | credited to the payout | withdraws it |
+
+A sale by the managing key credits the payout address, so the managing key's own
+withdrawable balance stays at zero. That is correct, not a missing payment.
+
+### Your CSP probably blocks the CDN
+
+If your `script-src` is `'self'`, the unpkg one-liner will not load — and a site with
+wallet auth should think twice before opening `script-src` to a CDN, because a compromised
+package would then execute in the origin holding your sessions. Copy `dist/widget.js` into
+your own static directory and serve it yourself. Re-copy it when you upgrade.
+
+Pass `fonts: false` while you are there: the widget otherwise `@import`s Archivo and IBM
+Plex Mono from Google, which needs `style-src` and `font-src` opened too. It falls back to
+the system stack.
+
+CSP violations **do not appear in console-reading tools**. Verify with a
+`securitypolicyviolation` listener *and* a control request the policy must block — a
+listener that catches nothing proves nothing until you have seen it catch something.
+
+### On mobile, the page may not be there when the wallet comes back
+
+Signing means switching to the wallet app. That backgrounds the browser, and the OS is free
+to discard the page. The transactions still land — the wallet broadcast them — but the
+promise awaiting the receipt does not survive, so nothing is left to show a success state.
+The buyer pays and sees nothing happen.
+
+Write the label down **before** you open the wallet, and check on the way back:
+
+```js
+// before writeContract
+localStorage.setItem("pending", JSON.stringify({ label, owner: address }));
+
+// on mount, and on visibilitychange / pageshow
+const owner = await registry.read.ownerOf([tokenId]);    // reverts if never minted
+if (owner.toLowerCase() === pending.owner.toLowerCase()) {
+  handle.update({ claimed: pending.label });
+}
+```
+
+Check **ownership, not the receipt**. Ownership is what the buyer cares about and it is
+still true after a reload that threw the transaction hash away.
+
+### A receipt is not a success
+
+`waitForTransactionReceipt` resolves just as happily for a reverted transaction. Check
+`receipt.status === "success"` on both the approval and the registration, or a failed
+registration reports as a completed sale.
+
+### Approve only when the allowance is short
+
+Read `allowance` first and skip the approval when it already covers the price. Two wallet
+popups for one purchase is where people give up.
 
 ## How it works
 

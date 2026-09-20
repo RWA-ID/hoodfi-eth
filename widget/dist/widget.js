@@ -521,7 +521,7 @@
     };
   }
 
-  window.HoodFiWidget = { mount: mount, version: "0.3.1" };
+  window.HoodFiWidget = { mount: mount, version: "0.3.2" };
 
   // auto-init: <script src="…" data-partner="0x…" data-accent="#ff6a00"></script>
   var script = document.currentScript;
