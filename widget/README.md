@@ -12,8 +12,13 @@ them, and it will keep rejecting them even after those tiers open to the public.
 
 ## 1. Set your price
 
-Call `setPartner` on `HoodfiPartnerRouter` once, from the wallet you want to manage the
-integration with:
+| | |
+| --- | --- |
+| `HoodfiPartnerRouter` | `0xb7bd5f2c7c445ddc5d55ebd9b8f6a20c2e6e4b5d` |
+| Chain | Robinhood Chain (`4663`) |
+| Payment token | USDG `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` |
+
+Call `setPartner` once, from the wallet you want to manage the integration with:
 
 ```solidity
 router.setPartner(
@@ -23,9 +28,12 @@ router.setPartner(
 );
 ```
 
-Your price must be at least the base fee. Read the current one with
-`router.priceUsdc(3)`, or `router.partnerInfo(you)` for everything at once. Setting the
-price to `0` deactivates the integration without touching money already earned.
+Your price must be at least the base fee. `router.partnerInfo(you)` returns it alongside
+your own settings, and `router.quote(label, you)` answers for one specific name — including
+whether it can be sold at all. Read the fee rather than hardcoding it: it lives on the
+registrar and this contract forwards whatever it says.
+
+Setting the price to `0` deactivates the integration without touching money already earned.
 
 ## 2. Embed
 
