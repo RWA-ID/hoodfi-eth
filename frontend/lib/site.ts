@@ -118,6 +118,14 @@ export const DISCORD_URL = "https://discord.gg/4x7pY9jXK";
 export const REPO_URL = "https://github.com/RWA-ID/hoodfi-eth";
 
 /**
+ * The widget's own README, which is the integration documentation — the setPartner call,
+ * every `data-` attribute and how the accent contrast is derived. Deep-linked to the
+ * directory rather than the repo root so a platform lands on the reference itself, and
+ * built off REPO_URL so a repo move carries it along instead of stranding it.
+ */
+export const WIDGET_DOCS_URL = `${REPO_URL}/tree/main/widget`;
+
+/**
  * Gateway route serving the donation ledger.
  *
  * Read server-side because a wide `eth_getLogs` needs an archive-capable RPC, and any

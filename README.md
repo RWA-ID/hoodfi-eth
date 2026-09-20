@@ -32,7 +32,7 @@ and app through the ENS Universal Resolver.
 | `HoodfiSites` | Robinhood Chain | [`0x90517237F52caC977398CA1391b3B006bA028c99`](https://robinhoodchain.blockscout.com/address/0x90517237F52caC977398CA1391b3B006bA028c99) (the website builder's paywall) |
 | `L2RegistryFactory` | Robinhood Chain | `0x6bA501514244D42726b12Be9f19C13AA870692B1` |
 | USDG (Paxos stablecoin) | Robinhood Chain | `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` |
-| CCIP gateway | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/v1/{sender}/{data}.json` |
+| CCIP gateway | Cloudflare Workers | `https://ccip.hoodfi-mcp.com/v1/{sender}/{data}.json` — the value in `HoodfiL1Resolver.url()` onchain; `hoodfi-gateway.dmpay.workers.dev` also answers |
 | Credit voucher signer | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/voucher/{address}` |
 | ERC-721 metadata | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/nft/{tokenId}` |
 | Token art (NFT image) | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/art/{label}.png` (generated 1000×1000) |

@@ -23,7 +23,7 @@ small project and it will say so rather than imply otherwise.
 | `L2Registry` | Robinhood Chain `0xf2bABA012244bdD7445129597350054E1B3aEe5C` |
 | `HoodfiRegistrar` | Robinhood Chain `0x56be5565acc823f4195c2cf3b9046C083633209a` |
 | `HoodfiSites` | Robinhood Chain `0x90517237F52caC977398CA1391b3B006bA028c99` |
-| CCIP-Read gateway | `hoodfi-gateway.dmpay.workers.dev`, and the credit-voucher signer on it |
+| CCIP-Read gateway | `ccip.hoodfi-mcp.com` (what `HoodfiL1Resolver.url()` points at) and `hoodfi-gateway.dmpay.workers.dev`, which serves the same worker — plus the credit-voucher signer on it |
 | MCP server | `hoodfi-mcp.com` |
 | Sites and builder | `www.hoodfi.name`, `build.hoodfi.name`, and published `*.hoodfi.eth` sites |
 
