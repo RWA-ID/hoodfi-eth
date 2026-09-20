@@ -574,10 +574,17 @@ export const aggregatorV3Abi = [
  * A partner sale is USDG-only. The partner's price is stored in USDG and a wei price would
  * drift against it, so the router has no ETH path — the mint card hides the ETH option
  * whenever `?partner=` is present rather than offering a choice that cannot settle.
+ *
+ * Hardcoded with the env var as an override, for the same reason as L1_RESOLVER_ADDRESS
+ * above — and learned the same day. As a bare env var this shipped to production unset:
+ * `NEXT_PUBLIC_*` is inlined at build time, `.env.local` is gitignored, and nobody had
+ * added it to Vercel. Every `?partner=` link then fell back to the ordinary direct mint,
+ * charging the tier price and paying the partner nothing, with no error anywhere. A fixed
+ * address cannot fail that way.
  */
-export const PARTNER_ROUTER_ADDRESS = addressEnv(
-  process.env.NEXT_PUBLIC_PARTNER_ROUTER_ADDRESS
-);
+export const PARTNER_ROUTER_ADDRESS =
+  addressEnv(process.env.NEXT_PUBLIC_PARTNER_ROUTER_ADDRESS) ??
+  ("0xB7Bd5F2c7c445dDc5d55eBD9b8F6A20C2e6e4b5d" as const);
 
 export const partnerRouterAbi = [
   {

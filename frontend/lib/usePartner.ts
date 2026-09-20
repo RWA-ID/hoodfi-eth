@@ -21,9 +21,21 @@ export function usePartner(): Address | undefined {
   const [partner, setPartner] = useState<Address | undefined>(undefined);
 
   useEffect(() => {
-    if (!PARTNER_ROUTER_ADDRESS) return;
     const raw = new URLSearchParams(window.location.search).get("partner");
-    if (raw && /^0x[0-9a-fA-F]{40}$/.test(raw)) setPartner(raw as Address);
+    if (!raw) return;
+    // The silence below is what hid a production misconfiguration: a `?partner=` link
+    // with no router configured falls back to the direct mint, charging the tier price
+    // and paying the partner nothing, with nothing visibly wrong. Falling back is still
+    // right — a broken link should not be a dead card — but it should say so somewhere.
+    if (!PARTNER_ROUTER_ADDRESS) {
+      console.warn("[hoodfi] ?partner= ignored: no partner router configured");
+      return;
+    }
+    if (!/^0x[0-9a-fA-F]{40}$/.test(raw)) {
+      console.warn("[hoodfi] ?partner= ignored: not an address —", raw);
+      return;
+    }
+    setPartner(raw as Address);
   }, []);
 
   return partner;
