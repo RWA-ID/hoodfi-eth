@@ -82,6 +82,34 @@ HoodFiWidget.mount(document.querySelector("#slot"), {
 });
 ```
 
+### Headless — keep it on your own page
+
+If your site already connects a wallet, don't send anyone to hoodfi.name. Pass `onSubmit`
+and the widget stops being a link: it keeps the card, the charset rules and the 4+
+character floor, and hands you the name to buy with your own signer.
+
+```js
+HoodFiWidget.mount(el, {
+  partner: "0xYourManagingWallet",
+  connected: Boolean(account),              // you own the wallet state
+  onConnect: () => openYourWalletModal(),
+  onCheck: async (label) => {               // your RPC answers availability
+    const [, , sellable] = await read(router, "quote", [label, partner]);
+    return { sellable, reason: sellable ? undefined : "already taken" };
+  },
+  onSubmit: async ({ label }) => {          // two calls, your signer
+    await write(usdg, "approve", [router, price]);
+    await write(router, "registerViaPartner", [label, partner]);
+  },
+});
+```
+
+`mount` returns `{ update, destroy }`. Call `update({ connected: true })` when a wallet
+connects rather than remounting — an update carries the half-typed name across.
+
+`onSubmit` rejecting shows the error on the card; resolving shows the name as claimed. A
+thrown `shortMessage` (viem) is used when present.
+
 ### Payment
 
 Partner sales settle in **USDG**. The homepage offers ETH as well, but a partner price is
