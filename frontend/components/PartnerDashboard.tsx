@@ -305,13 +305,21 @@ export function PartnerDashboard() {
       {/* ── earnings ─────────────────────────────────────────────── */}
       <section>
         <div className="eyebrow">01 / your earnings</div>
+        {/* Sales are indexed by the managing key, so a payout address has none of its own.
+            Showing it "0 names sold" beside a real balance reads as a contradiction rather
+            than as the two halves of one arrangement, so those cells only appear for the
+            wallet they are actually about. */}
         <div className="cells mt-8 border-l border-t border-[var(--line)]">
           <Cell label="ready to withdraw" value={`$${usdg(withdrawable)}`} />
-          <Cell label="names sold" value={sales ? String(sales.totals.count) : "—"} />
-          <Cell
-            label="earned, lifetime"
-            value={sales ? `$${usdg(sales.totals.earned)}` : "—"}
-          />
+          {active && (
+            <>
+              <Cell label="names sold" value={sales ? String(sales.totals.count) : "—"} />
+              <Cell
+                label="earned, lifetime"
+                value={sales ? `$${usdg(sales.totals.earned)}` : "—"}
+              />
+            </>
+          )}
         </div>
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <button
@@ -338,10 +346,10 @@ export function PartnerDashboard() {
             being shown an empty listing reads as data loss unless it says otherwise. */}
         {!active && (withdrawable ?? 0n) > 0n && (
           <p className="mt-4 max-w-[62ch] text-sm leading-relaxed text-[var(--dim)]">
-            This wallet is a payout address — it has ${usdg(withdrawable)} to collect above,
-            and you can withdraw it here. The listing itself is managed by whichever wallet
-            called <span className="data">setPartner</span>; connect that one to change the
-            price or the embed.
+            This wallet is a payout address: it has ${usdg(withdrawable)} to collect above
+            and can withdraw it here, but it does not own a listing. Sales and the embed
+            belong to whichever wallet called <span className="data">setPartner</span> —
+            connect that one to see them or to change the price.
           </p>
         )}
         <h2 className="h-sub mt-4">
@@ -490,7 +498,7 @@ export function PartnerDashboard() {
       </section>
 
       {/* ── sales ────────────────────────────────────────────────── */}
-      <section>
+      <section className={active ? "" : "hidden"}>
         <div className="eyebrow">04 / your sales</div>
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <h2 className="h-sub m-0">
