@@ -2,6 +2,30 @@ name = "hoodfi-gateway"
 main = "./src/index.ts"
 compatibility_date = "2024-03-19"
 
+# Left true deliberately. HoodfiL1Resolver.url() on mainnet still points at
+# hoodfi-gateway.dmpay.workers.dev, and changing it costs a mainnet transaction, so the
+# workers.dev hostname has to keep answering for as long as any client — or any cached
+# resolution — still uses it. A custom domain ADDS a hostname here; it never retires one.
+workers_dev = true
+
+# ccip.hoodfi.name would have been the better home for this, but hoodfi.name is on
+# Vercel's nameservers and a Worker custom domain requires the zone to be in this
+# Cloudflare account. hoodfi-mcp.com already is, so this costs one deploy instead of a
+# nameserver migration of the live site.
+#
+# The point of moving off workers.dev at all: the gateway URL is baked into a mainnet
+# resolver, so every move of it is an onchain write. On a hostname we control, a future
+# origin change is a DNS edit instead.
+#
+# custom_domain = true serves the WHOLE worker here, not just /v1/* — routing in
+# src/index.ts is path-only and never looks at the hostname, so /rpc, /site, /partner and
+# /avatar answer on this name too. That is the same code already public on workers.dev,
+# not new exposure; splitting the CCIP path into its own worker is the fix if that ever
+# needs to stop being true.
+[[routes]]
+pattern = "ccip.hoodfi-mcp.com"
+custom_domain = true
+
 
 # The funnel sink postEvent writes to. Without this binding env.ANALYTICS is
 # undefined and postEvent accepts every event and discards it — silently, by
