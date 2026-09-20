@@ -39,6 +39,7 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       // not a thing to read. It lands on the partner page's integration section, which
       // carries the steps and the link out to the widget README.
       { href: "/partner/#integrate", label: "Integration widget" },
+      { href: "/partner/dashboard/", label: "Partner dashboard" },
     ],
   },
   {

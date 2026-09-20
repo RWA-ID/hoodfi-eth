@@ -126,6 +126,17 @@ export const REPO_URL = "https://github.com/RWA-ID/hoodfi-eth";
 export const WIDGET_DOCS_URL = `${REPO_URL}/tree/main/widget`;
 
 /**
+ * A partner's own sales, from the router's logs.
+ *
+ * Proxied through the gateway rather than read in the browser: a wide `getLogs` needs an
+ * archive endpoint, and Robinhood Chain's public RPC answers POST with a duplicated CORS
+ * header that browsers reject, so the page could not read these itself at any key.
+ */
+export const PARTNER_SALES_URL =
+  process.env.NEXT_PUBLIC_PARTNER_SALES_URL ??
+  "https://ccip.hoodfi-mcp.com/partner";
+
+/**
  * Gateway route serving the donation ledger.
  *
  * Read server-side because a wide `eth_getLogs` needs an archive-capable RPC, and any

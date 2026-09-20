@@ -212,6 +212,9 @@ export default function PartnerPage() {
               Integration docs
               <ArrowNE />
             </a>
+            <Link href="/partner/dashboard/" className="btn btn-ghost btn-sm">
+              Partner dashboard
+            </Link>
             <Link href="/mcp/" className="btn btn-ghost btn-sm">
               MCP server
             </Link>
