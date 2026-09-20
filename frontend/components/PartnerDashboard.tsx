@@ -32,6 +32,8 @@ type SalesPayload = {
 
 const EXPLORER = "https://robinhoodchain.blockscout.com";
 
+const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+
 /** USDG is 6dp everywhere in this contract. One place converts, so nothing drifts. */
 function usdg(raw: bigint | string | undefined): string {
   if (raw === undefined) return "—";
@@ -148,6 +150,22 @@ export function PartnerDashboard() {
       setConfirmPayout(false);
     }
   }, [receipt.isSuccess, refetchInfo, refetchEarnings]);
+
+  /**
+   * Earned here, but payable elsewhere.
+   *
+   * `withdrawable` is what the connected wallet can pull; `accrued` is what this listing
+   * has earned and not yet collected, which sits against its payout address. When those
+   * are different wallets the managing key saw "$1.00 earned, lifetime" above "$0.00
+   * ready to withdraw" — both true, and together they read as money that went missing.
+   * Show the balance where it was earned and say which wallet collects it.
+   */
+  const payoutElsewhere =
+    active &&
+    Boolean(currentPayout) &&
+    Boolean(address) &&
+    currentPayout !== ZERO_ADDRESS &&
+    getAddress(currentPayout as string) !== getAddress(address as string);
 
   const payoutChanged =
     isAddress(payout) &&
@@ -310,7 +328,15 @@ export function PartnerDashboard() {
             than as the two halves of one arrangement, so those cells only appear for the
             wallet they are actually about. */}
         <div className="cells mt-8 border-l border-t border-[var(--line)]">
-          <Cell label="ready to withdraw" value={`$${usdg(withdrawable)}`} />
+          <Cell
+            label={payoutElsewhere ? "earned, not yet collected" : "ready to withdraw"}
+            value={`$${usdg(payoutElsewhere ? accrued : withdrawable)}`}
+            note={
+              payoutElsewhere
+                ? `held for ${shortAddr(currentPayout as string)} — connect that wallet to withdraw`
+                : undefined
+            }
+          />
           {active && (
             <>
               <Cell label="names sold" value={sales ? String(sales.totals.count) : "—"} />
@@ -330,11 +356,24 @@ export function PartnerDashboard() {
           >
             {busy ? "Confirm in wallet…" : "Withdraw USDG"}
           </button>
-          {(withdrawable ?? 0n) === 0n && (
-            <span className="data text-[12px] text-[var(--dim)]">
-              nothing owed right now
-            </span>
-          )}
+          {(withdrawable ?? 0n) === 0n &&
+            (payoutElsewhere ? (
+              <span className="data text-[12px] text-[var(--dim)]">
+                payable to{" "}
+                <a
+                  className="link"
+                  href={`${EXPLORER}/address/${currentPayout}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {currentPayout}
+                </a>
+              </span>
+            ) : (
+              <span className="data text-[12px] text-[var(--dim)]">
+                nothing owed right now
+              </span>
+            ))}
         </div>
       </section>
 
@@ -563,13 +602,16 @@ export function PartnerDashboard() {
   );
 }
 
-function Cell({ label, value }: { label: string; value: string }) {
+function Cell({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="flex-[1_1_200px] border-b border-r border-[var(--line)] p-7">
       <div className="label">{label}</div>
       <div className="mt-3 text-[clamp(26px,4vw,38px)] font-bold leading-none tracking-[-0.02em]">
         {value}
       </div>
+      {note && (
+        <div className="data mt-3 text-[11.5px] leading-[1.5] text-[var(--dim)]">{note}</div>
+      )}
     </div>
   );
 }
