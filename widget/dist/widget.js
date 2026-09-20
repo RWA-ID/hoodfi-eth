@@ -235,12 +235,22 @@
     // The partner sets their own price, so it is passed in rather than read from chain —
     // a partner origin cannot reach the L2 RPC today (the chain's own endpoint sends a
     // duplicated CORS header that browsers reject, and the gateway proxy allowlists origins).
-    if (o.price) {
-      price.textContent = o.price;
-      price.removeAttribute("data-empty");
-    } else {
-      price.textContent = "";
-      price.setAttribute("data-empty", "");
+    /**
+     * Show the price only when the typed name could actually be bought at it.
+     *
+     * An empty box is the headline case and keeps the price. A name the partner router
+     * would refuse — under four characters, or an illegal label — blanks it: a confident
+     * "$4.00" beside "4+ characters through a partner" reads as if the name were one
+     * click from purchase.
+     */
+    function showPrice(valid) {
+      if (o.price && valid) {
+        price.textContent = o.price;
+        price.removeAttribute("data-empty");
+      } else {
+        price.textContent = "";
+        price.setAttribute("data-empty", "");
+      }
     }
 
     function sync() {
@@ -252,6 +262,7 @@
       cta.href = buildUrl(o, v.ok ? label : "", pay);
       ctaText.textContent = o.text || (v.ok ? "Register " + label + ".hoodfi.eth" : "Connect Wallet");
       cta.setAttribute("aria-disabled", label && !v.ok ? "true" : "false");
+      showPrice(!label || v.ok);
     }
 
     input.addEventListener("input", sync);
@@ -339,7 +350,7 @@
     return render(host, o);
   }
 
-  window.HoodFiWidget = { mount: mount, version: "0.2.1" };
+  window.HoodFiWidget = { mount: mount, version: "0.2.2" };
 
   // auto-init: <script src="…" data-partner="0x…" data-accent="#ff6a00"></script>
   var script = document.currentScript;

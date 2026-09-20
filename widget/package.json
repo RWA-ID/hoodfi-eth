@@ -1,6 +1,6 @@
 {
   "name": "@hoodfi/widget",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Embeddable HoodFi Names widget — let your users register *.hoodfi.eth names at your price and keep the margin on-chain.",
   "main": "dist/widget.js",
   "browser": "dist/widget.js",
