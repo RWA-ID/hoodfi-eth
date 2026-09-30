@@ -228,7 +228,7 @@ the thing someone paid for. Faces are subsetted to Latin-1 + Latin Extended-A, 5
 each; template ids are `keccak256(slug)`, matching what the deploy script registered, so
 the code and the on-chain registry cannot drift apart without the publish reverting.
 
-**Links** is the link-in-bio template: an ordered list of blocks (buttons, section
+**HoodFi Tree** (template id `links`) is the link-in-bio template: an ordered list of blocks (buttons, section
 headers, YouTube/Spotify/SoundCloud players, images, an ETH tip jar and an email signup),
 a social icon row, and an appearance system — six presets, dark or light, six accents, six
 fonts, three button shapes, four backgrounds. It has its own form in the editor

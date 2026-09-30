@@ -37,7 +37,7 @@ const TEMPLATES: { id: string; name: string; blurb: string; note: string }[] = [
   },
   {
     id: "05",
-    name: "Links",
+    name: "HoodFi Tree",
     blurb: "One column of buttons, socials, embeds and a tip jar. Six themes, six accents.",
     note: "Creators · new",
   },
