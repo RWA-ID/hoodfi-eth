@@ -7,6 +7,7 @@ import { getDonations } from './handlers/getDonations'
 import { getNameCard } from './handlers/getNameCard'
 import { getPartnerSales } from './handlers/getPartnerSales'
 import { getSharePage } from './handlers/getSharePage'
+import { getSiteCard } from './handlers/getSiteCard'
 import { getTokenArt } from './handlers/getTokenArt'
 import { getTokenMetadata } from './handlers/getTokenMetadata'
 import { getVoucher } from './handlers/getVoucher'
@@ -57,6 +58,8 @@ app.get('/n/:label', async (c) => getSharePage(c.req.param('label'), c.req.raw, 
 
 // The 1200x630 image those tags point at, rendered per name.
 app.get('/card/:label', async (c) => getNameCard(c.req.param('label'), c.env))
+// A published Links page's own share card, drawn from the page the name points at.
+app.get('/site-card/:path', async (c) => getSiteCard(c.req.param('path'), c.req.raw, c.env))
 
 // Avatar image hosting. ENS records store a URL, so without somewhere to put a file
 // only people who already host images can set one. Authorised by a signature from the

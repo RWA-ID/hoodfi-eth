@@ -12,7 +12,6 @@ import {
   BUILDER_URL,
   COPY_SCRIPT,
   IMG_FALLBACK_SCRIPT,
-  OG_AVATAR,
   PAGE_AVATAR,
   attr,
   esc,
@@ -142,6 +141,23 @@ const CHAIN_ID = 4663;
 const CHAIN_HEX = "0x1237";
 const CHAIN_RPC = "https://rpc.mainnet.chain.robinhood.com";
 const CHAIN_EXPLORER = "https://robinhoodchain.blockscout.com";
+
+/**
+ * Where the share card is drawn: the gateway's /site-card route, which reads this page
+ * back off the name's contenthash and draws it from the `hoodfi:card` meta below. The
+ * page only ever links to it, so the card's design can change without a republish.
+ */
+const CARD_BASE = "https://hoodfi-gateway.dmpay.workers.dev/site-card/";
+
+/** FNV-1a, 32-bit. Not security: it only has to change when the card data does. */
+function shortHash(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
 
 export const MAX_BLOCKS = 24;
 export const MAX_BIO = 160;
@@ -443,7 +459,6 @@ function renderLinks(data: SiteData): string {
   const name = esc(nameText);
   const bio = (data.bio ?? "").trim();
   const avatar = safeImage(data.avatar ?? "", PAGE_AVATAR);
-  const avatarOg = safeImage(data.avatar ?? "", OG_AVATAR);
   const initial = esc(([...nameText][0] ?? "?").toUpperCase());
 
   const shown = (data.blocks ?? [])
@@ -454,6 +469,28 @@ function renderLinks(data: SiteData): string {
   const blocks = shown.map((b) => b.html);
   // The tip script is the largest one here; a page with no tip jar does not carry it.
   const hasTip = shown.some((b) => b.type === "tip");
+
+  // What the share card draws, carried by the page itself so the gateway reads it from
+  // exactly what was published. Raw values, not the resolved/proxied ones: the gateway
+  // validates and fetches for itself. Button titles are the first two visible links.
+  const card = {
+    v: 1,
+    title: nameText,
+    bio,
+    // The raw record (an ipfs:// stays ipfs://, so the gateway can pick its own mirror),
+    // but only when the page itself would have drawn it.
+    avatar: avatar ? (data.avatar ?? "").trim() : "",
+    buttons: (data.blocks ?? [])
+      .filter((b) => b && b.visible !== false && b.type === "link" && safeUrl(b.url ?? ""))
+      .slice(0, 2)
+      .map((b) => ({
+        t: (b.title ?? "").trim() || safeUrl(b.url ?? "").replace(/^(https?:\/\/|mailto:)/, ""),
+        f: b.type === "link" && b.featured,
+      })),
+    look: { preset, mode: L.mode, accent: L.accent, font: L.font, shape: L.shape, bg: L.bg },
+  };
+  const cardJson = JSON.stringify(card);
+  const cardUrl = `${CARD_BASE}${encodeURIComponent(data.label)}.png?v=${shortHash(cardJson)}`;
 
   const social = socials(data);
   const socialHtml = social.length
@@ -484,8 +521,14 @@ function renderLinks(data: SiteData): string {
 <meta property="og:title" content="${attr(nameText)}">
 <meta property="og:description" content="${attr(bio)}">
 <meta property="og:type" content="profile">
-${avatarOg ? `<meta property="og:image" content="${attr(avatarOg)}">` : ""}
-<meta name="twitter:card" content="summary">
+<meta property="og:url" content="https://${attr(data.label)}.hoodfi.eth.link/">
+<meta property="og:image" content="${attr(cardUrl)}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="${attr(`${nameText} — ${data.label}.hoodfi.eth`)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${attr(cardUrl)}">
+<meta name="hoodfi:card" content="${attr(cardJson)}">
 <style>
 ${faces}
 *{box-sizing:border-box;margin:0;padding:0}
