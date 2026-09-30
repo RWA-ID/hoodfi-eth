@@ -2,6 +2,7 @@ import { isAddress, parseAbiItem } from 'viem'
 
 import { type Env, envVarOptional } from '../env'
 import { robinhoodClient } from '../rpc'
+import { getLogsInWindows } from '../logs'
 
 const registrationEvent = parseAbiItem(
   'event PartnerRegistration(address indexed partner, address indexed buyer, bytes32 indexed node, string label, uint256 pricePaid, uint256 baseFee, uint256 partnerShare, uint256 platformCut)'
@@ -36,13 +37,17 @@ export async function getPartnerSales(partner: string, env: Env): Promise<Respon
   const fromBlock = configured ? BigInt(configured) : DEFAULT_DEPLOY_BLOCK
 
   try {
-    const logs = await robinhoodClient(env).getLogs({
-      address: router as `0x${string}`,
-      event: registrationEvent,
-      args: { partner: partner as `0x${string}` },
-      fromBlock,
-      toBlock: 'latest',
-    })
+    // Windowed: the RPC caps a log query at 10M blocks. See ../logs.ts.
+    const client = robinhoodClient(env)
+    const logs = await getLogsInWindows(client, fromBlock, (from, to) =>
+      client.getLogs({
+        address: router as `0x${string}`,
+        event: registrationEvent,
+        args: { partner: partner as `0x${string}` },
+        fromBlock: from,
+        toBlock: to,
+      })
+    )
 
     const sales = logs.map((log) => ({
       label: log.args.label ?? '',

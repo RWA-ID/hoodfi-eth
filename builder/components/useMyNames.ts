@@ -6,6 +6,7 @@ import { usePublicClient } from "wagmi";
 import { L2_DEPLOY_BLOCK, L2_REGISTRY_ADDRESS, registryAbi } from "@/lib/contracts";
 import { dnsDecodeName, pathBelowRoot } from "@/lib/ens";
 import { robinhoodChain } from "@/lib/chains";
+import { getLogsInWindows } from "@/lib/logs";
 
 const transferEvent = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
@@ -75,13 +76,17 @@ export function useMyNames(address: Address | undefined): MyNamesState {
     setError(null);
 
     try {
-      const logs = await client.getLogs({
-        address: L2_REGISTRY_ADDRESS,
-        event: transferEvent,
-        args: { to: address },
-        fromBlock: L2_DEPLOY_BLOCK,
-        toBlock: "latest",
-      });
+      // Windowed: the RPC caps a log query at 10M blocks, and the chain is far past
+      // that since the registry was deployed. See lib/logs.ts.
+      const logs = await getLogsInWindows(client, L2_DEPLOY_BLOCK, (fromBlock, toBlock) =>
+        client.getLogs({
+          address: L2_REGISTRY_ADDRESS!,
+          event: transferEvent,
+          args: { to: address },
+          fromBlock,
+          toBlock,
+        })
+      );
 
       const tokenIds = [
         ...new Set(

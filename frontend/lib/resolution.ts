@@ -1,6 +1,10 @@
 import { getAddress, parseAbiItem, type Address } from "viem";
 import { L2_REGISTRY_ADDRESS, ZERO_ADDRESS } from "./contracts";
 import { l2Client, publicClient } from "./wagmi";
+import { getLogsInWindows } from "./logs";
+
+/** Where the registry starts. Unset falls back to 0: slower, never wrong. */
+const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_L2_DEPLOY_BLOCK ?? "0");
 
 /**
  * Whether a name resolves through Ethereum mainnet, and where it points if so.
@@ -63,13 +67,18 @@ const transferEvent = parseAbiItem(
 export async function readMintDate(tokenId: bigint): Promise<string | null> {
   if (!L2_REGISTRY_ADDRESS) return null;
   try {
-    const logs = await l2Client.getLogs({
-      address: L2_REGISTRY_ADDRESS,
-      event: transferEvent,
-      args: { from: ZERO_ADDRESS, tokenId },
-      fromBlock: 0n,
-      toBlock: "latest",
-    });
+    // From the registry's deploy block, not 0: the query is windowed to stay under the
+    // RPC's 10M-block cap (lib/logs.ts), and every window before the deploy is a wasted
+    // request.
+    const logs = await getLogsInWindows(l2Client, DEPLOY_BLOCK, (fromBlock, toBlock) =>
+      l2Client.getLogs({
+        address: L2_REGISTRY_ADDRESS!,
+        event: transferEvent,
+        args: { from: ZERO_ADDRESS, tokenId },
+        fromBlock,
+        toBlock,
+      })
+    );
     if (logs.length === 0) return null;
     const block = await l2Client.getBlock({ blockNumber: logs[0].blockNumber });
     return new Date(Number(block.timestamp) * 1000).toISOString().slice(0, 10);
