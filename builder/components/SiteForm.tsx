@@ -58,7 +58,7 @@ const MAX = {
 const MAX_LINKS = 8;
 const MAX_FACTS = 3;
 
-function Field({
+export function Field({
   label,
   hint,
   children,
@@ -78,7 +78,7 @@ function Field({
   );
 }
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+export function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="border-t border-[var(--line)] pt-7">
       <h3 className="data text-[11.5px] uppercase tracking-[0.2em] text-[var(--label)]">

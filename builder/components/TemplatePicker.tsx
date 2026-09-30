@@ -8,7 +8,7 @@ type Props = {
 };
 
 /**
- * Four cells, one lit.
+ * One cell per template, one lit.
  *
  * No thumbnails yet, deliberately: the preview beside this updates the instant a
  * template is picked, with the visitor's own content in it, which tells them more than
@@ -27,19 +27,26 @@ export function TemplatePicker({ selected, onSelect }: Props) {
         return (
           <button
             aria-pressed={isSelected}
-            className={`min-w-0 flex-[1_1_190px] cursor-pointer border-b border-r border-[var(--line)] p-5 text-left transition-colors ${
+            className={`flex min-w-0 flex-[1_1_190px] cursor-pointer flex-col justify-start border-b border-r border-[var(--line)] p-5 text-left transition-colors ${
               isSelected ? "bg-[var(--ink)] text-[var(--paper)]" : "hover:bg-[var(--hover-fill)]"
             }`}
             key={t.id}
             onClick={() => onSelect(t.id)}
             type="button"
           >
-            <div
-              className={`data text-[10.5px] uppercase tracking-[0.18em] ${
-                isSelected ? "text-[var(--lime)]" : "text-[var(--faint)]"
-              }`}
-            >
-              {isSelected ? "Selected" : t.audience}
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className={`data text-[10.5px] uppercase tracking-[0.18em] ${
+                  isSelected ? "text-[var(--lime)]" : "text-[var(--faint)]"
+                }`}
+              >
+                {isSelected ? "Selected" : t.audience}
+              </span>
+              {t.isNew ? (
+                <span className="data bg-[var(--lime)] px-1.5 py-[3px] text-[10px] uppercase leading-none tracking-[0.14em] text-[var(--ink)]">
+                  New
+                </span>
+              ) : null}
             </div>
             <div className="mt-3 text-[19px] font-extrabold leading-none tracking-[-0.03em]">
               {t.name}

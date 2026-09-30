@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { SiteForm } from "@/components/SiteForm";
+import { LinksForm } from "@/components/LinksForm";
 import { SitePreview } from "@/components/SitePreview";
 import { TemplatePicker } from "@/components/TemplatePicker";
 import { useMyNames, type OwnedName } from "@/components/useMyNames";
@@ -141,6 +142,35 @@ export default function BuildPage() {
     setEdited(true);
   };
 
+  /**
+   * Picking Links for the first time carries the links already typed across as buttons.
+   *
+   * Links keeps its rows in `blocks`, not `links`, because a block can be a header, an
+   * embed or a tip jar. Without this, someone who filled in six links on Editorial and
+   * then tried Links would find an empty page and assume the work was gone. `links` is
+   * left as it was, so switching back loses nothing either.
+   */
+  const selectTemplate = (id: TemplateId) => {
+    setTemplateId(id);
+    if (id !== "links") return;
+    setData((current) => {
+      if (current.blocks.length > 0 || current.links.length === 0) return current;
+      return {
+        ...current,
+        blocks: current.links
+          .filter((l) => l.label.trim() || l.url.trim())
+          .map((l, i) => ({
+            id: `l${i}${Math.random().toString(36).slice(2, 7)}`,
+            type: "link" as const,
+            title: l.label,
+            url: l.url,
+            featured: false,
+            visible: true,
+          })),
+      };
+    });
+  };
+
   const template = TEMPLATES_BY_ID[templateId];
 
   // The headline stands in as visibly UNSET rather than falling back to the label. A
@@ -241,16 +271,22 @@ export default function BuildPage() {
             <section className="shell pt-[clamp(40px,5vw,64px)]">
               <div className="eyebrow">01 / template</div>
               <div className="mt-5">
-                <TemplatePicker onSelect={setTemplateId} selected={templateId} />
+                <TemplatePicker onSelect={selectTemplate} selected={templateId} />
               </div>
             </section>
 
             <section className="shell pb-[clamp(48px,6vw,80px)] pt-[clamp(40px,5vw,64px)]">
               <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
                 <div className="min-w-0">
-                  <div className="eyebrow">02 / content</div>
+                  <div className="eyebrow">
+                    {templateId === "links" ? "02 / content & look" : "02 / content"}
+                  </div>
                   <div className="mt-6">
-                    <SiteForm data={data} onChange={update} templateId={templateId} />
+                    {templateId === "links" ? (
+                      <LinksForm data={data} onChange={update} />
+                    ) : (
+                      <SiteForm data={data} onChange={update} templateId={templateId} />
+                    )}
                   </div>
                 </div>
 
@@ -260,7 +296,13 @@ export default function BuildPage() {
                 <div className="min-w-0 lg:sticky lg:top-[84px]">
                   <SitePreview
                     html={html}
-                    instantKey={templateId}
+                    // Appearance is a click, like picking a template, so it lands at once
+                    // rather than after the typing debounce.
+                    instantKey={
+                      templateId === "links"
+                        ? `${templateId}:${JSON.stringify(data.look)}:${data.socialPos}`
+                        : templateId
+                    }
                     label={data.label || name?.path || "yourname"}
                   />
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
