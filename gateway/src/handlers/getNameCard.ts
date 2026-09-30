@@ -37,6 +37,45 @@ const AVATAR_PX = 264
  */
 const AVATAR_BUDGET_MS = 1800
 
+/**
+ * A JPEG without its EXIF block.
+ *
+ * satori drops a JPEG that carries an APP1 (EXIF) segment without a word — no throw, just
+ * a card with no avatar — and nearly every phone photo carries one. Verified on the same
+ * image with and without it. The segment is metadata only, so removing it changes no
+ * pixel; the one thing lost is the orientation flag, which satori never honoured anyway.
+ * Anything that does not parse as a clean segment list is returned untouched.
+ */
+export function stripExif(buf: ArrayBuffer): ArrayBuffer {
+  const d = new Uint8Array(buf)
+  if (d[0] !== 0xff || d[1] !== 0xd8) return buf
+  const keep: Uint8Array[] = [d.subarray(0, 2)]
+  let i = 2
+  let dropped = false
+  while (i + 4 <= d.length) {
+    if (d[i] !== 0xff) return buf
+    const marker = d[i + 1]
+    // Start of scan: everything from here on is image data.
+    if (marker === 0xda) {
+      keep.push(d.subarray(i))
+      break
+    }
+    const len = (d[i + 2] << 8) | d[i + 3]
+    if (len < 2) return buf
+    if (marker === 0xe1) dropped = true
+    else keep.push(d.subarray(i, i + 2 + len))
+    i += 2 + len
+  }
+  if (!dropped) return buf
+  const out = new Uint8Array(keep.reduce((n, p) => n + p.length, 0))
+  let o = 0
+  for (const p of keep) {
+    out.set(p, o)
+    o += p.length
+  }
+  return out.buffer
+}
+
 /** Workers have btoa but not Buffer, and spreading a 512KB array blows the stack. */
 function toBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf)
@@ -71,8 +110,8 @@ function toBase64(buf: ArrayBuffer): string {
  * ceiling is AVATAR_BUDGET_MS however many gateways get added here later. Running out is
  * a normal outcome, not an error: the caller draws the house mark.
  */
-async function inlineAvatar(urls: string[]): Promise<string> {
-  const deadline = Date.now() + AVATAR_BUDGET_MS
+export async function inlineAvatar(urls: string[], budgetMs = AVATAR_BUDGET_MS): Promise<string> {
+  const deadline = Date.now() + budgetMs
   for (const url of urls) {
     const remaining = deadline - Date.now()
     // Under half a second there is no point starting a gateway fetch: the pinned gateway
@@ -86,8 +125,9 @@ async function inlineAvatar(urls: string[]): Promise<string> {
       // A format satori can't decode is the file itself, not the gateway serving it —
       // another gateway would return the same bytes, so stop rather than pay for it.
       if (!RENDERABLE.has(type)) return ''
-      const buf = await res.arrayBuffer()
-      if (buf.byteLength === 0 || buf.byteLength > MAX_AVATAR_BYTES) return ''
+      const raw = await res.arrayBuffer()
+      if (raw.byteLength === 0 || raw.byteLength > MAX_AVATAR_BYTES) return ''
+      const buf = type === 'image/jpeg' ? stripExif(raw) : raw
       return `data:${type};base64,${toBase64(buf)}`
     } catch {
       continue

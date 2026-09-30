@@ -529,6 +529,13 @@ export function PublishPanel({ name, templateId, html, displayName }: Props) {
       );
       await mined(linkHash, "record");
 
+      // Draw the share card now, while nobody is waiting on it. The card route reads the
+      // contenthash just written and caches the result, so the first crawler to unfurl a
+      // shared link gets a stored image instead of a cold render that can outlast its
+      // ~3s patience. Fire and forget: a card that fails to warm still renders on demand.
+      const card = html.match(/<meta property="og:image" content="([^"]*\/site-card\/[^"]*)"/)?.[1];
+      if (card) void fetch(card.replace(/&amp;/g, "&")).catch(() => undefined);
+
       setPublished({ html, cid: pinned.cid });
       setStep("done");
     } catch (err) {
