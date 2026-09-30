@@ -686,7 +686,7 @@ document.addEventListener('click',function(e){
 
 export const links: Template = {
   id: "links",
-  name: "Links",
+  name: "HoodFi Tree",
   blurb: "One column of buttons, socials, embeds and a tip jar. Six themes, six accents.",
   audience: "Creators",
   isNew: true,
