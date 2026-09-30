@@ -5,7 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 import {HoodfiSites} from "src/hoodfi/HoodfiSites.sol";
 
-/// @notice Robinhood Chain: the publish paywall behind build.hoodfi.name, plus the four
+/// @notice Robinhood Chain: the publish paywall behind build.hoodfi.name, plus the five
 ///         house templates registered so the flow is usable the moment it lands.
 ///
 ///         Deploys with EVERY PRICE AT ZERO. That is the launch state, not an oversight:
@@ -25,13 +25,20 @@ contract DeploySites is Script {
     /// ensgiant — the same treasury the registrar pays into.
     address constant TREASURY = 0x2D037f66b9e0EDE90c2080558a7d3FF7BE36E9A1;
 
-    /// The four house templates. Ids are keccak of the slug, so the frontend can derive
+    /// The five house templates. Ids are keccak of the slug, so the frontend can derive
     /// them without a lookup table that could drift from what is on-chain.
-    function _houseTemplates() internal pure returns (bytes32[4] memory ids) {
+    ///
+    /// `links` was added after the live contract was deployed. On that deployment it is
+    /// registered with one owner call rather than a redeploy:
+    ///   cast send <HoodfiSites> "setTemplate(bytes32,address,address,uint16,bool)" \
+    ///     $(cast keccak links) 0x0000000000000000000000000000000000000000 \
+    ///     0x0000000000000000000000000000000000000000 0 true
+    function _houseTemplates() internal pure returns (bytes32[5] memory ids) {
         ids[0] = keccak256("terminal");
         ids[1] = keccak256("editorial");
         ids[2] = keccak256("manifesto");
         ids[3] = keccak256("product");
+        ids[4] = keccak256("links");
     }
 
     function run() external {
@@ -47,7 +54,7 @@ contract DeploySites is Script {
 
         // payee 0, collection 0, share 0: open to everyone, earning nobody a cut.
         // Partner templates are added one at a time, by hand, after review.
-        bytes32[4] memory ids = _houseTemplates();
+        bytes32[5] memory ids = _houseTemplates();
         for (uint256 i = 0; i < ids.length; i++) {
             sites.setTemplate(ids[i], address(0), address(0), 0, true);
         }

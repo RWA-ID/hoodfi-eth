@@ -9,7 +9,7 @@ import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
 import type { OwnedName } from "@/components/useMyNames";
 import { CURRENCIES, FIRST_USD, REBUILD_USD } from "@/lib/labels";
 
-/** The four looks. Order is the order they appear in the grid. */
+/** The five looks. Order is the order they appear in the grid. */
 const TEMPLATES: { id: string; name: string; blurb: string; note: string }[] = [
   {
     id: "01",
@@ -35,12 +35,18 @@ const TEMPLATES: { id: string; name: string; blurb: string; note: string }[] = [
     blurb: "Light, generous, a generative field behind the headline.",
     note: "Teams and tools",
   },
+  {
+    id: "05",
+    name: "Links",
+    blurb: "One column of buttons, socials, embeds and a tip jar. Six themes, six accents.",
+    note: "Creators · new",
+  },
 ];
 
 /** What actually happens, in the order it happens. */
 const STEPS: [string, string][] = [
   ["connect", "Connect the wallet holding your name. We read your names off Robinhood Chain — nothing to type."],
-  ["choose", "Pick one name and one of four templates. Your existing records fill the first draft in."],
+  ["choose", "Pick one name and one of five templates. Your existing records fill the first draft in."],
   ["edit", "Add a picture, a bio, your links and anything else. Preview updates as you type."],
   ["publish", "Pay once, the site pins to IPFS, and you sign one transaction to point your name at it."],
 ];
@@ -62,7 +68,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "What does the first site cost?",
-    a: "Nothing. Your first site on a name is free — all four templates, the editor, and pinning the finished site to IPFS so it stays online. Free per name, so a second name gets its own free first site.",
+    a: "Nothing. Your first site on a name is free — all five templates, the editor, and pinning the finished site to IPFS so it stays online. Free per name, so a second name gets its own free first site.",
   },
   {
     q: "Why does rebuilding cost anything?",
@@ -133,7 +139,7 @@ export default function Home() {
         <div className="on-ink border-b border-[var(--line-soft)]">
           <div className="shell cells">
             {[
-              ["templates", "4", "to choose from"],
+              ["templates", "5", "to choose from"],
               ["first site", FIRST_USD, "every name you own"],
               ["rebuilds", REBUILD_USD, CURRENCIES],
               ["hosting", "$0", "forever"],
@@ -156,9 +162,9 @@ export default function Home() {
         <section id="templates" className="shell section">
           <div className="eyebrow">01 / pick a look</div>
           <div className="duo mt-[18px] items-end">
-            <h2 className="h-section m-0">Four templates.</h2>
+            <h2 className="h-section m-0">Five templates.</h2>
             <p className="lede m-0 mb-2.5 max-w-[44ch]">
-              Four genuinely different designs, not four colourways of one. Each is a
+              Five genuinely different designs, not five colourways of one. Each is a
               single self-contained page — no framework, no external fonts, nothing that
               can go offline later.
             </p>
@@ -237,7 +243,7 @@ export default function Home() {
                 <span className="data text-[13px] text-[var(--faint)]">nothing to pay</span>
               </div>
               <p className="mt-5 text-[15px] leading-[1.6] text-[var(--dim)]">
-                Everything: all four templates, the editor, image hosting and the pin
+                Everything: all five templates, the editor, image hosting and the pin
                 that keeps your site online. Free per name, so every name you own gets a
                 site at no cost.
               </p>
