@@ -31,13 +31,13 @@ createAppKit({
      * This is the icon the wallet shows beside "do you want to sign this", and
      * the signing prompt was rendering with no mark at all. `icon.svg` is 244
      * bytes and wallet UIs commonly won't render SVG for a dapp icon — the
-     * secure site included. `hoodfi-h.png` is 512x512 and was already in
-     * public/, just unused here.
+     * secure site included. `icon-512.png` is the app icon, the same tile the
+     * favicon, the iPhone home-screen icon and wallet dapp lists show.
      *
      * The same class of mistake as pointing this at a 1200x630 social card:
      * whatever goes here is drawn small and square, so it wants a square raster.
      */
-    icons: [`${SITE.url}/hoodfi-h.png`],
+    icons: [`${SITE.url}/icon-512.png`],
   },
   /*
    * Point the EMBEDDED WALLET at Reown's own Blockchain API for this chain.

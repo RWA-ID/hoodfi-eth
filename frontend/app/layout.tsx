@@ -28,6 +28,21 @@ export const metadata: Metadata = {
   // HTML-tag method checks for — it only ever fetches the homepage, but the tag
   // costs nothing elsewhere and survives whichever page it lands on.
   verification: { google: "ZUGijkox-osXu7C0HG07r1IN0uoCNURhxUXMaO-TGzc" },
+  // The app icon, everywhere a browser, phone or wallet looks for one. Wallet
+  // dapp browsers (Rabby's included) skip an SVG-only favicon and fall back to a
+  // letter tile, so every size is a PNG. The files live in public/, not app/:
+  // Next decodes app/icon.* at build time and Turbopack's ICO decoder rejects
+  // the RGB PNGs inside this favicon.ico. The 16–48px favicon is a tighter crop
+  // of the H; at that size the glowing border would be all you saw.
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: { url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" },
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
