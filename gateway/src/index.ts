@@ -5,6 +5,7 @@ import { type Env } from './env'
 import { getCcipRead, getHealth } from './handlers/getCcipRead'
 import { getDonations } from './handlers/getDonations'
 import { getNameCard } from './handlers/getNameCard'
+import { getOwnerNames } from './handlers/getOwnerNames'
 import { getPartnerSales } from './handlers/getPartnerSales'
 import { getSharePage } from './handlers/getSharePage'
 import { getSiteCard } from './handlers/getSiteCard'
@@ -76,6 +77,13 @@ app.get('/donations', async (c) => getDonations(c.env))
 // GET rather than POST so the CDN can cache it — the rows are public either way.
 app.get('/partner/:address/sales', async (c) =>
   getPartnerSales(c.req.param('address'), c.env)
+)
+
+// Reverse lookup: address -> the hoodfi names it holds. ENS reverse resolution is null for
+// every hoodfi holder (a primary name lives on mainnet), so apps that start from an
+// address — a launchpad's creator, a chat sender — have no other way to find the name.
+app.get('/owner/:address/names', async (c) =>
+  getOwnerNames(c.req.param('address'), c.req.raw, c.env)
 )
 
 // Cookieless analytics sink. Always 204s — the site must never break on a bad beacon.
