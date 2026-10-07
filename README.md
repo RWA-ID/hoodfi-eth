@@ -309,6 +309,49 @@ capitalisation; **a Solana address has no checksum at all**, so a mistyped chara
 is a different, equally valid-looking address that nothing here can detect. Agents
 are told to relay that distinction rather than report a uniform "valid".
 
+### Reverse lookup — showing a name instead of `0x…`
+
+**`GET https://ccip.hoodfi-mcp.com/owner/{address}/names`** — no key, CORS open.
+
+Forward resolution (`gm.hoodfi.eth` → address) works in every ENS library with no
+setup. The other direction does not: `getEnsName` / `useEnsName` return **null for every
+hoodfi holder**, because an ENS primary name lives in the mainnet ReverseRegistrar and a
+name on Robinhood Chain cannot write to it. Any app that starts from an address — a
+launchpad's "created by", a trade feed, a chat sender — should ask this endpoint instead.
+
+```bash
+curl https://ccip.hoodfi-mcp.com/owner/0x645Cf432E829f9dEF6EB8E3974D3Aee4580CBCdd/names
+```
+
+```json
+{
+  "address": "0x645Cf432E829f9dEF6EB8E3974D3Aee4580CBCdd",
+  "primary": "nft.hoodfi.eth",
+  "names": [
+    { "name": "nft.hoodfi.eth", "node": "0x…", "addr": "0x645C…BCdd", "resolves": true, "avatar": "ipfs://…" },
+    { "name": "interns.hoodfi.eth", "node": "0x…", "addr": "0x645C…BCdd", "resolves": true, "avatar": null }
+  ]
+}
+```
+
+```ts
+const res = await fetch(`https://ccip.hoodfi-mcp.com/owner/${address}/names`)
+if (res.ok) {
+  const { primary } = await res.json()
+  label = primary ?? shortAddress(address)
+} // on a 502 keep the address and retry later; don't cache "no name"
+```
+
+- **`primary`** is the name to display, or `null`. It is only ever a name whose ETH
+  record resolves back to this address — the rule ENS applies to primary names — so a
+  name bought on secondary that still points at the seller labels neither of them.
+  Top-level names are preferred over subnames, then shorter, then alphabetical.
+- **`names`** is every name the address holds right now (ownership re-checked on chain,
+  not read from an index), with `resolves` and `avatar` for each.
+- **Errors:** `400` for a malformed address; `502` when the chain could not be read —
+  never an empty list, so "no name" and "couldn't check" stay distinguishable.
+- Responses are cached for 60 seconds.
+
 ### Label rules
 
 `a–z`, `0–9`, hyphens (not leading/trailing), 1–32 characters onchain; public
