@@ -1,5 +1,9 @@
 import { getAddress, parseAbiItem, type Address } from "viem";
-import { L2_REGISTRY_ADDRESS, ZERO_ADDRESS } from "./contracts";
+import {
+  L2_REGISTRY_ADDRESS,
+  PARTNER_ROUTER_ADDRESS,
+  ZERO_ADDRESS,
+} from "./contracts";
 import { l2Client, publicClient } from "./wagmi";
 import { getLogsInWindows } from "./logs";
 
@@ -84,5 +88,62 @@ export async function readMintDate(tokenId: bigint): Promise<string | null> {
     return new Date(Number(block.timestamp) * 1000).toISOString().slice(0, 10);
   } catch {
     return null;
+  }
+}
+
+/**
+ * How `owner` came to hold the name: minted it, or received it from someone.
+ *
+ * The registry has no transfer hook, so records do not follow the NFT. A name bought on
+ * OpenSea arrives still pointing at the seller — funds sent to it go to the previous
+ * owner until the buyer re-points it. This is what tells the manage page that the
+ * records it is showing were written by somebody else.
+ *
+ * A partner sale mints to the router and the router hands it on, so a transfer *from
+ * the router* is a mint for this purpose — and the router has already re-pointed the
+ * records at the buyer.
+ *
+ * Tri-state on purpose: a failed log read is "unknown", never "minted". Reading a
+ * throttled RPC as "nothing to warn about" would hide the notice from exactly the
+ * buyer it exists for.
+ */
+export type Acquisition =
+  | { status: "checking" }
+  | { status: "minted" }
+  | { status: "transferred"; from: Address; date: string | null }
+  | { status: "unknown" };
+
+export async function readAcquisition(
+  tokenId: bigint,
+  owner: Address
+): Promise<Acquisition> {
+  if (!L2_REGISTRY_ADDRESS) return { status: "unknown" };
+  try {
+    const logs = await getLogsInWindows(l2Client, DEPLOY_BLOCK, (fromBlock, toBlock) =>
+      l2Client.getLogs({
+        address: L2_REGISTRY_ADDRESS!,
+        event: transferEvent,
+        args: { to: owner, tokenId },
+        fromBlock,
+        toBlock,
+      })
+    );
+    // The most recent arrival is the one that matters: a name minted here, sent away
+    // and bought back carries whatever the last holder wrote.
+    const last = logs.at(-1);
+    if (!last?.args.from) return { status: "unknown" };
+    const from = getAddress(last.args.from);
+    if (from === ZERO_ADDRESS || from === getAddress(PARTNER_ROUTER_ADDRESS)) {
+      return { status: "minted" };
+    }
+    const block = await l2Client
+      .getBlock({ blockNumber: last.blockNumber })
+      .catch(() => null);
+    const date = block
+      ? new Date(Number(block.timestamp) * 1000).toISOString().slice(0, 10)
+      : null;
+    return { status: "transferred", from, date };
+  } catch {
+    return { status: "unknown" };
   }
 }

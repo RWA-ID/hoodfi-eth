@@ -434,6 +434,18 @@ export const registryAbi = [
     ],
     outputs: [],
   },
+  /**
+   * ENS ResolverBase: bumps the node's record version, so every address, text and
+   * contenthash record reads empty at once. Owner-only (`authorised(node)`). Used by
+   * /manage/ when a name arrives on secondary still carrying the seller's records.
+   */
+  {
+    type: "function",
+    name: "clearRecords",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [],
+  },
   {
     type: "function",
     name: "multicall",
