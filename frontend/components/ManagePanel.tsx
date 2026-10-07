@@ -51,7 +51,13 @@ import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
 import { NameAvatar } from "./NameAvatar";
 import { ProfileCard, type L1State } from "./ProfileCard";
-import { readMintDate, resolveOnL1 } from "@/lib/resolution";
+import {
+  type Acquisition,
+  readAcquisition,
+  readMintDate,
+  resolveOnL1,
+} from "@/lib/resolution";
+import { NewOwnerNotice } from "./NewOwnerNotice";
 import { nameShareUrl } from "@/lib/site";
 import { RecordsPrimer } from "./RecordsPrimer";
 import { SubnameSection } from "./SubnameSection";
@@ -138,6 +144,31 @@ const TEXT_FIELDS: {
 /** The website record's own key in the draft — it is neither a text nor an address. */
 const CONTENTHASH = "contenthash";
 
+/**
+ * "Keep as is" on the new-owner notice, remembered per name *and* per record value: an
+ * owner who deliberately points a name at a cold wallet says so once, but if the record
+ * later changes to something else the question is worth asking again. Browser storage
+ * is fine here — losing it only means the notice shows once more.
+ */
+const handoverKey = (node: string, pointsAt: string) =>
+  `hoodfi:handover-kept:${node}:${pointsAt.toLowerCase()}`;
+
+function readHandoverKept(node: string, pointsAt: string): boolean {
+  try {
+    return localStorage.getItem(handoverKey(node, pointsAt)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeHandoverKept(node: string, pointsAt: string): void {
+  try {
+    localStorage.setItem(handoverKey(node, pointsAt), "1");
+  } catch {
+    // Private mode or blocked storage: the notice just comes back next visit.
+  }
+}
+
 function useTextRecord(node: `0x${string}` | undefined, key: string) {
   return useReadContract({
     address: L2_REGISTRY_ADDRESS,
@@ -209,6 +240,10 @@ function NameEditor({
   // block is confirmed is not instant, and silence there reads as a failed save.
   const [contentInFlight, setContentInFlight] = useState(false);
   const [contentSaved, setContentSaved] = useState(false);
+  // How this wallet came to hold the name — the new-owner notice only speaks up for a
+  // name that arrived by transfer (or whose history couldn't be read).
+  const [acquisition, setAcquisition] = useState<Acquisition>({ status: "checking" });
+  const [handoverKept, setHandoverKept] = useState(false);
 
   const avatar = useTextRecord(name.node, "avatar");
   const twitter = useTextRecord(name.node, "com.twitter");
@@ -288,6 +323,27 @@ function NameEditor({
       cancelled = true;
     };
   }, [name.tokenId]);
+
+  // Re-read when the wallet changes: the same name viewed from a different holder has a
+  // different history.
+  useEffect(() => {
+    if (!address) return;
+    let cancelled = false;
+    setAcquisition({ status: "checking" });
+    void readAcquisition(name.tokenId, address).then((a) => {
+      if (!cancelled) setAcquisition(a);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [name.tokenId, address]);
+
+  const pointsAt =
+    evmRecord && evmRecord !== "0x" ? getAddress(evmRecord as Address) : "";
+
+  useEffect(() => {
+    setHandoverKept(readHandoverKept(name.node, pointsAt));
+  }, [name.node, pointsAt]);
 
   // Resolution is re-checked whenever the saved EVM record changes — after a save it
   // genuinely can flip, and telling someone their name resolves when it no longer does
@@ -450,7 +506,72 @@ function NameEditor({
     }
   }
 
+  /**
+   * The new-owner reset: wipe everything the previous holder wrote, then point the name
+   * at this wallet — one multicall, so the name is never left resolving to nothing
+   * between two transactions. Goes through the same receipt effect as `saveAll`, which
+   * refetches every record and so drops the notice once the EVM record matches.
+   */
+  async function resetForNewOwner() {
+    if (!L2_REGISTRY_ADDRESS || !address) return;
+    const me = getAddress(address);
+    const calls: `0x${string}`[] = [
+      encodeFunctionData({
+        abi: registryAbi,
+        functionName: "clearRecords",
+        args: [name.node],
+      }),
+      ...ADDRESS_FIELDS[0].coinTypes.map((coinType) =>
+        encodeFunctionData({
+          abi: registryAbi,
+          functionName: "setAddr",
+          args: [name.node, coinType, me],
+        })
+      ),
+    ];
+    setActionError(null);
+    setAvatarSaved(false);
+    setContentSaved(false);
+    setAvatarInFlight(false);
+    setContentInFlight(false);
+    // Unsaved edits were typed over the previous owner's values, which are about to be
+    // gone — reseed from the chain rather than leave them sitting on a blank name.
+    setDirty(new Set());
+    try {
+      await ensureChain();
+      setSaving(true);
+      await writeContractAsync({
+        address: L2_REGISTRY_ADDRESS,
+        abi: registryAbi,
+        functionName: "multicall",
+        args: [calls],
+        chainId: robinhoodChain.id,
+      });
+    } catch (error) {
+      setSaving(false);
+      setActionError(walletErrorMessage(error));
+    }
+  }
+
   const busy = isPending || receipt.isLoading;
+
+  // The EVM record is what moves money, so it alone decides. "unknown" counts: a
+  // throttled log read must not hide this from the buyer it exists for — an owner who
+  // set the record elsewhere on purpose answers "Keep as is" once.
+  const showHandover =
+    Boolean(address) &&
+    evmAddr.isSuccess &&
+    (acquisition.status === "transferred" || acquisition.status === "unknown") &&
+    pointsAt !== (address ? getAddress(address) : "") &&
+    !handoverKept;
+
+  const inherited = [
+    ...ADDRESS_FIELDS.slice(1)
+      .filter((f) => onChainValues[f.key])
+      .map((f) => `${f.label} address`),
+    ...TEXT_FIELDS.filter((f) => onChainValues[f.key]).map((f) => f.label),
+    ...(onChainValues[CONTENTHASH] ? ["Website (IPFS)"] : []),
+  ];
   // Anything left unparseable blocks the whole batch — it's one transaction.
   const blocked = ADDRESS_FIELDS.some(addrInvalid) || contentInvalid;
   const changeCount = pendingCalls().length === 0 ? 0 : dirty.size;
@@ -458,6 +579,22 @@ function NameEditor({
 
   return (
     <div className="flex flex-col gap-6">
+    {showHandover && address && (
+      <NewOwnerNotice
+        name={name.name}
+        owner={getAddress(address)}
+        pointsAt={pointsAt}
+        from={acquisition.status === "transferred" ? acquisition.from : null}
+        date={acquisition.status === "transferred" ? acquisition.date : null}
+        inherited={inherited}
+        busy={saving && busy}
+        onReset={resetForNewOwner}
+        onKeep={() => {
+          writeHandoverKept(name.node, pointsAt);
+          setHandoverKept(true);
+        }}
+      />
+    )}
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(330px,480px)_minmax(330px,1fr)]">
       {/* Live preview — driven by the draft, not the chain, so it shows what you are
           about to publish rather than what is already published. */}
