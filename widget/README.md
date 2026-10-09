@@ -98,12 +98,23 @@ HoodFiWidget.mount(el, {
     const [, , sellable] = await read(router, "quote", [label, partner]);
     return { sellable, reason: sellable ? undefined : "already taken" };
   },
-  onSubmit: async ({ label }) => {          // two calls, your signer
-    await write(usdg, "approve", [router, price]);
-    await write(router, "registerViaPartner", [label, partner]);
+  onSubmit: async ({ label }) => {          // TWO transactions, your signer
+    // 1. Approve USDG, only if the allowance is short, and wait until it is ON-CHAIN:
+    //    registerViaPartner pulls the USDG, so sending it early just reverts.
+    const covered = async () => (await read(usdg, "allowance", [account, router])) >= price;
+    if (!(await covered())) {
+      await untilOnChain(() => write(usdg, "approve", [router, price]), covered);
+    }
+    // 2. Register, done when the buyer owns the name.
+    await untilOnChain(() => write(router, "registerViaPartner", [label, partner]),
+                       () => owns(label, account));
   },
 });
 ```
+
+A purchase is **two wallet prompts** for a buyer with no allowance yet, and one for a buyer
+who already has one. Read [the two-transaction notes](#a-purchase-is-two-transactions--say-so)
+before you ship.
 
 `mount` returns `{ update, destroy }`. Call `update({ connected: true })` when a wallet
 connects rather than remounting — an update carries the half-typed name across.
@@ -130,6 +141,63 @@ It is a pull-payment, so a payout address that reverts on receipt can never bloc
 ## Things that will bite you
 
 Every one of these came out of the first real integration. None is visible from the API.
+
+### A purchase is two transactions — say so
+
+The buyer approves USDG to the router, then confirms `registerViaPartner`. While
+`onSubmit` runs, the card's button reads **"Confirm in wallet…"** for the whole flow; the
+widget cannot tell which prompt is open. A second prompt nobody mentioned reads as a
+repeat, or as the first one having failed, and people reject it.
+
+Show the step yourself, **outside the card**:
+
+```
+Step 1 of 2 · Approve USDG in your wallet
+Step 2 of 2 · Confirm the registration in your wallet
+```
+
+Drop the "of 2" when the allowance already covers the price — that buyer only gets step 2.
+
+Do **not** call `handle.update()` while `onSubmit` is pending. An update re-renders the
+card and resets its busy state, so the button comes back live mid-purchase and invites a
+second click. Keep the step in your own UI and update the card once `onSubmit` settles.
+
+### A wallet that signed may never answer — settle from the chain
+
+The widget waits on your `onSubmit` promise with **no timeout**. If that promise never
+settles, the card sits on "Confirm in wallet…" forever.
+
+That happens after a *successful* signature. Over WalletConnect the reply travels back
+over a relay; if the socket drops between the wallet signing and the reply arriving
+(backgrounded tab, phone asleep), the wallet has broadcast the transaction but
+`writeContract` never resolves. Our first live partner sale did exactly this: the approval
+was mined, the registration was never prompted, and no USDG was spent.
+
+So don't make each step depend only on the wallet's reply. Race the send against a poll of
+the state the step is meant to produce, and let whichever proves it first win:
+
+```js
+function untilOnChain(send, done, ms = 180_000) {
+  return new Promise((resolve, reject) => {
+    const finish = (err) => { clearInterval(poll); clearTimeout(timer); err ? reject(err) : resolve(); };
+    const poll = setInterval(() => done().then((ok) => ok && finish(), () => {}), 3000);
+    const timer = setTimeout(() => finish(new Error(
+      "Still waiting on Robinhood Chain — it may still land. Check back before trying again.")), ms);
+    send().then(async (hash) => {
+      const r = await client.waitForTransactionReceipt({ hash, timeout: ms }).catch(() => null);
+      if (r && r.status !== "success") finish(new Error("The transaction reverted"));
+    }, finish);                    // a rejection in the wallet still rejects
+  });
+}
+```
+
+The `done` checks are **allowance ≥ price** for step 1 and **`ownerOf` = buyer** for
+step 2. Both are already wired up in the headless example above.
+
+A timeout is not a failure. The transaction may still be in the mempool, so say it may
+still land rather than "payment failed", which is how somebody pays twice. A retry is safe
+either way: an approval that landed is skipped by the allowance check, and a name that
+landed comes back from `quote` as not sellable.
 
 ### Two wallets, two jobs
 
