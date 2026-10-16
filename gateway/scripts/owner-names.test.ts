@@ -23,7 +23,7 @@ const cases = process.argv.slice(2).length
     ]
 for (const a of cases) {
   const { status, ms, body } = await ask(a)
-  console.log(`== ${a} [${status}, ${ms}ms] primary=${body.primary ?? null}`)
+  console.log(`== ${a} [${status}, ${ms}ms] primary=${body.primary ?? null} (${body.primarySource ?? "-"})`)
   for (const n of body.names ?? []) console.log(`   ${n.resolves ? '✓' : '·'} ${n.name}  addr=${n.addr}  avatar=${n.avatar ? 'yes' : 'no'}`)
   if (!body.names) console.log('  ', body)
 }

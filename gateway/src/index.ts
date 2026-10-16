@@ -79,9 +79,9 @@ app.get('/partner/:address/sales', async (c) =>
   getPartnerSales(c.req.param('address'), c.env)
 )
 
-// Reverse lookup: address -> the hoodfi names it holds. ENS reverse resolution is null for
-// every hoodfi holder (a primary name lives on mainnet), so apps that start from an
-// address — a launchpad's creator, a chat sender — have no other way to find the name.
+// Reverse lookup: address -> the hoodfi names it holds. A holder can set an ENS primary
+// name (mainnet ReverseRegistrar, from /manage), but few will, so ENS reverse resolution is
+// null for most — apps that start from an address need this to find the name.
 app.get('/owner/:address/names', async (c) =>
   getOwnerNames(c.req.param('address'), c.req.raw, c.env)
 )

@@ -3,6 +3,7 @@ import {
   type Hex,
   getAddress,
   isAddress,
+  namehash,
   parseAbi,
   parseAbiItem,
   toHex,
@@ -10,7 +11,7 @@ import {
 
 import { type Env, envVar } from '../env'
 import { getLogsInWindows } from '../logs'
-import { robinhoodClient } from '../rpc'
+import { mainnetClient, robinhoodClient } from '../rpc'
 import { dnsDecodeName } from '../ccip-read/utils'
 
 /** The L2Registry's deploy block on Robinhood Chain — no Transfer can predate it. */
@@ -33,6 +34,14 @@ const registryAbi = parseAbi([
   'function text(bytes32 node, string key) view returns (string)',
 ])
 
+/** The ENS registry, at the same address on every network. */
+const ENS_REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as const
+
+const ensAbi = parseAbi([
+  'function resolver(bytes32 node) view returns (address)',
+  'function name(bytes32 node) view returns (string)',
+])
+
 type OwnedName = {
   name: string
   node: Hex
@@ -46,10 +55,12 @@ type OwnedName = {
 /**
  * Reverse lookup: the *.hoodfi.eth names an address holds.
  *
- * ENS reverse resolution (`getEnsName`, `useEnsName`) returns null for every hoodfi holder:
- * a primary name lives in the mainnet ReverseRegistrar, which an L2 name cannot write to.
- * So an app that starts from an address — a launchpad's "created by", a chat sender —
- * has no standard way to find the name. This is that way.
+ * A hoodfi holder *can* set a standard ENS primary name — `setName("gm.hoodfi.eth")` on the
+ * mainnet ReverseRegistrar, from /manage — and `getEnsName` then returns it, because the
+ * Universal Resolver's forward check follows CCIP like any other lookup. But most holders
+ * never will (it is a mainnet transaction), so an app that starts from an address — a
+ * launchpad's "created by", a chat sender — would get null for nearly all of them. This
+ * endpoint answers for those too.
  *
  * The registry is a plain ERC-721, not Enumerable, and token ids are namehashes, so a
  * wallet's names cannot be walked. The one log indexed by recipient is Transfer: collect
@@ -58,9 +69,10 @@ type OwnedName = {
  *
  * `primary` follows the rule ENS applies to a primary name — the name must resolve
  * forward to the same address — so a buyer whose record still points at the seller is
- * never labelled with it, and neither is the seller. Among the names that pass, the one
- * picked is the shallowest, then shortest, then alphabetical: deterministic, and it
- * prefers `gm.hoodfi.eth` to a subname the owner created beneath it.
+ * never labelled with it, and neither is the seller. When the holder has set one of
+ * those names as their ENS primary, that is the one (`primarySource: "ens"`). Otherwise
+ * the one picked is the shallowest, then shortest, then alphabetical (`"inferred"`):
+ * deterministic, and it prefers `gm.hoodfi.eth` to a subname created beneath it.
  *
  * Failure is a 502, never an empty list. "This wallet has no name" and "the RPC was
  * throttled" must not look the same to the caller, or a throttle quietly strips every
@@ -124,15 +136,65 @@ export async function getOwnerNames(
       a.name.length - b.name.length ||
       a.name.localeCompare(b.name)
   )
-  const primary = names.find((n) => n.resolves)?.name ?? null
+
+  // The holder's own choice wins — but only among names that pass the check above. A
+  // reverse record is just a string anyone can write for their own address, so a name
+  // this wallet doesn't hold, or one that points elsewhere, is never echoed back.
+  // A failed mainnet read is not fatal: the names are still right, only the choice
+  // between them falls back. It is not cached, so the next request asks again.
+  const reverse = names.some((n) => n.resolves)
+    ? await readReverseName(env, owner)
+    : { ok: true as const, name: null }
+  const chosen = reverse.ok
+    ? names.find((n) => n.resolves && n.name === reverse.name)
+    : undefined
+  const primary = chosen?.name ?? names.find((n) => n.resolves)?.name ?? null
+  const primarySource = primary === null ? null : chosen ? 'ens' : 'inferred'
 
   const response = Response.json(
-    { address: owner, primary, names },
+    { address: owner, primary, primarySource, names },
     { headers: { 'Cache-Control': `public, max-age=${CACHE_SECONDS}` } }
   )
-  // Only successes are cached — a 502 must be retried, not remembered.
-  await cache?.put(cacheKey, response.clone())
+  // Only full successes are cached — a 502 must be retried, not remembered, and neither
+  // should an answer that had to guess because mainnet didn't respond.
+  if (reverse.ok) await cache?.put(cacheKey, response.clone())
   return response
+}
+
+/**
+ * The address's raw ENS reverse record (`<addr>.addr.reverse` → name), unverified.
+ *
+ * Two plain eth_calls rather than `getEnsName`: that goes through the Universal Resolver,
+ * whose forward check for a hoodfi name is a CCIP request back into this same worker.
+ * The forward check is done above against the L2 records instead.
+ */
+async function readReverseName(
+  env: Env,
+  owner: Address
+): Promise<{ ok: true; name: string | null } | { ok: false }> {
+  const node = namehash(`${owner.slice(2).toLowerCase()}.addr.reverse`)
+  try {
+    const client = mainnetClient(env)
+    const resolver = await client.readContract({
+      address: ENS_REGISTRY,
+      abi: ensAbi,
+      functionName: 'resolver',
+      args: [node],
+    })
+    if (resolver === '0x0000000000000000000000000000000000000000') {
+      return { ok: true, name: null }
+    }
+    const name = await client.readContract({
+      address: resolver,
+      abi: ensAbi,
+      functionName: 'name',
+      args: [node],
+    })
+    return { ok: true, name: name || null }
+  } catch (error) {
+    console.error('reverse record read failed:', error)
+    return { ok: false }
+  }
 }
 
 /**
