@@ -58,6 +58,7 @@ import {
   resolveOnL1,
 } from "@/lib/resolution";
 import { NewOwnerNotice } from "./NewOwnerNotice";
+import { PrimaryName } from "./PrimaryName";
 import { nameShareUrl } from "@/lib/site";
 import { RecordsPrimer } from "./RecordsPrimer";
 import { SubnameSection } from "./SubnameSection";
@@ -857,6 +858,7 @@ function NameEditor({
           column they stretched the row and left the card's column standing empty for
           most of the page. Nothing here is picked up by "Save changes"; each carries
           its own confirmation. */}
+      <PrimaryName name={name} l1={l1} />
       <SubnameSection name={name} onChanged={onSaved} />
     </div>
   );

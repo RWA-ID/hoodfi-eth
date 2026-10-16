@@ -54,6 +54,27 @@ export const ETH_USD_HEARTBEAT_SECONDS = 86_400;
 
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
+/**
+ * ENS's mainnet ReverseRegistrar — the owner of `addr.reverse`, verified on-chain.
+ *
+ * Where a primary name is set: `setName` writes the caller's own reverse record, so it
+ * takes any string and a hoodfi name is as valid as any other. It only *counts* once the
+ * name's ETH record points back at the caller, which the Universal Resolver checks
+ * through CCIP like any other lookup. Proven on a mainnet fork, 2026-10-15.
+ */
+export const REVERSE_REGISTRAR_ADDRESS =
+  "0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb" as const;
+
+export const reverseRegistrarAbi = [
+  {
+    type: "function",
+    name: "setName",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "name", type: "string" }],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+] as const;
+
 export const donationsAbi = [
   {
     type: "function",

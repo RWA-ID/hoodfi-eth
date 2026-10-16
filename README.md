@@ -39,7 +39,7 @@ and app through the ENS Universal Resolver.
 | Per-name share page | Cloudflare Workers | `https://www.hoodfi.name/{label}` → `/n/{label}` (per-name OG tags) |
 | Per-name share card | Cloudflare Workers | `https://www.hoodfi.name/card/{label}.png` (generated 1200×630) |
 | Donation ledger | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/donations` |
-| Reverse lookup (address → names) | Cloudflare Workers | `https://ccip.hoodfi-mcp.com/owner/{address}/names` → `{ address, primary, names: [{ name, node, addr, resolves, avatar }] }`. ENS `getEnsName` is null for every hoodfi holder, so this is how an app labels an address. `primary` only ever names a name that resolves back to the address; a failed chain read is a 502, never an empty list. Cached 60s |
+| Reverse lookup (address → names) | Cloudflare Workers | `https://ccip.hoodfi-mcp.com/owner/{address}/names` → `{ address, primary, primarySource, names: [{ name, node, addr, resolves, avatar }] }`. ENS `getEnsName` is null for any holder who hasn't set a primary on mainnet, so this is how an app labels an address. `primary` only ever names a name that resolves back to the address; a failed chain read is a 502, never an empty list. Cached 60s |
 | MCP server (for agents) | Cloudflare Workers | `https://hoodfi-mcp.com/mcp` (own worker; `www.` and `hoodfi-mcp.dmpay.workers.dev` also answer) |
 | Site publishing | Cloudflare Workers | `POST /site/{label}` → pin · `POST /site/{label}/confirm` → verify payment on chain |
 | Website | hosted + IPFS | `https://www.hoodfi.name` · `https://hoodfi.eth.limo` |
@@ -314,10 +314,12 @@ are told to relay that distinction rather than report a uniform "valid".
 **`GET https://ccip.hoodfi-mcp.com/owner/{address}/names`** — no key, CORS open.
 
 Forward resolution (`gm.hoodfi.eth` → address) works in every ENS library with no
-setup. The other direction does not: `getEnsName` / `useEnsName` return **null for every
-hoodfi holder**, because an ENS primary name lives in the mainnet ReverseRegistrar and a
-name on Robinhood Chain cannot write to it. Any app that starts from an address — a
-launchpad's "created by", a trade feed, a chat sender — should ask this endpoint instead.
+setup. The other direction works only for holders who have set one as their **ENS primary
+name** — one `setName` transaction on the mainnet ReverseRegistrar, from the
+**Use this as your primary name** panel on `/manage`. `getEnsName` / `useEnsName` then return
+it like any other primary. Most holders never pay for a mainnet transaction, though, so for
+them `getEnsName` is null. Any app that starts from an address — a launchpad's "created by",
+a trade feed, a chat sender — should ask this endpoint, which answers for both.
 
 ```bash
 curl https://ccip.hoodfi-mcp.com/owner/0x645Cf432E829f9dEF6EB8E3974D3Aee4580CBCdd/names
@@ -327,6 +329,7 @@ curl https://ccip.hoodfi-mcp.com/owner/0x645Cf432E829f9dEF6EB8E3974D3Aee4580CBCd
 {
   "address": "0x645Cf432E829f9dEF6EB8E3974D3Aee4580CBCdd",
   "primary": "nft.hoodfi.eth",
+  "primarySource": "inferred",
   "names": [
     { "name": "nft.hoodfi.eth", "node": "0x…", "addr": "0x645C…BCdd", "resolves": true, "avatar": "ipfs://…" },
     { "name": "interns.hoodfi.eth", "node": "0x…", "addr": "0x645C…BCdd", "resolves": true, "avatar": null }
@@ -345,7 +348,10 @@ if (res.ok) {
 - **`primary`** is the name to display, or `null`. It is only ever a name whose ETH
   record resolves back to this address — the rule ENS applies to primary names — so a
   name bought on secondary that still points at the seller labels neither of them.
-  Top-level names are preferred over subnames, then shorter, then alphabetical.
+- **`primarySource`** is `"ens"` when the holder set that name as their ENS primary (their
+  choice wins), `"inferred"` when they didn't and one was picked — top-level names over
+  subnames, then shorter, then alphabetical — and `null` with no primary. A reverse record
+  naming something this address doesn't hold, or that doesn't resolve back, is ignored.
 - **`names`** is every name the address holds right now (ownership re-checked on chain,
   not read from an index), with `resolves` and `avatar` for each.
 - **Errors:** `400` for a malformed address; `502` when the chain could not be read —
