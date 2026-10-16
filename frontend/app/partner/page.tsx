@@ -7,7 +7,7 @@ import { Header } from "@/components/Header";
 import { PageView } from "@/components/PageView";
 import { PartnerForm } from "@/components/PartnerForm";
 import { ogMetadata } from "@/lib/metadata";
-import { WIDGET_DOCS_URL } from "@/lib/site";
+import { REPO_URL, WIDGET_DOCS_URL } from "@/lib/site";
 
 export const metadata: Metadata = ogMetadata({
   title: "Become a partner",
@@ -91,6 +91,26 @@ const EMBED_SNIPPET = `<script
   data-partner="0xYourPayoutWallet"
   data-accent="#c6f702"
 ></script>`;
+
+/**
+ * Where the display-order guide lives. The README is the reference; this page shows the
+ * one call most platforms need and links there for the rest.
+ */
+const NAMES_GUIDE_URL = `${REPO_URL}#respect-the-holders-primary-name`;
+
+/**
+ * The smallest correct way to label an address. The endpoint already prefers the
+ * holder's ENS primary, so a platform that uses it gets the right name with no ordering
+ * logic of its own — which is the bug this section exists to prevent: showing the
+ * shortest name a wallet holds when the holder chose a different one.
+ */
+const NAMES_SNIPPET = `const res = await fetch(
+  \`https://ccip.hoodfi-mcp.com/owner/\${address}/names\`
+)
+if (res.ok) {
+  const { primary } = await res.json()
+  label = primary ?? shortAddress(address)
+} // on a 502, keep the address and try again later`;
 
 /** Ink-ground code block, matching /mcp/ — the one place type goes monospace at length. */
 function Code({ children }: { children: string }) {
@@ -221,8 +241,50 @@ export default function PartnerPage() {
           </div>
         </section>
 
+        <section id="names" className="shell section">
+          <div className="eyebrow">03 / show the right name</div>
+          <h2 className="h-page mt-[18px]">Show the name they chose.</h2>
+          <p className="lede mt-5 max-w-[56ch]">
+            Many wallets hold several hoodfi names. Holders can now set one as their ENS
+            primary name — so when your platform shows a player, a trader or a sender,
+            show that one, not just the shortest.
+          </p>
+
+          <div className="mt-9 max-w-[720px]">
+            <div className="label">one call, address to name</div>
+            <Code>{NAMES_SNIPPET}</Code>
+            <p className="mt-3.5 text-sm leading-relaxed text-[var(--dim)]">
+              <span className="data">primary</span>{" "}is the holder&apos;s ENS primary when
+              they have set one, and our best pick when they haven&apos;t — only ever a
+              name that resolves back to the address. Free, no key, CORS open.
+            </p>
+          </div>
+
+          <p className="mt-8 max-w-[70ch] text-sm leading-relaxed text-[var(--dim)]">
+            Already listing names yourself? Read <span className="data">getEnsName</span>{" "}
+            on Ethereum mainnet as well, and when it returns a hoodfi name the wallet
+            holds, let it beat your default. Holders set their primary on{" "}
+            <Link href="/manage/" className="link">
+              the manage page
+            </Link>{" "}
+            in one mainnet transaction.
+          </p>
+
+          <div className="mt-8 flex flex-wrap gap-2.5">
+            <a
+              href={NAMES_GUIDE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-ink btn-sm"
+            >
+              Display-order guide
+              <ArrowNE />
+            </a>
+          </div>
+        </section>
+
         <section className="shell section">
-          <div className="eyebrow">03 / tell us</div>
+          <div className="eyebrow">04 / tell us</div>
           <div className="duo mt-[18px] items-start">
             <div>
               <h2 className="h-page m-0">Start the conversation.</h2>
