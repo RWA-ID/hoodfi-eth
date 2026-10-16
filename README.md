@@ -356,6 +356,34 @@ if (res.ok) {
   not read from an index), with `resolves` and `avatar` for each.
 - **Errors:** `400` for a malformed address; `502` when the chain could not be read —
   never an empty list, so "no name" and "couldn't check" stay distinguishable.
+
+#### Respect the holder's primary name
+
+Many wallets hold several hoodfi names, so the most common integration bug is
+showing the wrong one — usually the shortest. **If the holder has set an ENS primary
+name, that is the name they chose; show it.** Only fall back to a pick of your own
+when they haven't.
+
+- **Using this endpoint:** nothing to do — `primary` already prefers the holder's ENS
+  primary (`primarySource: "ens"`) over the inferred pick.
+- **Enumerating names yourself** (Transfer logs, your own index): read the ENS primary
+  as well, and let it win when it is one of the names they hold.
+
+```ts
+const ensName = await mainnetClient.getEnsName({ address }) // verified: resolves back to address
+const owned = await yourHoodfiNames(address)                // e.g. sorted shortest-first
+const display =
+  userPickInYourApp ??                                       // an explicit in-app choice, if you offer one
+  (ensName && owned.includes(ensName) ? ensName : null) ??   // their primary, when it's a hoodfi name
+  owned[0] ??                                                // your default
+  ensName ??                                                 // a non-hoodfi primary (e.g. alice.eth)
+  shortAddress(address)
+```
+
+`getEnsName` / `useEnsName` already apply ENS's forward check, so a reverse record
+alone can't make an address claim someone else's name. Holders set their primary at
+[hoodfi.name/manage](https://www.hoodfi.name/manage/) — one transaction on Ethereum
+mainnet; L2 primary names (Base, etc.) aren't set by that page.
 - Responses are cached for 60 seconds.
 
 ### Label rules
