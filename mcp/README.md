@@ -2,9 +2,15 @@
 
 An MCP server that lets AI agents register names under `hoodfi.eth` on Robinhood Chain.
 
-**It holds no private keys and never broadcasts a transaction.** Every tool is a
-chain read plus some calldata encoding; the agent signs and submits. Nothing here can
-move funds, so the worst an abusive caller can do is spend compute.
+**It holds no private keys and signs nothing.** Every tool is a chain read plus some
+calldata encoding; the agent's wallet signs. Each step carries a complete `transaction`
+(nonce, gas, fees, chainId) so a signing-only wallet like PayBox signs it as given, and
+`hoodfi_send_transaction` relays the signed bytes — only to the registrar, the registry,
+a USDG approval to the registrar, or the mainnet ReverseRegistrar. Nothing here can move
+funds on its own, so the worst an abusive caller can do is spend compute.
+
+`test/paybox.fork.mjs` signs every write as given against an anvil fork of Robinhood
+Chain: register, records, subnames, transfer, and the relay's refusals.
 
 ## Endpoint
 
@@ -37,6 +43,12 @@ open a stream that would never carry a message.
 | `hoodfi_resolve_name` | Owner, address records, text records and website for a minted name |
 | `hoodfi_build_set_contenthash_tx` | Unsigned calldata to point a name at an IPFS or IPNS site, or to clear it |
 | `hoodfi_build_set_address_tx` | Unsigned calldata to set the name's Ethereum, Bitcoin and Solana addresses |
+| `hoodfi_list_names` | Every name a wallet holds, subnames included, and which one it goes by |
+| `hoodfi_build_set_text_tx` | Profile records (avatar, description, url, X, GitHub, Discord, Telegram, email), batched, any depth |
+| `hoodfi_build_create_subnames_tx` | Up to 20 subnames under a name you own, kept or gifted, in one `registry.multicall` |
+| `hoodfi_build_transfer_tx` | Moves a name to another wallet; warns it is irreversible and that the address records stay behind |
+| `hoodfi_build_set_primary_name_tx` | The **mainnet** `ReverseRegistrar.setName` that makes the name the wallet's ENS primary |
+| `hoodfi_send_transaction` | Broadcasts a signed transaction from a signing-only wallet (PayBox), only of the kinds above |
 
 ### A name can be a website
 

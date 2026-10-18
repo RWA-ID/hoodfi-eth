@@ -36,6 +36,18 @@ import {
   SOL_COIN_TYPE,
   verificationCaveat,
 } from './coins'
+import {
+  AGENT_TOOLS,
+  buildCreateSubnamesTx,
+  buildSetPrimaryNameTx,
+  buildSetTextTx,
+  buildTransferTx,
+  finish,
+  listNames,
+  sendTransaction,
+} from './agent-tools'
+import { CARD_URI } from './card'
+import type { Step } from './complete'
 import { erc20Abi, registrarAbi, registryAbi } from './contracts'
 import { type Env, envVar } from './env'
 import {
@@ -48,15 +60,34 @@ import {
   tierOf,
 } from './labels'
 
-/** A tool call that failed for a reason the agent can act on. */
-export class ToolError extends Error {}
+import { ToolError } from './errors'
+
+export { ToolError }
 
 export interface ToolDefinition {
   name: string
   title: string
   description: string
   inputSchema: Record<string, unknown>
+  _meta?: Record<string, unknown>
 }
+
+/** Write tools render the HoodFi card in hosts that support MCP Apps (Claude, ChatGPT). */
+const CARD_META = {
+  ui: { resourceUri: CARD_URI },
+  'ui/resourceUri': CARD_URI,
+  'openai/outputTemplate': CARD_URI,
+}
+
+const CARD_TOOLS = new Set([
+  'hoodfi_build_registration_tx',
+  'hoodfi_build_set_contenthash_tx',
+  'hoodfi_build_set_address_tx',
+  'hoodfi_build_set_text_tx',
+  'hoodfi_build_create_subnames_tx',
+  'hoodfi_build_transfer_tx',
+  'hoodfi_build_set_primary_name_tx',
+])
 
 /**
  * Tool descriptions carry three facts agents cannot infer from the schema and get
@@ -64,7 +95,7 @@ export interface ToolDefinition {
  * to msg.sender, there is no recipient argument), 1-3 character names cannot be bought
  * at any price right now, and an EVM address is two records rather than one.
  */
-export const TOOLS: ToolDefinition[] = [
+const BASE_TOOLS: ToolDefinition[] = [
   {
     name: 'hoodfi_check_name',
     title: 'Check a hoodfi.eth name',
@@ -201,6 +232,10 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
 ]
+
+export const TOOLS: ToolDefinition[] = [...BASE_TOOLS, ...AGENT_TOOLS].map((tool) =>
+  CARD_TOOLS.has(tool.name) ? { ...tool, _meta: CARD_META } : tool
+)
 
 /**
  * Turns any failure into something safe to hand back.
@@ -345,7 +380,7 @@ async function buildRegistrationTx(args: Record<string, unknown>, env: Env) {
   const reason = unavailableReason(status, label)
   if (reason) throw new ToolError(reason)
 
-  const steps: Array<Record<string, unknown>> = []
+  const steps: Step[] = []
   const warnings: string[] = []
 
   if (payWith === 'eth') {
@@ -423,7 +458,7 @@ async function buildRegistrationTx(args: Record<string, unknown>, env: Env) {
     })
   }
 
-  return {
+  return finish(env, address, {
     name: fullName(label),
     label,
     payWith,
@@ -431,7 +466,6 @@ async function buildRegistrationTx(args: Record<string, unknown>, env: Env) {
       payWith === 'eth'
         ? { eth: formatEther(weiPrice), wei: weiPrice.toString() }
         : { usdg: formatUnits(usdgPrice, 6), usdgRaw: usdgPrice.toString() },
-    steps,
     warnings,
     owner: address,
     ownershipNote: `The name will be owned by whichever wallet signs and sends these transactions. The registrar mints to msg.sender, so signing from an address other than ${address} will hand the name to that other address instead.`,
@@ -440,7 +474,18 @@ async function buildRegistrationTx(args: Record<string, unknown>, env: Env) {
       refundNote:
         'The registrar refunds any ETH sent above the price, so overpaying is safe.',
     }),
-  }
+    steps,
+  }, {
+    action: 'register',
+    name: fullName(label),
+    rows: [
+      ['Owner', address],
+      ['Lifetime', 'no renewals, ever'],
+      ['Price', payWith === 'eth' ? `${formatEther(weiPrice)} ETH` : `${formatUnits(usdgPrice, 6)} USDG`],
+    ],
+    warnings,
+    url: `https://www.hoodfi.name/${label}`,
+  })
 }
 
 /**
@@ -753,7 +798,7 @@ async function buildSetContenthashTx(args: Record<string, unknown>, env: Env) {
 
   const parsed = clearing ? null : parseContenthash(args.content)
 
-  return {
+  return finish(env, address, {
     name: fullName(label),
     label,
     owner,
@@ -797,7 +842,17 @@ async function buildSetContenthashTx(args: Record<string, unknown>, env: Env) {
       : {}),
     ownershipNote: `This transaction must be sent by ${owner}. It sets a record on the name and transfers nothing.`,
     note: 'Records live on Robinhood Chain and resolve through CCIP-Read, so the site answers on mainnet ENS resolvers too. Propagation is not instant: gateways and wallets cache the old record for a few minutes.',
-  }
+  }, {
+    action: 'website',
+    name: fullName(label),
+    rows: clearing
+      ? [['Website', 'taken down']]
+      : [
+          ['Content', parsed?.uri ? `${parsed.uri.slice(0, 22)}…${parsed.uri.slice(-6)}` : ''],
+          ['Live at', nameUrl(label).replace(/^https?:\/\//, '')],
+        ],
+    url: clearing ? `https://www.hoodfi.name/${label}` : (parsed ? contentGatewayUrl(parsed) : nameUrl(label)),
+  })
 }
 
 /**
@@ -994,7 +1049,7 @@ async function buildSetAddressTx(args: Record<string, unknown>, env: Env) {
           }),
         }
 
-  return {
+  return finish(env, address, {
     name: fullName(label),
     label,
     owner,
@@ -1047,14 +1102,22 @@ async function buildSetAddressTx(args: Record<string, unknown>, env: Env) {
       : {}),
     ownershipNote: `This transaction must be sent by ${owner}. It sets records on the name and transfers nothing — no funds move and the name itself does not change hands.`,
     note: 'Records live on Robinhood Chain and resolve through CCIP-Read, so they answer on mainnet ENS resolvers too. Propagation is not instant: gateways and wallets cache the old value for a few minutes.',
-  }
+  }, {
+    action: 'records',
+    name: fullName(label),
+    // One row per chain, not per coinType: Ethereum's two records are one decision.
+    rows: [...new Map(calls.map(({ entry }) => [entry.key, entry.text ?? 'cleared'])).entries()].map(
+      ([key, text]) => [key, text.length > 20 ? `${text.slice(0, 8)}…${text.slice(-6)}` : text] as [string, string]
+    ),
+    warnings: [...new Set(calls.map(({ entry }) => entry.caveat).filter((c): c is string => Boolean(c)))],
+  })
 }
 
 export async function callTool(
   name: string,
   args: Record<string, unknown>,
   env: Env
-): Promise<{ text: string; isError: boolean }> {
+): Promise<{ text: string; isError: boolean; structured?: Record<string, unknown> }> {
   try {
     let result: unknown
     switch (name) {
@@ -1073,10 +1136,32 @@ export async function callTool(
       case 'hoodfi_build_set_address_tx':
         result = await buildSetAddressTx(args, env)
         break
+      case 'hoodfi_list_names':
+        result = await listNames(args, env)
+        break
+      case 'hoodfi_build_set_text_tx':
+        result = await buildSetTextTx(args, env)
+        break
+      case 'hoodfi_build_create_subnames_tx':
+        result = await buildCreateSubnamesTx(args, env)
+        break
+      case 'hoodfi_build_transfer_tx':
+        result = await buildTransferTx(args, env)
+        break
+      case 'hoodfi_build_set_primary_name_tx':
+        result = await buildSetPrimaryNameTx(args, env)
+        break
+      case 'hoodfi_send_transaction':
+        result = await sendTransaction(args, env)
+        break
       default:
         throw new ToolError(`Unknown tool: ${name}`)
     }
-    return { text: JSON.stringify(result, null, 2), isError: false }
+    return {
+      text: JSON.stringify(result, null, 2),
+      isError: false,
+      structured: result as Record<string, unknown>,
+    }
   } catch (error) {
     return { text: safeMessage(error), isError: true }
   }

@@ -19,9 +19,37 @@ app.use(
   })
 )
 
-/** A plain description of the endpoint, for anyone who opens the URL in a browser. */
+/**
+ * The HoodFi H, for clients that take a connector's icon from the server's domain.
+ * Proxied from the site so there is one copy of the artwork.
+ */
+app.get('/favicon.ico', async () => {
+  const icon = await fetch('https://www.hoodfi.name/favicon.ico', {
+    cf: { cacheTtl: 86_400, cacheEverything: true },
+  })
+  return new Response(icon.body, {
+    status: icon.status,
+    headers: { 'content-type': 'image/x-icon', 'cache-control': 'public, max-age=86400' },
+  })
+})
+app.get('/icon.png', async () => {
+  const icon = await fetch('https://www.hoodfi.name/icon-512.png', {
+    cf: { cacheTtl: 86_400, cacheEverything: true },
+  })
+  return new Response(icon.body, {
+    status: icon.status,
+    headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' },
+  })
+})
+
+/**
+ * A plain description of the endpoint. A browser is sent to the human page instead,
+ * which also gives favicon crawlers a page carrying the H.
+ */
 app.get('/', (c) =>
-  c.json({
+  (c.req.header('accept') ?? '').includes('text/html')
+    ? c.redirect('https://www.hoodfi.name/mcp', 302)
+    : c.json({
     ...SERVER_INFO,
     transport: 'streamable-http',
     endpoint: new URL('/mcp', c.req.url).toString(),

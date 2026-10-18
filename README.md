@@ -290,10 +290,19 @@ first-party equivalent.
 | `hoodfi_resolve_name` | Owner, address records, text records and the website a name serves |
 | `hoodfi_build_set_contenthash_tx` | Points a name at an IPFS/IPNS site. Accepts a bare CID, an `ipfs://`/`ipns://` URI or a gateway URL; `""` clears it |
 | `hoodfi_build_set_address_tx` | Sets Ethereum, Bitcoin and Solana records, batched through `multicall` so the owner signs once |
+| `hoodfi_list_names` | Every name a wallet holds, subnames included, and which one it goes by |
+| `hoodfi_build_set_text_tx` | Profile records (avatar, description, url, X, GitHub, Discord, Telegram, email), batched, any depth |
+| `hoodfi_build_create_subnames_tx` | Up to 20 subnames under a name you own, kept or gifted, in one `registry.multicall` |
+| `hoodfi_build_transfer_tx` | Moves a name to another wallet; warns it is irreversible and that the address records stay behind |
+| `hoodfi_build_set_primary_name_tx` | The **mainnet** `ReverseRegistrar.setName` that makes the name the wallet's ENS primary |
+| `hoodfi_send_transaction` | Broadcasts a signed transaction from a signing-only wallet (PayBox), only of the kinds above |
 
-**The server holds no keys and never broadcasts.** Every write tool returns unsigned
-calldata for the caller's own wallet to sign and submit. It cannot mint a name, move
-one, or touch a record on its own.
+**The server holds no keys and signs nothing.** Every write tool returns steps for the
+caller's own wallet, each with a complete `transaction` (nonce, gas, fees, chainId) so a
+signing-only wallet such as PayBox signs it as given; `hoodfi_send_transaction` then
+broadcasts what was already signed, and only HoodFi's own kinds of transaction. It
+cannot mint a name, move one, or touch a record on its own. Write tools also render a
+HoodFi card in clients that support MCP Apps (Claude, ChatGPT).
 
 Three things the tool descriptions state outright, because agents infer them wrong
 otherwise: the registrar mints to `msg.sender`, so **the name lands with whoever

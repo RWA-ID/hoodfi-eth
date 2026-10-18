@@ -11,7 +11,7 @@ import { MCP_URL } from "@/lib/site";
 export const metadata: Metadata = ogMetadata({
   title: "MCP server",
   description:
-    "Let an AI agent register a *.hoodfi.eth name and set its records. A remote MCP server that checks availability, quotes a price and returns unsigned calldata — it holds no keys and never broadcasts.",
+    "Let an AI agent register a *.hoodfi.eth name and set its records. A remote MCP server that checks availability, quotes a price and returns ready-to-sign transactions — it holds no keys and signs nothing.",
   path: "/mcp/",
   image: "/og/mcp.png",
 });
@@ -46,6 +46,29 @@ const TOOLS = [
   {
     name: "hoodfi_build_set_address_tx",
     body: "The unsigned transaction that sets the name's Ethereum, Bitcoin and Solana addresses. Any combination in one call, batched so the owner signs once — and an address that isn't valid for its chain is refused rather than stored.",
+  },  {
+    name: "hoodfi_list_names",
+    body: "Every *.hoodfi.eth name a wallet holds, subnames included, and which one it goes by.",
+  },
+  {
+    name: "hoodfi_build_set_text_tx",
+    body: "The transaction that sets a name's profile: avatar, bio, website link, X, GitHub, Discord, Telegram, email. Several at once, one signature, at any depth.",
+  },
+  {
+    name: "hoodfi_build_create_subnames_tx",
+    body: "Up to twenty names beneath one you own — kept, or handed to someone else already pointing at them. Free apart from gas, one signature.",
+  },
+  {
+    name: "hoodfi_build_transfer_tx",
+    body: "The transaction that moves a name to another wallet, with a warning that it can't be undone and that the name still resolves to the old wallet until its new owner updates it.",
+  },
+  {
+    name: "hoodfi_build_set_primary_name_tx",
+    body: "The Ethereum mainnet transaction that makes a hoodfi name your ENS primary name, so apps show it instead of 0x… — checked first that the name resolves back to you.",
+  },
+  {
+    name: "hoodfi_send_transaction",
+    body: "For wallets that sign without sending, like PayBox: broadcasts a transaction one of the tools above prepared, and only those.",
   },
 ];
 
@@ -84,7 +107,7 @@ export default function McpPage() {
             <p className="lede m-0 mb-2.5 max-w-[46ch]">
               An MCP server that answers what a name costs, hands back the transaction
               that mints it, then points it at a website and at addresses on Ethereum,
-              Bitcoin and Solana. It holds no keys and broadcasts nothing — the agent
+              Bitcoin and Solana. It holds no keys and signs nothing — the agent
               signs, the agent owns.
             </p>
           </div>

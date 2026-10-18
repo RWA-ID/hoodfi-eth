@@ -28,6 +28,13 @@ routes = [
 [observability]
 enabled = true
 
+# hoodfi_list_names asks the gateway (GET /owner/:address/names). A Worker fetching
+# another Worker on the same account by its public hostname gets error 1042, so it goes
+# through a service binding instead.
+[[services]]
+binding = "GATEWAY"
+service = "hoodfi-gateway"
+
 [vars]
 # ROBINHOOD_RPC_URL is deliberately NOT declared here. It is a secret
 # (`wrangler secret put ROBINHOOD_RPC_URL`) because it carries an API key, and a

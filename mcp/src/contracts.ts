@@ -132,6 +132,66 @@ export const registryAbi = [
     inputs: [{ name: 'data', type: 'bytes[]' }],
     outputs: [{ type: 'bytes[]' }],
   },
+  {
+    // ENSIP-5. Owner-only, same authorisation as the other setters.
+    type: 'function',
+    name: 'setText',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'node', type: 'bytes32' },
+      { name: 'key', type: 'string' },
+      { name: 'value', type: 'string' },
+    ],
+    outputs: [],
+  },
+  {
+    // A child of `node`, at any depth, guarded by the owner of `node`. `data` runs
+    // through the resolver AFTER the mint and authorises against the SUBNODE's owner,
+    // so minting to someone else with records in `data` reverts. Mint to self, set,
+    // then transfer — in one registry.multicall (see agent-tools.ts).
+    type: 'function',
+    name: 'createSubnode',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'node', type: 'bytes32' },
+      { name: 'label', type: 'string' },
+      { name: 'owner', type: 'address' },
+      { name: 'data', type: 'bytes[]' },
+    ],
+    outputs: [{ type: 'bytes32' }],
+  },
+  {
+    // The non-reverting owner getter: the zero address for a node never minted.
+    type: 'function',
+    name: 'owner',
+    stateMutability: 'view',
+    inputs: [{ name: 'node', type: 'bytes32' }],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'transferFrom',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'from', type: 'address' },
+      { name: 'to', type: 'address' },
+      { name: 'tokenId', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+] as const
+
+/** Mainnet ENS ReverseRegistrar — the one mainnet write: a holder's primary name. */
+export const REVERSE_REGISTRAR = '0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb'
+
+export const reverseRegistrarAbi = [
+  {
+    type: 'function',
+    name: 'setName',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'name', type: 'string' }],
+    outputs: [{ type: 'bytes32' }],
+  },
 ] as const
 
 export const erc20Abi = [

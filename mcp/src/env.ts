@@ -3,12 +3,16 @@ import type { Hex } from 'viem'
 export interface Env {
   /** Optional dedicated RPC. Secret — it carries an API key. */
   ROBINHOOD_RPC_URL?: string
+  /** Optional dedicated mainnet RPC, for the ENS primary name. Public ones otherwise. */
+  MAINNET_RPC_URL?: string
   /** HoodfiRegistrar on Robinhood Chain. */
   REGISTRAR_ADDRESS?: Hex
   /** L2Registry — the ERC-721 that holds the names and their records. */
   L2_REGISTRY_ADDRESS?: Hex
   /** USDG, the stablecoin the registrar accepts alongside ETH. */
   USDG_ADDRESS?: Hex
+  /** Service binding to hoodfi-gateway: a wallet's names (GET /owner/:address/names). */
+  GATEWAY?: { fetch: (request: Request) => Promise<Response> }
 }
 
 /**

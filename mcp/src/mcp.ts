@@ -1,3 +1,4 @@
+import { CARD_CSP, CARD_HTML, CARD_MIME, CARD_URI } from './card'
 import type { Env } from './env'
 import { TOOLS, callTool } from './tools'
 
@@ -17,8 +18,17 @@ import { TOOLS, callTool } from './tools'
 export const SERVER_INFO = {
   name: 'hoodfi',
   title: 'HoodFi — ENS names on Robinhood Chain',
-  version: '1.0.0',
+  version: '1.1.0',
+  websiteUrl: 'https://www.hoodfi.name',
+  // The connector's icon in Claude and ChatGPT. Absent, clients fall back to the
+  // domain's favicon, and hoodfi-mcp.com had none.
+  icons: [
+    { src: 'https://www.hoodfi.name/icon-512.png', mimeType: 'image/png', sizes: ['512x512'] },
+    { src: 'https://www.hoodfi.name/icon-192.png', mimeType: 'image/png', sizes: ['192x192'] },
+  ],
 }
+
+const CARD_RESOURCE_META = { ui: { csp: CARD_CSP, prefersBorder: false } }
 
 const SUPPORTED_PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
 const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0] as string
@@ -26,7 +36,11 @@ const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0] as string
 const INSTRUCTIONS = [
   'HoodFi issues ENS names under hoodfi.eth as lifetime ERC-721s on Robinhood Chain (chain id 4663).',
   '',
-  'This server holds no private keys and never broadcasts a transaction. It answers questions and returns unsigned calldata; the caller signs and submits it.',
+  'This server holds no private keys and signs nothing. Write tools return steps; each step carries a complete `transaction` (nonce, gas, fees, chainId) for the signing wallet.',
+  '',
+  'With PayBox, the user\'s agent wallet: pass each step\'s `transaction` unchanged to PayBox request_wallet_sign as {op: "transaction", transaction} — do not look anything up or change it — then pass the signed transaction to hoodfi_send_transaction, which broadcasts it, and wait for status "success" before the next step. Show the user each step before it is signed. If hoodfi_send_transaction reports a stale transaction, call the same build tool again. The address is the PayBox wallet (PayBox list_credentials); names owned elsewhere must be transferred to it first.',
+  '',
+  'Everything is on Robinhood Chain except the ENS primary name (hoodfi_build_set_primary_name_tx), which is an Ethereum mainnet transaction paid in mainnet ETH.',
   '',
   'Three rules to hold on to:',
   '- The registrar mints to the transaction sender. Whichever wallet signs owns the name. There is no recipient argument, so a name cannot be registered on behalf of another address.',
@@ -82,7 +96,10 @@ async function handleOne(
 
       return result(id, {
         protocolVersion,
-        capabilities: { tools: { listChanged: false } },
+        capabilities: {
+          tools: { listChanged: false },
+          resources: { listChanged: false },
+        },
         serverInfo: SERVER_INFO,
         instructions: INSTRUCTIONS,
       })
@@ -93,6 +110,33 @@ async function handleOne(
 
     case 'tools/list':
       return result(id, { tools: TOOLS })
+
+    // The in-chat card (MCP Apps). One resource, the same for every write tool.
+    case 'resources/list':
+      return result(id, {
+        resources: [
+          {
+            uri: CARD_URI,
+            name: 'action-card',
+            title: 'HoodFi action card',
+            mimeType: CARD_MIME,
+            _meta: CARD_RESOURCE_META,
+          },
+        ],
+      })
+
+    case 'resources/templates/list':
+      return result(id, { resourceTemplates: [] })
+
+    case 'resources/read': {
+      if (params?.uri !== CARD_URI)
+        return failure(id, INVALID_PARAMS, `Unknown resource: ${String(params?.uri)}`)
+      return result(id, {
+        contents: [
+          { uri: CARD_URI, mimeType: CARD_MIME, text: CARD_HTML, _meta: CARD_RESOURCE_META },
+        ],
+      })
+    }
 
     case 'tools/call': {
       const name = params?.name
@@ -105,8 +149,12 @@ async function handleOne(
           ? (rawArgs as Record<string, unknown>)
           : {}
 
-      const { text, isError } = await callTool(name, args, env)
-      return result(id, { content: [{ type: 'text', text }], isError })
+      const { text, isError, structured } = await callTool(name, args, env)
+      return result(id, {
+        content: [{ type: 'text', text }],
+        ...(structured ? { structuredContent: structured } : {}),
+        isError,
+      })
     }
 
     default:
