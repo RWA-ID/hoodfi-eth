@@ -304,6 +304,11 @@ broadcasts what was already signed, and only HoodFi's own kinds of transaction. 
 cannot mint a name, move one, or touch a record on its own. Write tools also render a
 HoodFi card in clients that support MCP Apps (Claude, ChatGPT).
 
+**Adding it:** no sign-in — in Claude, ChatGPT or Grok add a custom connector with the URL
+above and nothing else. Pair it with the PayBox connector to sign by voice; the steps
+are on [hoodfi.name/mcp](https://www.hoodfi.name/mcp/). Proven live 2026-10-18:
+registration, avatar/URL records and a mainnet primary name, all through PayBox.
+
 Three things the tool descriptions state outright, because agents infer them wrong
 otherwise: the registrar mints to `msg.sender`, so **the name lands with whoever
 signs** and there is no recipient argument; 1–3 character names cannot be bought at
@@ -494,8 +499,12 @@ Resolution design notes:
 | `builder/components/PublishPanel.tsx` | Five named steps. A single spinner over two wallet prompts and a chain read is how somebody pays twice |
 | `builder/components/ConnectionGuard.tsx` | Detects a rehydrated WalletConnect connector stub by the method it is missing (`getChainId`); storage looks healthy in that state and is a dead end |
 | `builder/shared/` | Generated copy of `frontend/shared/` — Turbopack will not resolve a symlink out of the project root, so the codec is copied on `prebuild` |
-| `mcp/` | The MCP server at hoodfi-mcp.com. Its own Cloudflare Worker (Hono + viem), streamable-HTTP transport, five tools |
-| `mcp/src/tools.ts` | The tool definitions and handlers. Every write tool returns unsigned calldata — the server holds no keys |
+| `mcp/` | The MCP server at hoodfi-mcp.com. Its own Cloudflare Worker (Hono + viem), streamable-HTTP transport, eleven tools |
+| `mcp/src/tools.ts` | The tool list and dispatch. Every write tool returns unsigned steps — the server holds no keys |
+| `mcp/src/agent-tools.ts` | The six tools added for wallet-signed agents (list names, text records, subnames, transfer, mainnet primary name, send) and the relay's allowlist |
+| `mcp/src/complete.ts` | Fills each step into a complete transaction — pending nonce (+1 per earlier step on the same chain), gas +25%, fees — so a signing-only wallet signs it as given |
+| `mcp/src/card.ts` | The HoodFi card rendered in MCP Apps clients. Every value is written with `textContent`: names and records are other people's text |
+| `mcp/test/paybox.fork.mjs` | The PayBox path end to end on an anvil fork of Robinhood Chain: register, records, subnames, transfer, relay refusals |
 | `mcp/src/coins.ts` | Bitcoin and Solana address parsing into each chain's own encoding, and the honest per-chain account of what a check proves |
 | `DEPLOY.md` | The v2 deploy runbook, in the order it must be run |
 | `SECURITY.md` | How to report a vulnerability |
@@ -586,6 +595,8 @@ cd mcp && npm install
 npm run typecheck
 npm test                                        # coin encoding vectors
 npm run dev                                     # wrangler dev; POST /mcp, GET / describes it
+# PayBox path on a fork (see the header of test/paybox.fork.mjs for the anvil + esbuild lines)
+BUNDLE=/tmp/hoodfi-node/index.mjs node test/paybox.fork.mjs
 
 # Builder (HoodFi Sites) — its own Next app, its own Vercel project
 cd builder && npm install && npm run build      # static export in out/

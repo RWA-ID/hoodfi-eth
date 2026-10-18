@@ -114,7 +114,8 @@ export function WalletLockup() {
             real work directly under a card of someone else's brand art — keep it
             adjacent to the card, not exiled to the footer. */}
         <p className="mt-6 max-w-[62ch] text-sm leading-[1.6] text-[var(--faint)]">
-          HoodFi Names is independent and has no affiliation with Robinhood. Your
+          HoodFi Names is independent and is not affiliated with, endorsed by, or
+          connected to Robinhood Markets, Inc. Your
           name is an ERC-721 you hold yourself, so any wallet that supports
           Robinhood Chain will do — this is simply the one we use.
         </p>
