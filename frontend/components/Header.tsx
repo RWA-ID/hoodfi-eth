@@ -10,23 +10,30 @@ import { XLogo } from "./ShareOnX";
  * Every destination, in one list.
  *
  * The bar is a single hairline-divided strip of cells — one border-left on the nav
- * plus a border-right on each cell, so the dividers never double up. Below 880px the
- * whole strip would wrap to a second row, which is why it collapses into a drawer
- * instead: five uppercase mono labels at .16em tracking need ~560px of their own.
+ * plus a border-right on each cell, so the dividers never double up. Below 980px the
+ * strip would not fit, which is why it collapses into a drawer instead.
+ *
+ * MEASURED 2026-10-18 when MCP became the sixth cell (live CSS, headless Chrome):
+ * logo 142px + six cells 458px + right group 188px (Connect Wallet) or 241px (the
+ * widest label, "View Social Wallet") + two 24px gaps + the shell's 4vw padding. That
+ * needs ~910px logged out and ~970px for a social wallet — at 960 the cells squeezed
+ * and their labels wrapped to two lines. 980 covers every state; whitespace-nowrap
+ * keeps a label on one line if anything grows. Re-measure before adding a seventh.
  */
-const NAV = [
+const NAV: { href: string; label: string; drawerLabel?: string }[] = [
   { href: "/mint/", label: "Mint" },
   { href: "/search/", label: "Look up" },
   { href: "/manage/", label: "Manage" },
   { href: "/short-names/", label: "Short names" },
+  // Short in the bar, where every character costs width; spelled out in the drawer.
+  { href: "/mcp/", label: "MCP", drawerLabel: "MCP for agents" },
   { href: "/faq/", label: "FAQ" },
 ];
 
 /** Reachable from the drawer only — the bar has no room and these are secondary. */
-const DRAWER_EXTRA = [
+const DRAWER_EXTRA: { href: string; label: string; drawerLabel?: string }[] = [
   { href: "/how-it-works/", label: "How it works" },
   { href: "/claim/", label: "Claim a credit" },
-  { href: "/mcp/", label: "MCP for agents" },
 ];
 
 function MenuIcon({ open }: { open: boolean }) {
@@ -75,7 +82,7 @@ export function Header() {
     setOpen(false);
   }, [pathname]);
 
-  // The drawer only exists below 880px. Resizing past that while it is open would
+  // The drawer only exists below 980px. Resizing past that while it is open would
   // leave the scroll lock on with nothing visible holding it.
   useEffect(() => {
     if (!open) return;
@@ -83,7 +90,7 @@ export function Header() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
-    const mq = window.matchMedia("(min-width: 880px)");
+    const mq = window.matchMedia("(min-width: 980px)");
     const onWide = () => {
       if (mq.matches) setOpen(false);
     };
@@ -114,13 +121,13 @@ export function Header() {
             <span className="data text-[16px] font-semibold tracking-[0.18em]">HOODFI.NAME</span>
           </Link>
 
-          <nav className="hidden items-stretch border-l border-[var(--line)] min-[880px]:flex">
+          <nav className="hidden items-stretch border-l border-[var(--line)] min-[980px]:flex">
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={isActive(item.href) ? "page" : undefined}
-                className={`data border-r border-[var(--line)] px-[18px] py-1.5 text-[11.5px] font-medium uppercase tracking-[0.16em] transition-colors ${
+                className={`data whitespace-nowrap border-r border-[var(--line)] px-[18px] py-1.5 text-[11.5px] font-medium uppercase tracking-[0.16em] transition-colors ${
                   isActive(item.href)
                     ? "bg-[var(--lime)]"
                     : "hover:bg-[var(--hover-fill)]"
@@ -144,7 +151,7 @@ export function Header() {
             <ConnectButton />
             <button
               type="button"
-              className="grid h-9 w-9 place-items-center border border-[color-mix(in_srgb,var(--ink)_35%,transparent)] min-[880px]:hidden"
+              className="grid h-9 w-9 place-items-center border border-[color-mix(in_srgb,var(--ink)_35%,transparent)] min-[980px]:hidden"
               aria-expanded={open}
               aria-controls="mobile-nav"
               aria-label={open ? "Close menu" : "Open menu"}
@@ -171,7 +178,7 @@ export function Header() {
         not, while still leaving something in the DOM to transition.
       */}
       <div
-        className={`fixed inset-x-0 bottom-0 top-[68px] z-50 min-[880px]:hidden ${
+        className={`fixed inset-x-0 bottom-0 top-[68px] z-50 min-[980px]:hidden ${
           open ? "visible" : "invisible"
         }`}
       >
@@ -204,7 +211,7 @@ export function Header() {
                 isActive(item.href) ? "text-[var(--olive)]" : ""
               }`}
             >
-              {item.label}
+              {item.drawerLabel ?? item.label}
               <span className="data text-[var(--faint)]" aria-hidden>
                 →
               </span>

@@ -81,6 +81,12 @@ const CLIENT_CONFIG = `{
   }
 }`;
 
+/** The heading counts the list, so adding a tool can't leave it saying "Five". */
+function countWord(n: number): string {
+  const words = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen"];
+  return words[n] ?? String(n);
+}
+
 /** Ink-ground code block — the one place on the site type goes monospace at length. */
 function Code({ children }: { children: string }) {
   return (
@@ -128,7 +134,7 @@ export default function McpPage() {
 
         <section className="shell section">
           <div className="eyebrow">01 / tools</div>
-          <h2 className="h-page mt-[18px]">Five of them.</h2>
+          <h2 className="h-page mt-[18px]">{countWord(TOOLS.length)} of them.</h2>
           <div className="cells mt-11 border-t border-l border-[var(--line)]">
             {TOOLS.map((tool) => (
               <div
@@ -222,9 +228,9 @@ export default function McpPage() {
                 <Code>{`claude mcp add --transport http \\\n  hoodfi ${MCP_URL}`}</Code>
               </div>
               <p className="data mt-4 text-[11.5px] leading-[1.7] text-[var(--faint)]">
-                No API key, no account, no allowlist. The server is read-only and the
-                only thing it can produce is calldata you are free to inspect before
-                signing.
+                No API key, no account, no allowlist. The server holds no key and
+                signs nothing: it produces transactions you inspect before your own
+                wallet signs them.
               </p>
             </div>
           </div>

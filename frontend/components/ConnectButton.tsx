@@ -105,7 +105,7 @@ export function ConnectButton() {
       >
         {showWalletLabel ? (
           <>
-            {/* Two labels, not one truncated: the header loses its nav under 880px and
+            {/* Two labels, not one truncated: the header loses its nav under 980px and
                 still has to hold the logo, the X square and this. "View Social Wallet"
                 does not fit a 375px phone beside them, and a clipped label is worse
                 than a short one. The address stays in the tooltip either way. */}

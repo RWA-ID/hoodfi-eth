@@ -4,7 +4,9 @@ import Link from "next/link";
 import { ArrowNE } from "@/components/ArrowNE";
 import { PayboxFlipWord } from "@/components/PayboxFlipWord";
 import { ConnectorDemos } from "@/components/ConnectorDemos";
+import { CopyLine } from "@/components/CopyLine";
 import { PAYBOX_STORES, PAYBOX_URL } from "@/lib/paybox";
+import { MCP_URL } from "@/lib/site";
 
 const STEPS: [string, ReactNode][] = [
   [
@@ -16,8 +18,8 @@ const STEPS: [string, ReactNode][] = [
     <>
       “Register{" "}
       <span className="data text-[13.5px]">satoshi.hoodfi.eth</span> for me.”
-      PayBox calls the HoodFi Names MCP, quotes the price in ETH or USDG, and
-      waits for your go-ahead.
+      The HoodFi Names connector checks it, quotes the price and shows you the
+      transaction; PayBox asks before it signs.
     </>,
   ],
   [
@@ -26,11 +28,49 @@ const STEPS: [string, ReactNode][] = [
   ],
 ];
 
+/**
+ * Adding the HoodFi Names connector, per app. Same menus the PayBox recordings below
+ * walk through; the difference is that this server needs no authorisation at all.
+ */
+const HOODFI_STEPS: [string, string[]][] = [
+  [
+    "claude",
+    [
+      "Settings → Connectors → Add custom connector.",
+      "Name: HoodFi Names. URL: the one above.",
+      "Add. There is no sign-in step.",
+    ],
+  ],
+  [
+    "chatgpt",
+    [
+      "Settings → Advanced security → turn on Developer mode.",
+      "Apps & Connectors → Create. Name: HoodFi Names, URL: the one above, Authentication: none.",
+      "Create.",
+    ],
+  ],
+  [
+    "grok",
+    [
+      "Settings → Connectors → add a connector by URL.",
+      "Paste the URL above and save. Nothing to authorise.",
+    ],
+  ],
+];
+
+const PROMPTS = [
+  "Use HoodFi Names and PayBox to register satoshi.hoodfi.eth to my PayBox wallet. Show me each step before you sign it.",
+  "Set my hoodfi name's X handle and avatar, then make it my ENS primary name.",
+];
+
 /** The records an agent can now write, and the thing it still never needs. */
 const RECORD_ROWS: [string, string, boolean][] = [
   ["btc", "set by prompt", true],
   ["sol", "set by prompt", true],
   ["eth · evm", "set by prompt", true],
+  ["avatar · bio · socials", "set by prompt", true],
+  ["subnames", "created by prompt", true],
+  ["ens primary name", "set by prompt", true],
   // Not lime: this is the absence of a requirement, not a feature to celebrate.
   ["wallet connect", "not required", false],
 ];
@@ -39,9 +79,14 @@ const RECORD_ROWS: [string, string, boolean][] = [
  * `04 / paybox` on the MCP page: what PayBox is, how the three steps go, the
  * connector being added in each app, and the records an agent can set once it is.
  *
- * The product truth the copy turns on — a user pastes the *PayBox* connector, and
- * PayBox calls this project's MCP on their behalf. There is no HoodFi connector to
- * install, and no key is held by either side.
+ * The product truth the copy turns on — TWO connectors: HoodFi Names (this project's
+ * MCP, added by URL, no sign-in) prepares each transaction complete, and PayBox signs
+ * it after the user approves. No key is held by HoodFi. The videos show the PayBox
+ * half, so the HoodFi half is written out as steps with its URL beside them.
+ *
+ * (PayBox can also reach the MCP alone, through use_service's probe mode — proven
+ * 2026-09-02 — but that is a diagnostic path MoonPay doesn't advertise, and the
+ * two-connector route is the one proven by voice in Claude. Lead with that.)
  *
  * Headings here set their own sizes rather than borrowing `.h-section` / `.h-sub`:
  * those classes are unlayered, so their `font-size` would win against any Tailwind
@@ -77,9 +122,9 @@ export function PayboxSection() {
             PayBox
           </a>{" "}
           is a non-custodial control plane for agent payments: vault once, then
-          grant your AI app scoped, revocable access. Add the PayBox connector — it
-          speaks to the HoodFi Names MCP on your behalf — and a name is one sentence
-          away.
+          grant your AI app scoped, revocable access. Add it next to the HoodFi Names
+          connector — one prepares the transaction, the other signs it — and a name
+          is one sentence away.
         </p>
       </div>
 
@@ -98,24 +143,78 @@ export function PayboxSection() {
         ))}
       </div>
 
-      {/* ── setup, one card per app ── */}
+      {/* ── setup: two connectors ── */}
       <div className="mt-[clamp(56px,7vw,84px)]">
-        <div className="eyebrow">setup / three apps</div>
+        <div className="eyebrow">setup / two connectors</div>
         <div className="duo mt-[18px] items-end">
           <h3 className="m-0 text-[clamp(28px,3.4vw,46px)] font-extrabold leading-[0.96] tracking-[-0.035em]">
-            Add the connector once.
+            Add both connectors once.
           </h3>
           <p className="lede m-0 mb-2.5 max-w-[44ch]">
-            Same three steps everywhere: install PayBox, paste the PayBox connector,
-            fund the vault. PayBox talks to the HoodFi Names MCP for you — you just
-            prompt. Watch yours below.
+            HoodFi Names is added by its URL alone — no account, no sign-in, no key.
+            PayBox is added the same way from its own URL. Then switch both on in a
+            chat and ask.
           </p>
         </div>
 
-        {/* The one interactive piece of this section, and the only part of it that
-            ships JavaScript — the cards start their own playback and open a centred
-            player. Everything around it stays static. */}
-        <ConnectorDemos />
+        {/* 1 · HoodFi Names — the half no video shows. */}
+        <div className="mt-11 border border-[var(--line)]">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--line)] p-6">
+            <div>
+              <div className="label">1 · the hoodfi names connector</div>
+              <div className="mt-2 text-[20px] font-extrabold tracking-[-0.02em]">
+                Name it HoodFi Names, paste the URL, add.
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            <CopyLine text={MCP_URL} />
+          </div>
+          <div className="cells border-t border-l border-[var(--line)]">
+            {HOODFI_STEPS.map(([app, steps]) => (
+              <div key={app} className="flex-[1_1_260px] border-r border-b border-[var(--line)] p-6">
+                <div className="label">{app}</div>
+                <ol className="m-0 mt-3 list-none p-0">
+                  {steps.map((step, i) => (
+                    <li key={i} className="flex gap-3 py-1.5 text-[14.5px] leading-[1.5] text-[var(--dim)]">
+                      <span className="data flex-none text-[12px] leading-[1.8] text-[var(--olive)]">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 2 · PayBox — the recordings show exactly this. */}
+        <div className="mt-[clamp(40px,5vw,56px)]">
+          <div className="label">2 · the paybox connector</div>
+          <p className="lede m-0 mt-2 max-w-[60ch]">
+            Install PayBox, paste the PayBox connector (its URL is on{" "}
+            <a href={PAYBOX_URL} target="_blank" rel="noreferrer" className="border-b border-[var(--line-card)] font-bold">
+              paybox.sh
+            </a>
+            ) and fund the vault. Watch it added in each app:
+          </p>
+          <div className="mt-6">
+            {/* The one interactive piece of this section — the cards start their own
+                playback and open a centred player. Everything around it stays static. */}
+            <ConnectorDemos />
+          </div>
+        </div>
+
+        {/* 3 · ask */}
+        <div className="mt-[clamp(40px,5vw,56px)] max-w-[760px]">
+          <div className="label">3 · switch both on in a new chat, then ask</div>
+          <div className="mt-3 flex flex-col gap-2.5">
+            {PROMPTS.map((prompt) => (
+              <CopyLine key={prompt} text={prompt} prose />
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ── records by prompt ── */}
