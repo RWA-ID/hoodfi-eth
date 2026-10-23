@@ -32,6 +32,7 @@ export type CardAction =
   | 'subnames'
   | 'transfer'
   | 'primary'
+  | 'send'
 
 export interface Card {
   action: CardAction
@@ -42,6 +43,8 @@ export interface Card {
   steps: string[]
   warnings: string[]
   url: string
+  /** What "Complete with PayBox" posts back to the chat, when the default (sign and relay each step) doesn't fit. */
+  prompt?: string
 }
 
 export const CARD_HTML = `<!doctype html>
@@ -85,7 +88,7 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
 <script>
 (function(){
   var seq = 0, pending = {}, data = null, sent = false;
-  var VERB = { register: "Register", records: "Set records", website: "Publish site", subnames: "Create subnames", transfer: "Transfer", primary: "Primary name" };
+  var VERB = { register: "Register", records: "Set records", website: "Publish site", subnames: "Create subnames", transfer: "Transfer", primary: "Primary name", send: "Send" };
   function post(m){ try { window.parent.postMessage(m, "*"); } catch (e) {} }
   function rpc(method, params){ var id = ++seq; post({ jsonrpc: "2.0", id: id, method: method, params: params });
     return new Promise(function(res){ pending[id] = res; setTimeout(function(){ if (pending[id]) { delete pending[id]; res(null); } }, 8000); }); }
@@ -132,7 +135,7 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
 
   function complete(){
     if (!data || sent) return;
-    var text = "Complete this HoodFi step (" + (VERB[data.action] || data.action).toLowerCase() + " for " + data.name +
+    var text = data.prompt ? data.prompt : "Complete this HoodFi step (" + (VERB[data.action] || data.action).toLowerCase() + " for " + data.name +
       ") with my PayBox wallet: sign each prepared transaction exactly as given, broadcast it with hoodfi_send_transaction, and show me each one before it is signed.";
     sent = true; render(data);
     if (window.openai && window.openai.sendFollowUpMessage) { window.openai.sendFollowUpMessage({ prompt: text }); return; }

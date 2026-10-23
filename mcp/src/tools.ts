@@ -47,6 +47,7 @@ import {
   sendTransaction,
 } from './agent-tools'
 import { CARD_URI } from './card'
+import { SEND_TOOL, prepareSend } from './send'
 import type { Step } from './complete'
 import { erc20Abi, registrarAbi, registryAbi } from './contracts'
 import { type Env, envVar } from './env'
@@ -87,6 +88,7 @@ const CARD_TOOLS = new Set([
   'hoodfi_build_create_subnames_tx',
   'hoodfi_build_transfer_tx',
   'hoodfi_build_set_primary_name_tx',
+  'hoodfi_prepare_send',
 ])
 
 /**
@@ -233,7 +235,7 @@ const BASE_TOOLS: ToolDefinition[] = [
   },
 ]
 
-export const TOOLS: ToolDefinition[] = [...BASE_TOOLS, ...AGENT_TOOLS].map((tool) =>
+export const TOOLS: ToolDefinition[] = [...BASE_TOOLS, ...AGENT_TOOLS, SEND_TOOL].map((tool) =>
   CARD_TOOLS.has(tool.name) ? { ...tool, _meta: CARD_META } : tool
 )
 
@@ -1150,6 +1152,9 @@ export async function callTool(
         break
       case 'hoodfi_build_set_primary_name_tx':
         result = await buildSetPrimaryNameTx(args, env)
+        break
+      case 'hoodfi_prepare_send':
+        result = await prepareSend(args, env)
         break
       case 'hoodfi_send_transaction':
         result = await sendTransaction(args, env)

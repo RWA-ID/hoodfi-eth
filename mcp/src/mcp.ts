@@ -42,6 +42,8 @@ const INSTRUCTIONS = [
   '',
   'Everything is on Robinhood Chain except the ENS primary name (hoodfi_build_set_primary_name_tx), which is an Ethereum mainnet transaction paid in mainnet ETH.',
   '',
+  'To send crypto to a hoodfi name, call hoodfi_prepare_send: it reads the address the name holds for that chain and returns the arguments for PayBox request_transfer, which builds and sends the transfer itself (hoodfi_send_transaction is not involved). Show the user the name, the full address and the amount, and send only after they confirm.',
+  '',
   'Three rules to hold on to:',
   '- The registrar mints to the transaction sender. Whichever wallet signs owns the name. There is no recipient argument, so a name cannot be registered on behalf of another address.',
   '- Only names of 4 or more characters can be registered. Names of 1-3 characters are premium inventory reserved for donors holding short-name credits, and stay unavailable until the 100-year donation goal is reached.',

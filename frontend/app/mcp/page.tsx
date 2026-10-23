@@ -67,6 +67,10 @@ const TOOLS = [
     body: "The Ethereum mainnet transaction that makes a hoodfi name your ENS primary name, so apps show it instead of 0x… — checked first that the name resolves back to you.",
   },
   {
+    name: "hoodfi_prepare_send",
+    body: "Send ETH or SOL to any hoodfi name, at the address it holds for that chain. Your PayBox wallet makes the transfer; a name that changed hands or had its address changed in the last two days is flagged first.",
+  },
+  {
     name: "hoodfi_send_transaction",
     body: "For wallets that sign without sending, like PayBox: broadcasts a transaction one of the tools above prepared, and only those.",
   },

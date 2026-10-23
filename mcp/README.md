@@ -48,6 +48,7 @@ open a stream that would never carry a message.
 | `hoodfi_build_create_subnames_tx` | Up to 20 subnames under a name you own, kept or gifted, in one `registry.multicall` |
 | `hoodfi_build_transfer_tx` | Moves a name to another wallet; warns it is irreversible and that the address records stay behind |
 | `hoodfi_build_set_primary_name_tx` | The **mainnet** `ReverseRegistrar.setName` that makes the name the wallet's ENS primary |
+| `hoodfi_prepare_send` | Send ETH (Ethereum or Robinhood Chain) or SOL to a name: reads its address from the L2 registry and returns PayBox `request_transfer` arguments; refuses unminted names and missing records, flags a name that changed hands or had its address changed in the last two days. BTC is look-up only |
 | `hoodfi_send_transaction` | Broadcasts a signed transaction from a signing-only wallet (PayBox), only of the kinds above |
 
 ### A name can be a website
