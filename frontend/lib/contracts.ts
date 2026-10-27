@@ -25,6 +25,20 @@ export const USDC_ADDRESS = addressEnv(process.env.NEXT_PUBLIC_USDC_ADDRESS);
 export const L1_RESOLVER_ADDRESS =
   "0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2" as const;
 
+/** The ENSv1 registry on mainnet, where hoodfi.eth's resolver is set. */
+export const ENS_REGISTRY_ADDRESS =
+  "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e" as const;
+
+export const ensRegistryAbi = [
+  {
+    type: "function",
+    name: "resolver",
+    stateMutability: "view",
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+] as const;
+
 /**
  * Chainlink ETH/USD on Robinhood Chain, as listed in Chainlink's own feed directory:
  * https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json

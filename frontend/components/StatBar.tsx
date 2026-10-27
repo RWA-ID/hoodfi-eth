@@ -1,13 +1,16 @@
 "use client";
 
-import { useEnsResolver, useReadContract } from "wagmi";
+import { namehash } from "viem";
+import { useReadContract } from "wagmi";
 import { mainnet } from "wagmi/chains";
 import { ROBINHOOD_CHAIN_ID, robinhoodChain } from "@/lib/chains";
 import {
   DONATIONS_ADDRESS,
+  ENS_REGISTRY_ADDRESS,
   L1_RESOLVER_ADDRESS,
   L2_REGISTRY_ADDRESS,
   donationsAbi,
+  ensRegistryAbi,
   registryAbi,
 } from "@/lib/contracts";
 import { expiryYear } from "@/lib/format";
@@ -45,8 +48,14 @@ export function StatBar() {
   // resolver hoodfi.eth actually points at, and only claims the resolver is live when
   // the answer is the contract listed in the transparency table below. A misconfigured
   // parent name reads as "—" here instead of a badge that is always green.
-  const { data: resolver } = useEnsResolver({
-    name: "hoodfi.eth",
+  //
+  // The registry itself, not useEnsResolver: since ENSv2 the Universal Resolver reports
+  // its ENSV1Resolver wrapper for every v1 name, which forwards to this same answer.
+  const { data: resolver } = useReadContract({
+    address: ENS_REGISTRY_ADDRESS,
+    abi: ensRegistryAbi,
+    functionName: "resolver",
+    args: [namehash("hoodfi.eth")],
     chainId: mainnet.id,
     query: { staleTime: 300_000 },
   });
