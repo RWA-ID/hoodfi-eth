@@ -42,6 +42,46 @@ export function checkLabel(input: string): LabelCheck {
   return { ok: true, label }
 }
 
+export type HoodfiNameCheck =
+  | { ok: true; labels: string[] }
+  | { ok: false; reason: string }
+
+/**
+ * For tools that pay a name or report who holds it: the labels under hoodfi.eth, or a
+ * reason to refuse.
+ *
+ * normalizeLabel turns "vitalik.eth" into "vitalik". When minting that is a convenience:
+ * you get the name you typed. When paying it is a hazard: vitalik.hoodfi.eth is a
+ * different name that anyone can mint, so "send to vitalik.eth" would pay whoever did.
+ * The same goes for "jesse.base.eth", which whoever holds base.hoodfi.eth can create for
+ * free. So only two shapes pass: a single bare label, or a name ending in .hoodfi.eth.
+ * Nothing is stripped twice, so "foo.eth.hoodfi.eth" stays a two-label name.
+ */
+export function checkHoodfiName(input: string): HoodfiNameCheck {
+  const name = input.trim().toLowerCase()
+  const suffix = `.${PARENT}`
+  let labels: string[]
+  if (name.endsWith(suffix)) labels = name.slice(0, -suffix.length).split('.')
+  else if (!name.includes('.')) labels = [name]
+  else if (name === PARENT)
+    return { ok: false, reason: `${PARENT} is the parent name itself, not a name anyone holds.` }
+  else if (name.endsWith('.eth'))
+    return {
+      ok: false,
+      reason: `${name} is not a hoodfi.eth name. ${name.slice(0, -'.eth'.length)}${suffix} would be a different name, possibly held by someone else, so it is not substituted. Look ${name} up with an ENS tool on Ethereum instead.`,
+    }
+  else
+    return {
+      ok: false,
+      reason: `"${name}" is not a hoodfi.eth name. Give a bare name ("gm") or the full name ending in ${suffix} ("jack.gm${suffix}").`,
+    }
+  for (const label of labels) {
+    const check = checkLabel(label)
+    if (!check.ok) return { ok: false, reason: `"${label}": ${check.reason}` }
+  }
+  return { ok: true, labels }
+}
+
 /** Tier index 0-3 (1 char, 2 chars, 3 chars, 4+). Mirrors LabelUtils.tierOf. */
 export function tierOf(label: string): number {
   return label.length >= 4 ? 3 : label.length - 1

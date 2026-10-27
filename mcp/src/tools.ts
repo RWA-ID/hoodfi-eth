@@ -55,6 +55,7 @@ import {
   PARENT,
   PUBLIC_MIN_LENGTH,
   STATUS_TEXT,
+  checkHoodfiName,
   checkLabel,
   fullName,
   isShort,
@@ -160,7 +161,7 @@ const BASE_TOOLS: ToolDefinition[] = [
         name: {
           type: 'string',
           description:
-            'The name to resolve, with or without the .hoodfi.eth suffix.',
+            'The name to resolve, with or without the .hoodfi.eth suffix. Any other .eth name (e.g. vitalik.eth) is refused, never rewritten to its hoodfi.eth lookalike.',
         },
       },
       required: ['name'],
@@ -518,7 +519,14 @@ function addrRead(registry: Address, node: Hex, coinType: bigint) {
 }
 
 async function resolveName(args: Record<string, unknown>, env: Env) {
-  const label = requireLabel(args.name)
+  // Not requireLabel: its "vitalik.eth" → vitalik.hoodfi.eth rewrite would report
+  // another name's owner and addresses as the one asked about.
+  if (typeof args.name !== 'string') throw new ToolError('`name` must be a string.')
+  const checked = checkHoodfiName(args.name)
+  if (!checked.ok) throw new ToolError(checked.reason)
+  if (checked.labels.length > 1)
+    throw new ToolError('hoodfi_resolve_name reads top-level names only, like "gm" or "gm.hoodfi.eth".')
+  const label = checked.labels.join('.')
   const client = robinhoodClient(env)
   const registry = envVar('L2_REGISTRY_ADDRESS', env)
   const node = namehash(fullName(label))

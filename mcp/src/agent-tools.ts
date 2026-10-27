@@ -38,7 +38,7 @@ import {
 } from './contracts'
 import { type Env, envVar } from './env'
 import { ToolError } from './errors'
-import { PARENT, checkLabel } from './labels'
+import { PARENT, checkHoodfiName, checkLabel } from './labels'
 
 /**
  * The tools an agent needs after registration: what a wallet holds, profile records,
@@ -76,6 +76,18 @@ export function requireName(input: unknown): { name: string; labels: string[] } 
     if (!check.ok) throw new ToolError(`"${label}": ${check.reason}`)
   }
   return { name: `${bare}.${PARENT}`, labels }
+}
+
+/**
+ * requireName without the rewrite, for a name that is about to be paid: "vitalik.eth" is
+ * refused rather than turned into vitalik.hoodfi.eth. See checkHoodfiName.
+ */
+export function requireHoodfiName(input: unknown): { name: string; labels: string[] } {
+  if (typeof input !== 'string' || !input.trim())
+    throw new ToolError('`name` must be a non-empty string.')
+  const check = checkHoodfiName(input)
+  if (!check.ok) throw new ToolError(check.reason)
+  return { name: `${check.labels.join('.')}.${PARENT}`, labels: check.labels }
 }
 
 export function requireAddress(value: unknown, field = 'address'): Address {
