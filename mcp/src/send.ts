@@ -7,6 +7,7 @@ import { registryAbi } from './contracts'
 import { type Env, envVar } from './env'
 import { ToolError } from './errors'
 import { nameLink, requireHoodfiName } from './agent-tools'
+import { recentChange } from './recent-changes'
 
 /**
  * Sending crypto to a hoodfi name.
@@ -132,12 +133,12 @@ export async function prepareSend(args: Record<string, unknown>, env: Env) {
       client.getLogs({ address: registry, event: ADDRESS_CHANGED, args: { node }, fromBlock, toBlock: latest }),
       client.getLogs({ address: registry, event: TRANSFER, args: { tokenId: BigInt(node) }, fromBlock, toBlock: latest }),
     ])
-    // A mint is a Transfer from zero and writes the address itself, so a brand-new name
-    // has neither changed hands nor had its address changed.
-    const minted = moved.some((l) => l.args.from === ZERO)
-    if (moved.some((l) => l.args.from !== ZERO))
+    // Judged per transaction: the mint's own transaction (its address records, a
+    // partner sale's handover) is neither, anything after it is. See recent-changes.ts.
+    const recent = recentChange(moved, changed, c.coinType)
+    if (recent === 'changed-hands')
       warnings.push(`${name} changed hands in the last two days. Confirm the address with the recipient before sending.`)
-    else if (!minted && changed.some((l) => l.args.coinType === c.coinType))
+    else if (recent === 'address-changed')
       warnings.push(`${name}'s ${c.label} address was changed in the last two days. Confirm it with the recipient before sending.`)
   } catch {
     warnings.push(`Couldn't check whether ${name}'s address changed recently.`)
