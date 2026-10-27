@@ -33,9 +33,18 @@ export type QueryResult =
  * True when an error means "we never got an answer" rather than "the contract
  * answered, negatively". A revert is a real answer about a name; a 429, a timeout
  * or a dead socket is not an answer about anything.
+ *
+ * viem delivers a real revert as an RpcRequestError too, so the walk below would 502
+ * it unless it is picked out first. Only JSON-RPC code 3 ("execution reverted",
+ * EIP-1474) counts. viem's own revert classes are no use here: it also builds a
+ * ContractFunctionRevertedError from -32603 "Internal error" and an
+ * ExecutionRevertedError from "gas required exceeds allowance", and both of those are
+ * the RPC failing, not the chain answering.
  */
-function isTransportFailure(error: unknown): boolean {
+export function isTransportFailure(error: unknown): boolean {
   if (!(error instanceof BaseError)) return true
+  const rpcError = error.walk((e) => e instanceof RpcRequestError)
+  if (rpcError instanceof RpcRequestError && rpcError.code === 3) return false
   const transportError = error.walk(
     (e) =>
       e instanceof HttpRequestError ||
