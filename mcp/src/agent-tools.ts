@@ -38,7 +38,8 @@ import {
 } from './contracts'
 import { type Env, envVar } from './env'
 import { ToolError } from './errors'
-import { PARENT, checkLabel } from './labels'
+import { MAX_LABEL_LENGTH, PARENT, checkLabel } from './labels'
+import { isListableName, splitListable } from './owned-names'
 
 /**
  * The tools an agent needs after registration: what a wallet holds, profile records,
@@ -299,16 +300,28 @@ export async function listNames(args: Record<string, unknown>, env: Env) {
     names: { name: string; addr: string | null; resolves: boolean }[]
   }
   // Structured fields only: no avatar or other record a stranger could have written.
+  // A subname's label is one too, so names that are not mintable labels are withheld.
+  const rule = { parent: PARENT, maxLabelLength: MAX_LABEL_LENGTH }
+  const { listed, withheld } = splitListable(body.names, rule)
+  const primary = body.primary && isListableName(body.primary, rule) ? body.primary : null
   return {
     address,
-    primary: body.primary,
-    primarySource: body.primarySource ?? null,
-    names: body.names.map((n) => ({
+    primary,
+    primarySource: primary ? (body.primarySource ?? null) : null,
+    names: listed.map((n) => ({
       name: n.name,
       resolvesToThisWallet: n.resolves,
       url: nameLink(n.name),
     })),
-    count: body.names.length,
+    count: listed.length,
+    ...(withheld > 0 || primary !== body.primary
+      ? {
+          withheld,
+          ...(primary !== body.primary ? { primaryWithheld: true } : {}),
+          withheldNote:
+            'Names with characters a hoodfi.eth mint does not allow are not shown: anyone holding a parent name can create a subname in this wallet, so its text is not passed on.',
+        }
+      : {}),
   }
 }
 
