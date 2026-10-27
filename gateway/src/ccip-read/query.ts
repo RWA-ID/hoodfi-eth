@@ -1,5 +1,7 @@
 import {
   BaseError,
+  ContractFunctionRevertedError,
+  ExecutionRevertedError,
   HttpRequestError,
   RpcRequestError,
   TimeoutError,
@@ -33,9 +35,22 @@ export type QueryResult =
  * True when an error means "we never got an answer" rather than "the contract
  * answered, negatively". A revert is a real answer about a name; a 429, a timeout
  * or a dead socket is not an answer about anything.
+ *
+ * A revert is checked for FIRST, and short-circuits to `false`. viem reports an
+ * on-chain revert as a JSON-RPC error (`{ code: 3, "execution reverted" }`) wrapped
+ * in an `RpcRequestError` inside the `ContractFunctionExecutionError` cause chain. So
+ * the transport-class walk below matches every revert too — and without this guard a
+ * genuine "no such record" revert is misread as an unreachable RPC and answered 502
+ * instead of being signed as the empty "nothing here" this gateway promises.
  */
-function isTransportFailure(error: unknown): boolean {
+export function isTransportFailure(error: unknown): boolean {
   if (!(error instanceof BaseError)) return true
+  const reverted = error.walk(
+    (e) =>
+      e instanceof ContractFunctionRevertedError ||
+      e instanceof ExecutionRevertedError
+  )
+  if (reverted !== null) return false
   const transportError = error.walk(
     (e) =>
       e instanceof HttpRequestError ||
