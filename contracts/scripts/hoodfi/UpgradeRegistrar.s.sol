@@ -24,8 +24,9 @@ contract UpgradeRegistrar is Script {
 
     /// @dev Infra + brand labels that must never be mintable. Short entries matter most:
     ///      "www" and "api" are 3 chars, so without this they would be sellable premium
-    ///      inventory the moment shorts open.
-    function _blocklistLabels() internal pure returns (string[24] memory) {
+    ///      inventory the moment shorts open. "base" is here because whoever holds a
+    ///      parent creates its subnames free, and jesse.base.hoodfi.eth reads as jesse.base.eth.
+    function _blocklistLabels() internal pure returns (string[25] memory) {
         return [
             "www",
             "api",
@@ -50,7 +51,8 @@ contract UpgradeRegistrar is Script {
             "status",
             "hoodfi",
             "robinhood",
-            "hood"
+            "hood",
+            "base"
         ];
     }
 
@@ -79,7 +81,7 @@ contract UpgradeRegistrar is Script {
         HoodfiRegistrar registrar =
             new HoodfiRegistrar(registryAddr, treasury, creditSigner, priceWei, deployer);
 
-        string[24] memory labels = _blocklistLabels();
+        string[25] memory labels = _blocklistLabels();
         bytes32[] memory blocked = new bytes32[](labels.length);
         for (uint256 i = 0; i < labels.length; i++) {
             blocked[i] = keccak256(bytes(labels[i]));

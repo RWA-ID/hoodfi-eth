@@ -6,7 +6,7 @@ import { BTC_COIN_TYPE, COINS, SOL_COIN_TYPE } from './coins'
 import { registryAbi } from './contracts'
 import { type Env, envVar } from './env'
 import { ToolError } from './errors'
-import { nameLink, requireName } from './agent-tools'
+import { nameLink, requireHoodfiName } from './agent-tools'
 
 /**
  * Sending crypto to a hoodfi name.
@@ -45,11 +45,11 @@ export const SEND_TOOL = {
   name: 'hoodfi_prepare_send',
   title: 'Send crypto to a hoodfi name',
   description:
-    'Prepare sending ETH or SOL to a hoodfi.eth name (any depth, e.g. "gm" or "jack.gm.hoodfi.eth"). Reads the address the name holds for the chosen chain directly from the HoodFi registry on Robinhood Chain and returns the exact arguments for PayBox request_transfer, which builds and sends the transfer; this server moves nothing. Chains: "ethereum" (ETH on Ethereum mainnet), "robinhood" (ETH on Robinhood Chain), "solana" (SOL), "bitcoin" (look-up only: PayBox cannot send BTC yet). Refuses a name that has not been minted, and a name with no address for the chosen chain; it never substitutes another chain\'s address. Show the user the name, the full address and the amount, and send only after they confirm.',
+    'Prepare sending ETH or SOL to a hoodfi.eth name (any depth, e.g. "gm" or "jack.gm.hoodfi.eth"). Reads the address the name holds for the chosen chain directly from the HoodFi registry on Robinhood Chain and returns the exact arguments for PayBox request_transfer, which builds and sends the transfer; this server moves nothing. Chains: "ethereum" (ETH on Ethereum mainnet), "robinhood" (ETH on Robinhood Chain), "solana" (SOL), "bitcoin" (look-up only: PayBox cannot send BTC yet). Refuses any name outside hoodfi.eth (e.g. vitalik.eth or jesse.base.eth) rather than rewriting it: vitalik.hoodfi.eth is a different name with its own owner. Refuses a name that has not been minted, and a name with no address for the chosen chain; it never substitutes another chain\'s address. Show the user the name, the full address and the amount, and send only after they confirm.',
   inputSchema: {
     type: 'object',
     properties: {
-      name: { type: 'string', description: 'The name to pay, with or without the .hoodfi.eth suffix. Subnames too.' },
+      name: { type: 'string', description: 'The name to pay: a bare name ("gm") or the full name ending in .hoodfi.eth ("jack.gm.hoodfi.eth"). Any other .eth name is refused.' },
       chain: { type: 'string', enum: Object.keys(SEND_CHAINS), description: 'Where to send: ethereum, robinhood, solana, or bitcoin (look-up only).' },
       amount: { type: 'string', description: 'How much, in the coin itself, as a decimal string, e.g. "0.01".' },
       from: { type: 'string', description: 'Optional: the PayBox wallet sending it (0x… for ETH, the Solana address for SOL); used to catch a send to yourself.' },
@@ -77,7 +77,8 @@ function requireAmount(value: unknown, chain: SendChain): { value: string; units
 }
 
 export async function prepareSend(args: Record<string, unknown>, env: Env) {
-  const { name } = requireName(args.name)
+  // Strict: requireName would pay vitalik.hoodfi.eth for "vitalik.eth".
+  const { name } = requireHoodfiName(args.name)
   const chain = requireChain(args.chain)
   const c = SEND_CHAINS[chain]
   const amount = requireAmount(args.amount, chain)
