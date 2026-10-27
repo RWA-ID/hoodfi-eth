@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --experimental-strip-types shared/contenthash.test.mjs && node --experimental-strip-types lib/session.test.mjs"
+    "test": "node --experimental-strip-types shared/contenthash.test.mjs && node --experimental-strip-types lib/session.test.mjs && node --experimental-strip-types lib/handoff.test.mjs"
   },
   "dependencies": {
     "@ensdomains/address-encoder": "^1.1.4",
