@@ -66,7 +66,7 @@ export function IdentityCard() {
           style={{ background: "var(--resolving)" }}
           aria-hidden
         />
-        resolving on all evms, solana and bitcoin
+        resolving on all evms, solana, bitcoin and xrp
       </div>
     </div>
   );

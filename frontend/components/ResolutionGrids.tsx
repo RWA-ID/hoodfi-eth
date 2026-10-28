@@ -10,8 +10,9 @@
  * rectangle closes at every width.
  *
  * The two groups are split deliberately. Every EVM chain shares one `addr` record, so
- * listing them together is accurate; Bitcoin and Solana need their own coinType
- * records and say so in their own note. Collapsing the two would claim support the
+ * listing them together is accurate; Bitcoin, Solana and XRP need their own coinType
+ * records and say so in their own note. XRP took Optimism's cell to keep the count at
+ * eight — Optimism is still covered by the shared record the other EVM cells describe. Collapsing the two would claim support the
  * manage page cannot actually set.
  */
 
@@ -40,11 +41,11 @@ const CHAINS: Cell[] = [
   { mark: "ethereum", name: "Ethereum", note: "Where resolution starts" },
   { mark: "base", name: "Base", note: "Same addr record" },
   { mark: "arbitrum", name: "Arbitrum", note: "Same addr record" },
-  { mark: "optimism", name: "Optimism", note: "Same addr record" },
   { mark: "polygon", name: "Polygon", note: "Same addr record" },
   { mark: "robinhood", name: "Robinhood Chain", note: "Set at mint, id 4663" },
   { mark: "bitcoin", name: "Bitcoin", note: "Separate ENSIP-9 record" },
   { mark: "solana", name: "Solana", note: "Separate ENSIP-9 record" },
+  { mark: "xrp", name: "XRP Ledger", note: "Separate ENSIP-9 record" },
 ];
 
 function Grid({ title, cells }: { title: string; cells: Cell[] }) {

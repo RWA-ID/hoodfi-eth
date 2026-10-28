@@ -45,7 +45,7 @@ const TOOLS = [
   },
   {
     name: "hoodfi_build_set_address_tx",
-    body: "The unsigned transaction that sets the name's Ethereum, Bitcoin and Solana addresses. Any combination in one call, batched so the owner signs once — and an address that isn't valid for its chain is refused rather than stored.",
+    body: "The unsigned transaction that sets the name's Ethereum, Bitcoin, Solana and XRP Ledger addresses. Any combination in one call, batched so the owner signs once — and an address that isn't valid for its chain is refused rather than stored.",
   },  {
     name: "hoodfi_list_names",
     body: "Every *.hoodfi.eth name a wallet holds, subnames included, and which one it goes by.",
@@ -117,7 +117,7 @@ export default function McpPage() {
             <p className="lede m-0 mb-2.5 max-w-[46ch]">
               An MCP server that answers what a name costs, hands back the transaction
               that mints it, then points it at a website and at addresses on Ethereum,
-              Bitcoin and Solana. It holds no keys and signs nothing — the agent
+              Bitcoin, Solana and the XRP Ledger. It holds no keys and signs nothing — the agent
               signs, the agent owns.
             </p>
           </div>
@@ -202,9 +202,9 @@ export default function McpPage() {
               An address record is a payment instruction.
             </h3>
             <p className="mt-3.5 max-w-[76ch] text-sm leading-relaxed text-[var(--dim)]">
-              A name can carry Ethereum, Bitcoin and Solana addresses, and the server
+              A name can carry Ethereum, Bitcoin, Solana and XRP Ledger addresses, and the server
               refuses one that isn&apos;t valid for its chain. How much that proves is
-              not the same everywhere: Bitcoin is checksummed, so a typo is caught;
+              not the same everywhere: Bitcoin and XRP are checksummed, so a typo is caught;
               Ethereum is only verified when the address carries EIP-55 capitalisation;
               and a Solana address has no checksum at all, so a mistyped one is a
               different, equally valid-looking key that nothing can detect. The tool

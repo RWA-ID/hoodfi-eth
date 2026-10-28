@@ -16,6 +16,7 @@ import {
   BTC_COIN_TYPE,
   ROBINHOOD_COIN_TYPE,
   SOL_COIN_TYPE,
+  XRP_COIN_TYPE,
   decodeChainAddress,
 } from "@/lib/ens";
 import {
@@ -50,6 +51,7 @@ type Records = {
   evm: string;
   btc: string;
   sol: string;
+  xrp: string;
   texts: { key: string; label: string; value: string }[];
   avatar: string;
   /** The website the name serves, if its owner set one. */
@@ -143,12 +145,13 @@ async function readRecords(path: string): Promise<Lookup> {
       args: [node, coinType],
     });
 
-  const [avatar, texts, evmRaw, btcRaw, solRaw, contentRaw] = await Promise.all([
+  const [avatar, texts, evmRaw, btcRaw, solRaw, xrpRaw, contentRaw] = await Promise.all([
     text("avatar"),
     Promise.all(TEXT_KEYS.map((t) => text(t.key))),
     addr(ROBINHOOD_COIN_TYPE),
     addr(BTC_COIN_TYPE),
     addr(SOL_COIN_TYPE),
+    addr(XRP_COIN_TYPE),
     l2Client.readContract({
       address: registry,
       abi: registryAbi,
@@ -165,6 +168,7 @@ async function readRecords(path: string): Promise<Lookup> {
     evm: evmRaw && evmRaw !== "0x" ? getAddress(evmRaw as Address) : "",
     btc: decodeChainAddress(BTC_COIN_TYPE, btcRaw as string),
     sol: decodeChainAddress(SOL_COIN_TYPE, solRaw as string),
+    xrp: decodeChainAddress(XRP_COIN_TYPE, xrpRaw as string),
     avatar: avatar ?? "",
     content: decodeContenthash(contentRaw as string),
     texts: TEXT_KEYS.map((t, i) => ({
@@ -219,6 +223,7 @@ function RecordsLedger({ records }: { records: Records }) {
     { key: "evm", label: "Ethereum & EVM", value: records.evm, mark: "ethereum" },
     { key: "btc", label: "Bitcoin", value: records.btc, mark: "bitcoin" },
     { key: "sol", label: "Solana", value: records.sol, mark: "solana" },
+    { key: "xrp", label: "XRP Ledger", value: records.xrp, mark: "xrp" },
     ...records.texts.map((t) => ({
       key: t.key,
       label: t.label,

@@ -59,3 +59,15 @@ export function SolanaLogo({ className = "h-5 w-5" }: Props) {
     </svg>
   );
 }
+
+export function XrpLogo({ className = "h-5 w-5" }: Props) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
+      <circle cx="16" cy="16" r="16" fill="#23292F" />
+      <path
+        fill="#fff"
+        d="M23.07 8h2.89l-6.01 5.9a5.73 5.73 0 0 1-7.9 0L6.04 8h2.89l4.57 4.48a3.63 3.63 0 0 0 5 0zM8.9 24.1H6l6.05-5.95a5.73 5.73 0 0 1 7.9 0L26 24.1h-2.89l-4.6-4.52a3.63 3.63 0 0 0-5 0z"
+      />
+    </svg>
+  );
+}

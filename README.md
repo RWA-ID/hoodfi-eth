@@ -85,8 +85,8 @@ before and after the v2 registrar swap.
 
 Addresses cover **Ethereum and every EVM chain** from one `addr` record — a wallet
 resolves against L1 whatever network it's on, and the address it gets is valid on
-Base, Arbitrum, Polygon, Optimism and Robinhood Chain alike. **Bitcoin and Solana**
-are separate ENSIP-9 coinType records, stored in each chain's own binary encoding
+Base, Arbitrum, Polygon, Optimism and Robinhood Chain alike. **Bitcoin, Solana and the XRP
+Ledger** are separate ENSIP-9 coinType records, stored in each chain's own binary encoding
 rather than as the text you typed.
 
 A name can also **be** a website. The EIP-1577 `contenthash` record is editable from
@@ -289,7 +289,7 @@ first-party equivalent.
 | `hoodfi_build_registration_tx` | The unsigned mint. Paying in USDG returns two steps (approve, then register) to run in order |
 | `hoodfi_resolve_name` | Owner, address records, text records and the website a name serves |
 | `hoodfi_build_set_contenthash_tx` | Points a name at an IPFS/IPNS site. Accepts a bare CID, an `ipfs://`/`ipns://` URI or a gateway URL; `""` clears it |
-| `hoodfi_build_set_address_tx` | Sets Ethereum, Bitcoin and Solana records, batched through `multicall` so the owner signs once |
+| `hoodfi_build_set_address_tx` | Sets Ethereum, Bitcoin, Solana and XRP Ledger records, batched through `multicall` so the owner signs once |
 | `hoodfi_list_names` | Every name a wallet holds, subnames included, and which one it goes by |
 | `hoodfi_build_set_text_tx` | Profile records (avatar, description, url, X, GitHub, Discord, Telegram, email), batched, any depth |
 | `hoodfi_build_create_subnames_tx` | Up to 20 subnames under a name you own, kept or gifted, in one `registry.multicall` |
@@ -506,7 +506,7 @@ Resolution design notes:
 | `mcp/src/complete.ts` | Fills each step into a complete transaction — pending nonce (+1 per earlier step on the same chain), gas +25%, fees — so a signing-only wallet signs it as given |
 | `mcp/src/card.ts` | The HoodFi card rendered in MCP Apps clients. Every value is written with `textContent`: names and records are other people's text |
 | `mcp/test/paybox.fork.mjs` | The PayBox path end to end on an anvil fork of Robinhood Chain: register, records, subnames, transfer, relay refusals |
-| `mcp/src/coins.ts` | Bitcoin and Solana address parsing into each chain's own encoding, and the honest per-chain account of what a check proves |
+| `mcp/src/coins.ts` | Bitcoin, Solana and XRP Ledger address parsing into each chain's own encoding, and the honest per-chain account of what a check proves |
 | `DEPLOY.md` | The v2 deploy runbook, in the order it must be run |
 | `SECURITY.md` | How to report a vulnerability |
 | `docs/make-banner.mjs` | Renders the README banner in the OG cards' own system. Lives outside `frontend/public/` so it isn't pinned to IPFS on every deploy |
