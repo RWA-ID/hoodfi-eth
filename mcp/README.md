@@ -42,7 +42,7 @@ open a stream that would never carry a message.
 | `hoodfi_build_registration_tx` | Unsigned calldata to register — one step for ETH, up to two for USDG |
 | `hoodfi_resolve_name` | Owner, address records, text records and website for a minted name |
 | `hoodfi_build_set_contenthash_tx` | Unsigned calldata to point a name at an IPFS or IPNS site, or to clear it |
-| `hoodfi_build_set_address_tx` | Unsigned calldata to set the name's Ethereum, Bitcoin and Solana addresses |
+| `hoodfi_build_set_address_tx` | Unsigned calldata to set the name's Ethereum, Bitcoin, Solana and XRP Ledger addresses |
 | `hoodfi_list_names` | Every name a wallet holds, subnames included, and which one it goes by |
 | `hoodfi_build_set_text_tx` | Profile records (avatar, description, url, X, GitHub, Discord, Telegram, email), batched, any depth |
 | `hoodfi_build_create_subnames_tx` | Up to 20 subnames under a name you own, kept or gifted, in one `registry.multicall` |

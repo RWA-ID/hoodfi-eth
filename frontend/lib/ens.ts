@@ -2,8 +2,10 @@ import { bytesToHex, hexToBytes } from "viem";
 import {
   decodeBtcAddress,
   decodeSolAddress,
+  decodeXrpAddress,
   encodeBtcAddress,
   encodeSolAddress,
+  encodeXrpAddress,
 } from "@ensdomains/address-encoder/coders";
 import { ROBINHOOD_CHAIN_ID } from "./chains";
 
@@ -22,6 +24,22 @@ export const ETH_COIN_TYPE = 60n;
 /** SLIP-44 coinTypes for the non-EVM chains a name can also carry an address for. */
 export const BTC_COIN_TYPE = 0n;
 export const SOL_COIN_TYPE = 501n;
+export const XRP_COIN_TYPE = 144n;
+
+/**
+ * The two shapes ENSIP-9 stores for the XRP Ledger: an r-address (0x00 + 20-byte
+ * account ID) and a mainnet X-address (0x0544 + account ID + tag flag + tag + 4 zero
+ * bytes). The library coder checks the checksum but not the payload, and XRPL *seeds*
+ * (`s…`, `sEd…`) share the encoding — without this, pasting the wrong line from a
+ * wallet export would publish a seed in a public record. Testnet X-addresses are
+ * refused too. Same rule as `mcp/src/xrp.ts`, which has the vectors.
+ */
+function isXrpRecord(bytes: Uint8Array): boolean {
+  if (bytes.length === 21) return bytes[0] === 0x00;
+  if (bytes.length !== 31 || bytes[0] !== 0x05 || bytes[1] !== 0x44) return false;
+  if (bytes[22] !== 0 && bytes[22] !== 1) return false;
+  return bytes.slice(27).every((b) => b === 0);
+}
 
 /** Per-chain codecs, imported one at a time so the other 240 coins stay out of the bundle. */
 const CODERS: Record<
@@ -35,6 +53,17 @@ const CODERS: Record<
   [SOL_COIN_TYPE.toString()]: {
     decode: decodeSolAddress,
     encode: encodeSolAddress,
+  },
+  [XRP_COIN_TYPE.toString()]: {
+    decode: (value) => {
+      const bytes = decodeXrpAddress(value);
+      if (!isXrpRecord(bytes)) throw new Error("not an XRP Ledger address");
+      return bytes;
+    },
+    encode: (bytes) => {
+      if (!isXrpRecord(bytes)) throw new Error("not an XRP Ledger address");
+      return encodeXrpAddress(bytes);
+    },
   },
 };
 

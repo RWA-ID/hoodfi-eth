@@ -30,6 +30,7 @@ import {
   ETH_COIN_TYPE,
   ROBINHOOD_COIN_TYPE,
   SOL_COIN_TYPE,
+  XRP_COIN_TYPE,
   decodeChainAddress,
   encodeChainAddress,
   normalizeXHandle,
@@ -45,7 +46,7 @@ import {
 import { ArrowNE, Chevron } from "./ArrowNE";
 import { AvatarUpload } from "./AvatarUpload";
 import { clearStashedAvatar, readStashedAvatar } from "@/lib/avatar";
-import { BitcoinLogo, EthereumLogo, SolanaLogo } from "./ChainLogo";
+import { BitcoinLogo, EthereumLogo, SolanaLogo, XrpLogo } from "./ChainLogo";
 import { track } from "@/lib/analytics";
 import { walletErrorMessage } from "@/lib/errors";
 import { ShareOnX } from "./ShareOnX";
@@ -68,8 +69,8 @@ type Field = "addr" | "avatar" | "com.twitter" | "url" | "description";
 
 /**
  * The address records a name can carry. The EVM row writes two coinTypes at once so the
- * name resolves the same through the L1 resolver and on Robinhood Chain; BTC and SOL are
- * stored in their own binary encodings, per ENSIP-9.
+ * name resolves the same through the L1 resolver and on Robinhood Chain; BTC, SOL and XRP
+ * are stored in their own binary encodings, per ENSIP-9.
  */
 const ADDRESS_FIELDS: {
   key: string;
@@ -106,6 +107,17 @@ const ADDRESS_FIELDS: {
     placeholder: "Base58 address",
     coinTypes: [SOL_COIN_TYPE],
     Logo: SolanaLogo,
+    allowClear: true,
+  },
+  {
+    key: "addr.xrp",
+    label: "XRP Ledger",
+    // An r-address names the account; an exchange also needs the destination tag,
+    // which only the X-address form carries.
+    help: "r… for your own wallet. For an exchange account, use its X-address, which includes the destination tag.",
+    placeholder: "r… or X…",
+    coinTypes: [XRP_COIN_TYPE],
+    Logo: XrpLogo,
     allowClear: true,
   },
 ];
@@ -254,6 +266,7 @@ function NameEditor({
   const evmAddr = useAddrRecord(name.node, ROBINHOOD_COIN_TYPE);
   const btcAddr = useAddrRecord(name.node, BTC_COIN_TYPE);
   const solAddr = useAddrRecord(name.node, SOL_COIN_TYPE);
+  const xrpAddr = useAddrRecord(name.node, XRP_COIN_TYPE);
   const content = useContenthashRecord(name.node);
 
   const evmRecord = evmAddr.data as string | undefined;
@@ -270,6 +283,7 @@ function NameEditor({
       evmRecord && evmRecord !== "0x" ? getAddress(evmRecord as Address) : "",
     "addr.btc": decodeChainAddress(BTC_COIN_TYPE, btcAddr.data as string),
     "addr.sol": decodeChainAddress(SOL_COIN_TYPE, solAddr.data as string),
+    "addr.xrp": decodeChainAddress(XRP_COIN_TYPE, xrpAddr.data as string),
     [CONTENTHASH]: savedContent?.uri ?? "",
   };
 
@@ -291,6 +305,7 @@ function NameEditor({
     evmAddr.data,
     btcAddr.data,
     solAddr.data,
+    xrpAddr.data,
     content.data,
   ]);
 
@@ -308,6 +323,7 @@ function NameEditor({
       void evmAddr.refetch();
       void btcAddr.refetch();
       void solAddr.refetch();
+      void xrpAddr.refetch();
       void content.refetch();
       onSaved();
     }

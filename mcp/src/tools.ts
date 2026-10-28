@@ -34,6 +34,7 @@ import {
   COIN_KEYS,
   type CoinKey,
   SOL_COIN_TYPE,
+  XRP_COIN_TYPE,
   verificationCaveat,
 } from './coins'
 import {
@@ -200,7 +201,7 @@ const BASE_TOOLS: ToolDefinition[] = [
     name: 'hoodfi_build_set_address_tx',
     title: 'Build a transaction to set a name’s address records',
     description:
-      'Build the unsigned transaction that points a name at wallet addresses on Ethereum, Bitcoin and Solana, so paying the name resolves to the right address on each chain. Pass any combination of the three; when more than one changes they are batched through the registry\'s multicall, so the owner signs once. IMPORTANT: setting "ethereum" writes TWO records — mainnet ETH (coinType 60) and the Robinhood Chain coinType — because a name carrying only one resolves in some clients and silently fails in others. The tool does this itself; there is no coinType parameter. Bitcoin and Solana are stored in each chain\'s own encoding, so an address that does not parse is refused here with a reason rather than stored as bytes that resolve to nothing. How much that check proves differs by chain, and the response says so in a "verify" field you should relay: a Bitcoin address is checksummed and a typo is caught; an Ethereum address is only checked when it carries EIP-55 capitalisation; a Solana address has NO checksum at all, so a mistyped character is a different, equally valid-looking address that nothing here can detect. Pass "" for bitcoin or solana to clear that record; the ethereum record cannot be cleared, because the name would then resolve nowhere. Only the name\'s current owner can sign it — pass their address and the tool checks it before returning calldata. Nothing is signed or sent here.',
+      'Build the unsigned transaction that points a name at wallet addresses on Ethereum, Bitcoin, Solana and the XRP Ledger, so paying the name resolves to the right address on each chain. Pass any combination of the four; when more than one changes they are batched through the registry\'s multicall, so the owner signs once. IMPORTANT: setting "ethereum" writes TWO records — mainnet ETH (coinType 60) and the Robinhood Chain coinType — because a name carrying only one resolves in some clients and silently fails in others. The tool does this itself; there is no coinType parameter. Bitcoin, Solana and XRP are stored in each chain\'s own encoding, so an address that does not parse is refused here with a reason rather than stored as bytes that resolve to nothing. How much that check proves differs by chain, and the response says so in a "verify" field you should relay: a Bitcoin or XRP Ledger address is checksummed and a typo is caught; an Ethereum address is only checked when it carries EIP-55 capitalisation; a Solana address has NO checksum at all, so a mistyped character is a different, equally valid-looking address that nothing here can detect. An XRP classic address (r…) carries no destination tag, so for an exchange deposit the X-address form (X…) is the safe one, and the verify field says so; XRP secrets and testnet addresses are refused. Pass "" for bitcoin, solana or xrp to clear that record; the ethereum record cannot be cleared, because the name would then resolve nowhere. Only the name\'s current owner can sign it — pass their address and the tool checks it before returning calldata. Nothing is signed or sent here.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -228,6 +229,11 @@ const BASE_TOOLS: ToolDefinition[] = [
           type: 'string',
           description:
             'The Solana address the name should resolve to, base58. An empty string clears the record.',
+        },
+        xrp: {
+          type: 'string',
+          description:
+            'The XRP Ledger address the name should resolve to: a classic address (r…) or a mainnet X-address (X…), which also carries a destination tag. An empty string clears the record.',
         },
       },
       required: ['name', 'address'],
@@ -548,8 +554,8 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
    *
    * `batchSize: 0` is what makes "one round-trip" true rather than nearly true, and it
    * is now load-bearing rather than headroom. viem splits a multicall once the
-   * accumulated calldata passes `batchSize`, default **1024 bytes**; these twelve reads
-   * encode to 1136 (36 for ownerOf, 68 per addr, 36 for contenthash, 132 per text key),
+   * accumulated calldata passes `batchSize`, default **1024 bytes**; these thirteen reads
+   * encode to 1204 (36 for ownerOf, 68 per addr, 36 for contenthash, 132 per text key),
    * so on the default they would arrive as two requests — which is the shape being
    * avoided. Adding the Bitcoin and Solana records is what took it past the limit; the
    * earlier note that the batch sat 24 bytes under it no longer holds. Do not restore a
@@ -572,6 +578,7 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
     ethAddrResult,
     btcAddrResult,
     solAddrResult,
+    xrpAddrResult,
     contenthashResult,
     avatar,
     description,
@@ -591,6 +598,7 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
       addrAt(ETH_COIN_TYPE),
       addrAt(BTC_COIN_TYPE),
       addrAt(SOL_COIN_TYPE),
+      addrAt(XRP_COIN_TYPE),
       {
         address: registry,
         abi: registryAbi,
@@ -615,6 +623,7 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
       ethAddrResult,
       btcAddrResult,
       solAddrResult,
+      xrpAddrResult,
       contenthashResult,
       avatar,
       description,
@@ -668,6 +677,7 @@ async function resolveName(args: Record<string, unknown>, env: Env) {
       mainnet: COINS.ethereum.decode(stored(ethAddrResult)),
       bitcoin: COINS.bitcoin.decode(stored(btcAddrResult)),
       solana: COINS.solana.decode(stored(solAddrResult)),
+      xrp: COINS.xrp.decode(stored(xrpAddrResult)),
     },
     records,
     website: describeWebsite(

@@ -71,7 +71,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "What can I put on a name?",
-    a: "An address for Ethereum and every EVM chain, separate Bitcoin and Solana records, an avatar, an X handle, a website and a bio. Every change in the form saves as one multicall, so it costs a single signature however many records moved.",
+    a: "An address for Ethereum and every EVM chain, separate Bitcoin, Solana and XRP Ledger records, an avatar, an X handle, a website and a bio. Every change in the form saves as one multicall, so it costs a single signature however many records moved.",
   },
   {
     q: "Is this affiliated with Robinhood?",
@@ -189,7 +189,7 @@ export default function Home() {
             </div>
             <ResolutionGrids />
             <p className="data mt-5 max-w-[88ch] text-[11.5px] leading-[1.7] text-[var(--faint)]">
-              One address record covers Ethereum and every EVM chain. Bitcoin and Solana are
+              One address record covers Ethereum and every EVM chain. Bitcoin, Solana and XRP are
               stored as separate ENSIP-9 records in each chain&apos;s own encoding.
             </p>
           </section>

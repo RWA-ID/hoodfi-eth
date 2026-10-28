@@ -2,7 +2,7 @@ import { type Address, type Hex, getAddress, namehash, parseAbiItem, parseUnits 
 
 import { type Card } from './card'
 import { ETH_COIN_TYPE, ROBINHOOD_COIN_TYPE, robinhoodClient } from './chain'
-import { BTC_COIN_TYPE, COINS, SOL_COIN_TYPE } from './coins'
+import { BTC_COIN_TYPE, COINS, SOL_COIN_TYPE, XRP_COIN_TYPE } from './coins'
 import { registryAbi } from './contracts'
 import { type Env, envVar } from './env'
 import { ToolError } from './errors'
@@ -18,7 +18,8 @@ import { recentChange } from './recent-changes'
  * arguments for PayBox's own `request_transfer`, which builds and sends the transfer.
  * `hoodfi_send_transaction` is not involved, so its allowlist stays as it is.
  *
- * Bitcoin is looked up because reading a record is free, but PayBox can't send it yet.
+ * Bitcoin and XRP are looked up because reading a record is free, but PayBox can't send
+ * either yet.
  */
 
 const UNREADABLE =
@@ -31,6 +32,7 @@ export const SEND_CHAINS = {
   robinhood: { symbol: 'ETH', label: 'Robinhood Chain', decimals: 18, caip2: 'eip155:4663', coinType: ROBINHOOD_COIN_TYPE, coin: COINS.ethereum, paybox: true },
   solana: { symbol: 'SOL', label: 'Solana', decimals: 9, caip2: 'solana:mainnet', coinType: SOL_COIN_TYPE, coin: COINS.solana, paybox: true },
   bitcoin: { symbol: 'BTC', label: 'Bitcoin', decimals: 8, caip2: 'bip122:000000000019d6689c085ae165831e93', coinType: BTC_COIN_TYPE, coin: COINS.bitcoin, paybox: false },
+  xrp: { symbol: 'XRP', label: 'XRP Ledger', decimals: 6, caip2: 'xrpl:0', coinType: XRP_COIN_TYPE, coin: COINS.xrp, paybox: false },
 } as const
 export type SendChain = keyof typeof SEND_CHAINS
 
@@ -46,12 +48,12 @@ export const SEND_TOOL = {
   name: 'hoodfi_prepare_send',
   title: 'Send crypto to a hoodfi name',
   description:
-    'Prepare sending ETH or SOL to a hoodfi.eth name (any depth, e.g. "gm" or "jack.gm.hoodfi.eth"). Reads the address the name holds for the chosen chain directly from the HoodFi registry on Robinhood Chain and returns the exact arguments for PayBox request_transfer, which builds and sends the transfer; this server moves nothing. Chains: "ethereum" (ETH on Ethereum mainnet), "robinhood" (ETH on Robinhood Chain), "solana" (SOL), "bitcoin" (look-up only: PayBox cannot send BTC yet). Refuses any name outside hoodfi.eth (e.g. vitalik.eth or jesse.base.eth) rather than rewriting it: vitalik.hoodfi.eth is a different name with its own owner. Refuses a name that has not been minted, and a name with no address for the chosen chain; it never substitutes another chain\'s address. Show the user the name, the full address and the amount, and send only after they confirm.',
+    'Prepare sending ETH or SOL to a hoodfi.eth name (any depth, e.g. "gm" or "jack.gm.hoodfi.eth"). Reads the address the name holds for the chosen chain directly from the HoodFi registry on Robinhood Chain and returns the exact arguments for PayBox request_transfer, which builds and sends the transfer; this server moves nothing. Chains: "ethereum" (ETH on Ethereum mainnet), "robinhood" (ETH on Robinhood Chain), "solana" (SOL), "bitcoin" and "xrp" (look-up only: PayBox cannot send BTC or XRP yet). Refuses any name outside hoodfi.eth (e.g. vitalik.eth or jesse.base.eth) rather than rewriting it: vitalik.hoodfi.eth is a different name with its own owner. Refuses a name that has not been minted, and a name with no address for the chosen chain; it never substitutes another chain\'s address. Show the user the name, the full address and the amount, and send only after they confirm.',
   inputSchema: {
     type: 'object',
     properties: {
       name: { type: 'string', description: 'The name to pay: a bare name ("gm") or the full name ending in .hoodfi.eth ("jack.gm.hoodfi.eth"). Any other .eth name is refused.' },
-      chain: { type: 'string', enum: Object.keys(SEND_CHAINS), description: 'Where to send: ethereum, robinhood, solana, or bitcoin (look-up only).' },
+      chain: { type: 'string', enum: Object.keys(SEND_CHAINS), description: 'Where to send: ethereum, robinhood, solana, or bitcoin / xrp (look-up only).' },
       amount: { type: 'string', description: 'How much, in the coin itself, as a decimal string, e.g. "0.01".' },
       from: { type: 'string', description: 'Optional: the PayBox wallet sending it (0x… for ETH, the Solana address for SOL); used to catch a send to yourself.' },
     },
@@ -143,6 +145,9 @@ export async function prepareSend(args: Record<string, unknown>, env: Env) {
   } catch {
     warnings.push(`Couldn't check whether ${name}'s address changed recently.`)
   }
+  // The record is right, but an r-address names an account, not a deposit: see verificationCaveat.
+  if (chain === 'xrp' && address.startsWith('r'))
+    warnings.push(`${name}'s XRP address is a classic address with no destination tag. That is right for a personal wallet; if it is an exchange account, ask the recipient for the tag before sending.`)
   const self = typeof args.from === 'string' ? args.from.trim() : ''
   if (self && (c.symbol === 'ETH' ? self.toLowerCase() === address.toLowerCase() : self === address))
     warnings.unshift(`${name} points at the sending wallet itself, so this would send ${c.symbol} to yourself.`)
@@ -161,7 +166,7 @@ export async function prepareSend(args: Record<string, unknown>, env: Env) {
     steps: [
       c.paybox
         ? `PayBox sends ${display} to ${name} (${address}) on ${c.label}. Your wallet pays the network fee.`
-        : `PayBox can't send Bitcoin yet. Pay ${address} from a Bitcoin wallet.`,
+        : `PayBox can't send ${c.symbol} yet. Pay ${address} from a ${c.label} wallet.`,
     ],
     warnings,
     url: nameLink(name),
@@ -172,14 +177,14 @@ export async function prepareSend(args: Record<string, unknown>, env: Env) {
     name,
     chain,
     symbol: c.symbol,
-    address: chain === 'solana' || chain === 'bitcoin' ? address : getAddress(address),
+    address: c.coin === COINS.ethereum ? getAddress(address) : address,
     owner: getAddress(owner),
     amount: { value: amount.value, smallest_units: amount.units.toString() },
     sendable_with_paybox: c.paybox,
     paybox_request_transfer: request,
     next: c.paybox
       ? `Show the user ${name} → ${address} and ${display} on ${c.label}, and wait for them to confirm. Then call PayBox request_transfer with credential_id (their ${chain === 'solana' ? 'Solana' : 'EVM'} wallet from list_credentials) and chain, to, amount and token exactly as given here. Poll get_request with its request_id until it finishes; never call request_transfer again for the same send. If PayBox refuses the chain, tell the user; don't switch to another chain.`
-      : "PayBox can't send Bitcoin yet. Show the user the full address so they can pay it from another wallet, and have them check it character by character.",
+      : `PayBox can't send ${c.symbol} yet. Show the user the full address so they can pay it from another wallet, and have them check it character by character.`,
     warnings,
     card,
   }

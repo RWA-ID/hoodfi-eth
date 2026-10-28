@@ -28,7 +28,7 @@ export function RecordsPrimer() {
           title="Everything a name carries"
           className="flex-[1_1_190px]"
         >
-          An address on Robinhood Chain and mainnet, Bitcoin and Solana, an avatar, your
+          An address on Robinhood Chain and mainnet, Bitcoin, Solana and XRP, an avatar, your
           X handle, a bio and a whole website — saved in one transaction, however many
           you change.
         </PrimerCard>

@@ -67,6 +67,7 @@ const PROMPTS = [
 const RECORD_ROWS: [string, string, boolean][] = [
   ["btc", "set by prompt", true],
   ["sol", "set by prompt", true],
+  ["xrp", "set by prompt", true],
   ["eth · evm", "set by prompt", true],
   ["avatar · bio · socials", "set by prompt", true],
   ["subnames", "created by prompt", true],
@@ -232,7 +233,7 @@ export function PayboxSection() {
             Records by prompt.
           </h3>
           <p className="mt-4 max-w-[44ch] text-[15.5px] leading-[1.55] text-[var(--dim)] text-pretty">
-            Your agent sets the Bitcoin, Solana and Ethereum address records on your
+            Your agent sets the Bitcoin, Solana, XRP and Ethereum address records on your
             name too — spoken, not signed. No wallet ever connects to this site.
           </p>
           <p className="data mt-5 max-w-[52ch] text-[11.5px] leading-[1.7] text-[var(--faint)]">

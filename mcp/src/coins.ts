@@ -38,13 +38,16 @@ import {
 } from 'viem'
 
 import { ETH_COIN_TYPE, ROBINHOOD_COIN_TYPE } from './chain'
+import { decodeXrpRecord, encodeXrpRecord } from './xrp'
 
 /** SLIP-44 coinType for Bitcoin. */
 export const BTC_COIN_TYPE = 0n
 /** SLIP-44 coinType for Solana. */
 export const SOL_COIN_TYPE = 501n
+/** SLIP-44 coinType for the XRP Ledger. */
+export const XRP_COIN_TYPE = 144n
 
-export type CoinKey = 'ethereum' | 'bitcoin' | 'solana'
+export type CoinKey = 'ethereum' | 'bitcoin' | 'solana' | 'xrp'
 
 interface Coin {
   key: CoinKey
@@ -155,6 +158,15 @@ export const COINS: Record<CoinKey, Coin> = {
     verification: 'length-only',
     ...coder(decodeSolAddress, encodeSolAddress),
   },
+  xrp: {
+    key: 'xrp',
+    label: 'XRP Ledger',
+    coinTypes: [XRP_COIN_TYPE],
+    clearable: true,
+    hint: 'a classic address (r…) or a mainnet X-address (X…)',
+    verification: 'checksummed',
+    ...coder(decodeXrpRecord, encodeXrpRecord),
+  },
 }
 
 /**
@@ -168,6 +180,11 @@ export const COINS: Record<CoinKey, Coin> = {
  * the caveat than a user discovers it by sending funds.
  */
 export function verificationCaveat(coin: Coin, value: string): string | null {
+  // Checksummed, so the address is right — but an r-address names an account, not a
+  // deposit. Exchanges pool deposits in one account and tell them apart by destination
+  // tag, and a payment sent to the bare account without it is commonly lost.
+  if (coin.key === 'xrp' && value.trim().startsWith('r'))
+    return 'This is a classic XRP Ledger address (r…), which carries no destination tag. That is right for a personal wallet. If it is an exchange deposit address, payments to it without the tag can be lost: use the X-address form, which includes the tag.'
   if (coin.verification === 'checksummed') return null
   if (coin.verification === 'length-only')
     return `The ${coin.label} address was checked for length and base58 only. ${coin.label} addresses carry no checksum, so a mistyped character produces a different address that is equally well-formed and cannot be detected here. Confirm it against the source before signing.`
