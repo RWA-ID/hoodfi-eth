@@ -3,14 +3,14 @@
 # hoodfi.eth — lifetime names on Robinhood Chain
 
 **hoodfi.eth** is an ENS subname service on **Robinhood Chain** (chain id **4663**,
-an Arbitrum-technology Ethereum L2, mainnet since July 2026). Names of 4 or more
-characters mint publicly today, in one transaction, from $3.
+an Arbitrum-technology Ethereum L2, mainnet since July 2026). Names of every length
+mint publicly, in one transaction, from $3.
 
-Names of **1–3 characters** are premium inventory. Until hoodfi.eth's expiry is
-funded **100 years** ahead (the year 2127) they can only be minted by donors
-spending **short-name credits** — one credit per year donated to the parent name's
-expiry on Ethereum. At the goal the owner opens them to everyone at tier prices;
-credits keep minting them free, so they never lose their value.
+Names of **1–3 characters** are premium inventory at $15 / $10 / $5, on public sale
+since 2026-10-29. Before that they could only be minted with **short-name credits**,
+earned by donating years to the parent name's expiry; those credits still mint them
+free. The parent name itself is renewed by the **HoodFi 2-of-3 Safe**, 6 years a
+month, until its expiry reaches **2127** — 100 years past launch.
 
 Names like `blake.hoodfi.eth` are **lifetime ERC-721s**: no renewals, no fees, no
 revocation, full owner control of records — resolvable in every ENS-aware wallet
@@ -25,7 +25,8 @@ and app through the ENS Universal Resolver.
 
 | Contract | Network | Address |
 |---|---|---|
-| `HoodfiDonations` v2 | Ethereum mainnet | [`0x588c597bA6a3685511617bCece8457ca7648c9c0`](https://etherscan.io/address/0x588c597bA6a3685511617bCece8457ca7648c9c0) (verified; deploy block 25698544) |
+| HoodFi Safe (2-of-3) | Ethereum mainnet + Robinhood Chain | [`0x837Fa2d033f1F7275452D780a5E54Eda903C1330`](https://etherscan.io/address/0x837Fa2d033f1F7275452D780a5E54Eda903C1330) — owns hoodfi.eth, the registrar, the L2Registry root and the L1 resolver; renews hoodfi.eth monthly |
+| `HoodfiDonations` v2 | Ethereum mainnet | [`0x588c597bA6a3685511617bCece8457ca7648c9c0`](https://etherscan.io/address/0x588c597bA6a3685511617bCece8457ca7648c9c0) (verified; deploy block 25698544). **Closed since ENSv2** — still read for `shortCredits` and `nameExpires` |
 | `HoodfiL1Resolver` | Ethereum mainnet | [`0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2`](https://etherscan.io/address/0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2) (verified; live resolver for hoodfi.eth) |
 | `L2Registry` (hoodfi.eth) | Robinhood Chain | [`0xf2bABA012244bdD7445129597350054E1B3aEe5C`](https://robinhoodchain.blockscout.com/address/0xf2bABA012244bdD7445129597350054E1B3aEe5C) |
 | `HoodfiRegistrar` v2 | Robinhood Chain | [`0x56be5565acc823f4195c2cf3b9046C083633209a`](https://robinhoodchain.blockscout.com/address/0x56be5565acc823f4195c2cf3b9046C083633209a) |
@@ -38,7 +39,7 @@ and app through the ENS Universal Resolver.
 | Token art (NFT image) | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/art/{label}.png` (generated 1000×1000) |
 | Per-name share page | Cloudflare Workers | `https://www.hoodfi.name/{label}` → `/n/{label}` (per-name OG tags) |
 | Per-name share card | Cloudflare Workers | `https://www.hoodfi.name/card/{label}.png` (generated 1200×630) |
-| Donation ledger | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/donations` |
+| Donation ledger (closed) | Cloudflare Workers | `https://hoodfi-gateway.dmpay.workers.dev/donations` |
 | Reverse lookup (address → names) | Cloudflare Workers | `https://ccip.hoodfi-mcp.com/owner/{address}/names` → `{ address, primary, primarySource, names: [{ name, node, addr, resolves, avatar }] }`. ENS `getEnsName` is null for any holder who hasn't set a primary on mainnet, so this is how an app labels an address. `primary` only ever names a name that resolves back to the address; a failed chain read is a 502, never an empty list. Cached 60s |
 | MCP server (for agents) | Cloudflare Workers | `https://hoodfi-mcp.com/mcp` (own worker; `www.` and `hoodfi-mcp.dmpay.workers.dev` also answer) |
 | Site publishing | Cloudflare Workers | `POST /site/{label}` → pin · `POST /site/{label}/confirm` → verify payment on chain |
@@ -107,10 +108,13 @@ the name rather than to the CID's IPFS gateway.
 
 | Length | Price | Availability |
 |---|---|---|
-| 1 character | $15 | credit holders only, until the 100-year goal |
-| 2 characters | $10 | credit holders only, until the 100-year goal |
-| 3 characters | $5 | credit holders only, until the 100-year goal |
-| 4+ characters | $3 | public, now |
+| 1 character | $15 | public since 2026-10-29; free with a credit |
+| 2 characters | $10 | public since 2026-10-29; free with a credit |
+| 3 characters | $5 | public since 2026-10-29; free with a credit |
+| 4+ characters | $3 | public |
+
+Prices are exact in USDG. The ETH leg is a fixed amount per tier set by the owner
+(0.0055 / 0.0037 / 0.0018 / 0.0011 ETH), so it lands near the dollar figure, not on it.
 
 ### Social login — minting without bringing a wallet
 
@@ -147,24 +151,52 @@ Signing out needs `resetWalletSession` (`frontend/lib/session.ts`) rather than w
 — in IndexedDB, where localStorage holds only wagmi's pointer to it. Clearing the
 pointer alone leaves a wallet that reconnects to an account nobody is logged into.
 
+### Keeping hoodfi.eth alive — the Safe renews it
+
+Every name is a subname of hoodfi.eth, so the parent has to outlive them all. The
+goal is its expiry at **2127**, 100 years past launch.
+
+**Donations funded the first 15 years and closed on 2026-10-27**, when ENSv2 went
+live. `HoodfiDonations` renewed through ENS's v1 `ETHRegistrarController`, which
+ENSv2 retired, so `donate()` and `extend()` now revert before any ETH moves.
+
+**The HoodFi Safe renews instead.** hoodfi.eth is an unmigrated v1 name (v2 registry
+status `1`, RESERVED), and those renew through ENS's **ETHRenewerV1**
+(`0x56c447F308F463A01121C41E72b0E7e7557fCb68`), paid in **USDC**. Anyone may renew any
+name; the Safe does it once a month in **6-year blocks** until the expiry reaches 2127:
+
+| Block length | ENS price per year (5+ character name) |
+|---|---|
+| 1 year | $8.00 |
+| 2 years | $7.00 |
+| 3–5 years | $5.50 |
+| 6+ years | $4.50 |
+
+Six years is where the curve bottoms out, and six years ($27) costs less than five
+($27.50). From the 2042 expiry, 85 years is 15 blocks — **$382.50**, against $680 as
+single-year renewals. `contracts/bash/SafeRenewHoodfi.sh` builds each month's Safe
+Transaction Builder batch: `USDC.approve(renewer, quote)` then `renew(...)`. The
+approval is the **exact** quote — it carries dust (six years is `27000071`, not
+`27000000`), and a rounded approval reverts. Every renewal is a public Safe
+transaction, and the site reads progress from `nameExpires()`, not from the frozen
+donation counter.
+
 ### Short-name credits
 
-Donating a year to hoodfi.eth's expiry earns **one credit**, and one credit mints
-any 1–3 character name **free**:
+Each year donated earned **one credit**, and one credit mints any 1–3 character name
+**free** — before or after the public sale, with no expiry:
 
-1. **Donate.** `HoodfiDonations.donate()` atomically calls the official
-   `ETHRegistrarController.renew()` — hoodfi.eth's expiry moves the moment your
-   transaction confirms. The contract has **no withdraw function and never holds
-   funds**; anything above the live price is refunded in the same transaction.
-   Credits accumulate in `shortCredits(address)` on mainnet.
+1. **Earned.** `HoodfiDonations.donate()` atomically called the official
+   `ETHRegistrarController.renew()` and credited `shortCredits(address)` on mainnet.
+   The contract has **no withdraw function and never held funds**. 15 credits were
+   issued before it closed.
 2. **Spend.** The gateway reads that mainnet balance and signs a voucher; the
    registrar on Robinhood Chain verifies the signature and mints the short name
    free. **No bridge is involved** — the signature is the only thing that crosses.
    The voucher attests a *cumulative* total and the registrar tracks what was
    spent, so replaying an old voucher can never mint past what was earned.
-3. **At the goal.** `finalize()` is a public marker once `totalYearsDonated ≥ 100`;
-   the owner then calls `openShorts()` (one-way) and short names go on public sale
-   at tier prices. Credits still mint them free afterwards.
+   `mintShortWithVoucher` never checks `shortsOpen`, which is why opening the sale
+   took nothing from credit holders.
 
 ### HoodFi Sites — turning a name into a website
 
@@ -312,8 +344,9 @@ registration, avatar/URL records and a mainnet primary name, all through PayBox.
 
 Three things the tool descriptions state outright, because agents infer them wrong
 otherwise: the registrar mints to `msg.sender`, so **the name lands with whoever
-signs** and there is no recipient argument; 1–3 character names cannot be bought at
-any price until the goal; and setting an "ethereum" address writes **two** records —
+signs** and there is no recipient argument; 1–3 character names cost their premium
+tier price, so the agent quotes it before building anything; and setting an
+"ethereum" address writes **two** records —
 mainnet coinType 60 and the Robinhood Chain coinType — because a name carrying only
 one resolves in some clients and silently fails in others.
 
@@ -403,9 +436,9 @@ mainnet; L2 primary names (Base, etc.) aren't set by that page.
 
 ### Label rules
 
-`a–z`, `0–9`, hyphens (not leading/trailing), 1–32 characters onchain; public
-minting requires 4+ until `openShorts()`. Infra labels (`www`, `api`, `hood`,
-`robinhood`, …) are permanently blocklisted **on chain** — no policy, no takedown
+`a–z`, `0–9`, hyphens (not leading/trailing), 1–32 characters onchain; every length
+mints publicly since `openShorts()` (2026-10-29). Infra labels (`www`, `api`, `hood`,
+`robinhood`, `base`, `mcp`, `rpc`, `ens`, `eth`, `rh`, …) are blocklisted **on chain** — no policy, no takedown
 process, and no way to mint `robinhood.hoodfi.eth` and point it anywhere. Frontends
 should ENSIP-15-normalize before submitting.
 
@@ -414,14 +447,15 @@ should ENSIP-15-normalize before submitting.
 ```
 ETHEREUM MAINNET                              ROBINHOOD CHAIN (4663)
 ┌──────────────────────────┐                  ┌───────────────────────────┐
-│ HoodfiDonations          │                  │ L2Registry (Durin)        │
-│  donate(years)           │  gateway reads   │  ERC-721 subnames +       │
-│   └─► official ENS       │  shortCredits    │  addr/text/contenthash    │
-│       controller.renew() │  and SIGNS a     ├───────────────────────────┤
-│  shortCredits[donor]     │  voucher         │ HoodfiRegistrar           │
-│  finalize() at 100y      │ ───────────────► │  register() ETH / USDG    │
-├──────────────────────────┤   (no bridge)    │  mintShortWithVoucher()   │
-│ HoodfiL1Resolver         │                  │  openShorts() at the goal │
+│ HoodfiDonations (closed) │                  │ L2Registry (Durin)        │
+│  shortCredits[donor]     │  gateway reads   │  ERC-721 subnames +       │
+│  nameExpires()           │  shortCredits    │  addr/text/contenthash    │
+├──────────────────────────┤  and SIGNS a     ├───────────────────────────┤
+│ HoodFi Safe (2-of-3)     │  voucher         │ HoodfiRegistrar           │
+│  renews monthly through  │ ───────────────► │  register() ETH / USDG    │
+│  ETHRenewerV1, in USDC   │   (no bridge)    │  mintShortWithVoucher()   │
+├──────────────────────────┤                  │  shortsOpen = true        │
+│ HoodfiL1Resolver         │                  │                           │
 │  apex records ONCHAIN    │                  └───────────▲───────────────┘
 │  *.hoodfi.eth → CCIP     │    EIP-3668           reads │ RPC
 │  (ENSIP-10 wildcard)     │ ◄────────────► CF Worker ───┘
@@ -466,13 +500,15 @@ Resolution design notes:
 | Path | What |
 |---|---|
 | `contracts/` | Foundry workspace. Vendored [Durin](https://github.com/namestonehq/durin) (MIT) with the hoodfi contracts in `src/hoodfi/` |
-| `contracts/src/hoodfi/HoodfiDonations.sol` | Mainnet donations + short-name credit ledger |
+| `contracts/src/hoodfi/HoodfiDonations.sol` | Mainnet donations (closed since ENSv2) + the short-name credit ledger credits are still spent against |
 | `contracts/src/hoodfi/HoodfiRegistrar.sol` | Robinhood Chain registrar: paid mints + voucher mints |
 | `contracts/src/hoodfi/HoodfiL1Resolver.sol` | Mainnet apex + wildcard resolver |
 | `contracts/src/hoodfi/HoodfiSites.sol` | The website builder's paywall: publishes keyed by CID, partner template registry, pull payouts |
 | `contracts/src/hoodfi/LabelUtils.sol` | Shared label validation (mirrored in `frontend/lib/labels.ts`) |
 | `contracts/scripts/hoodfi/` | Deploy scripts (donations / L2 stack / L1 resolver / `UpgradeRegistrar`) |
 | `contracts/test/hoodfi/` | Unit + mainnet-fork tests, including a full rehearsal of the registrar upgrade |
+| `contracts/bash/SafeRenewHoodfi.sh` | Builds the monthly hoodfi.eth renewal as a Safe Transaction Builder batch: exact-quote USDC approval + ETHRenewerV1 `renew`, 6 years by default |
+| `contracts/bash/SafeOpenShorts.sh` | Builds the registrar's `setBlocklist` / `openShorts()` batches for the Safe on Robinhood Chain (`BLOCKLIST_ONLY=1` for the blocklist alone) |
 | `gateway/` | Cloudflare Worker (Hono + viem): CCIP-Read gateway, credit-voucher signer, NFT metadata and token art, share pages and cards, donation ledger, analytics sink |
 | `gateway/src/rpc.ts` | Shared clients. Dedicated RPC first, public endpoints behind it via `fallback()` — a public RPC rate-limits the worker's shared egress even when the same call works from a laptop |
 | `gateway/src/ccip-read/query.ts` | Separates "the chain answered no" from "we couldn't reach the chain"; only the first is ever signed |
@@ -484,6 +520,7 @@ Resolution design notes:
 | `frontend/` | Next.js 16 static export → hosted + IPFS |
 | `frontend/app/mint/` · `app/manage/` · `app/search/` | Search-and-mint, record editing for names you own, and the public name lookup |
 | `frontend/components/MintPanel.tsx` | The search card: live status, tier pricing, credit vouchers |
+| `frontend/components/RenewalPledge.tsx` | The Safe's renewal pledge on `/short-names`: block size, live ENS quote, live expiry, years and blocks left — all mainnet reads |
 | `frontend/components/SearchPanel.tsx` | Public lookup: reads the L2Registry directly, so it keeps working — and keeps telling the truth — when the gateway in front of it doesn't |
 | `frontend/components/ProfileCard.tsx` | The shareable card, used read-only on `/search` and as a live draft preview on `/manage` |
 | `frontend/app/partner/` | Partner enquiries. Posts to the worker, since a static export has no server of its own; `AddressToName.tsx` makes the case by typing a 42-character address out and replacing it with a name |
@@ -506,20 +543,27 @@ Resolution design notes:
 | `mcp/src/complete.ts` | Fills each step into a complete transaction — pending nonce (+1 per earlier step on the same chain), gas +25%, fees — so a signing-only wallet signs it as given |
 | `mcp/src/card.ts` | The HoodFi card rendered in MCP Apps clients. Every value is written with `textContent`: names and records are other people's text |
 | `mcp/test/paybox.fork.mjs` | The PayBox path end to end on an anvil fork of Robinhood Chain: register, records, subnames, transfer, relay refusals |
+| `mcp/test/shortnames.fork.mjs` | An agent mints a 1–3 character name end to end on a fork; blocklisted short labels are still refused |
 | `mcp/src/coins.ts` | Bitcoin, Solana and XRP Ledger address parsing into each chain's own encoding, and the honest per-chain account of what a check proves |
-| `DEPLOY.md` | The v2 deploy runbook, in the order it must be run |
+| `DEPLOY.md` | The v2 deploy runbook, in the order it must be run; §8 is the post-ENSv2 Safe routine |
 | `SECURITY.md` | How to report a vulnerability |
 | `docs/make-banner.mjs` | Renders the README banner in the OG cards' own system. Lives outside `frontend/public/` so it isn't pinned to IPFS on every deploy |
 
 ## Contract reference
 
-### `HoodfiDonations` (mainnet)
+### `HoodfiDonations` (mainnet) — closed since ENSv2
+
+`donate` and `extend` call the v1 `ETHRegistrarController`, which reverts since ENSv2
+went live on 2026-10-27, so both revert too. The view functions still answer, and
+`shortCredits` is what every credit mint is checked against. `totalYearsDonated`
+stays at 15 and `finalize()` can no longer be reached; the goal is tracked by
+`nameExpires()` instead.
 
 | Function | Access | Notes |
 |---|---|---|
-| `donate(uint256 numYears)` payable | anyone | Renews hoodfi.eth atomically via the official controller and credits `shortCredits[msg.sender]`; refunds all excess |
-| `extend(uint256 numYears)` payable | anyone, forever | Renew without earning credits (pure support) |
-| `finalize()` | anyone, once `totalYearsDonated ≥ 100` | Public marker that the goal is reached |
+| `donate(uint256 numYears)` payable | — (reverts) | Renewed hoodfi.eth atomically via the v1 controller and credited `shortCredits[msg.sender]`; refunded all excess |
+| `extend(uint256 numYears)` payable | — (reverts) | Renew without earning credits |
+| `finalize()` | anyone, once `totalYearsDonated ≥ 100` | Unreachable now |
 | `shortCredits(address)` view | — | Cumulative credits earned — what the gateway attests |
 | `quote(uint256 numYears)` view | — | Live ETH cost from the ENS oracle |
 | `nameExpires()` view | — | hoodfi.eth expiry straight from the .eth registrar |
@@ -539,7 +583,7 @@ function exists).
 | `mintShortWithVoucher(string label, uint256 totalCredits, uint256 expiry, bytes sig)` | any credit holder, always | Free 1–3 character mint against a signed credit attestation |
 | `status(string)` / `priceOf(string)` view | — | 0 available · 1 taken · 2 locked · 3 invalid · 4 blocked; (wei, usdg) prices |
 | `creditsAvailable(address, uint256)` / `voucherDigest(...)` view | — | Reproduce the gateway's accounting and signing digest yourself |
-| `openShorts()` | owner, one-way | Opens 1–3 character names to public sale at tier prices |
+| `openShorts()` | owner, one-way | Opens 1–3 character names to public sale at tier prices. **Called by the Safe 2026-10-29** |
 | `setPaused(bool)` / `setCreditSigner(address)` / `setBlocklist(bytes32[], bool)` | owner | Emergency stop, signer rotation, infra labels |
 | `setPrices` / `setUsdc` / `setTreasury` / `withdraw` | owner / anyone (`withdraw` → treasury) | Ops |
 
@@ -598,6 +642,11 @@ npm test                                        # coin encoding vectors
 npm run dev                                     # wrangler dev; POST /mcp, GET / describes it
 # PayBox path on a fork (see the header of test/paybox.fork.mjs for the anvil + esbuild lines)
 BUNDLE=/tmp/hoodfi-node/index.mjs node test/paybox.fork.mjs
+BUNDLE=/tmp/hoodfi-node/index.mjs node test/shortnames.fork.mjs
+
+# Safe batches (Transaction Builder JSON; nothing is signed or sent)
+contracts/bash/SafeRenewHoodfi.sh               # monthly hoodfi.eth renewal, mainnet
+contracts/bash/SafeOpenShorts.sh [labels...]    # blocklist and/or openShorts, Robinhood Chain
 
 # Builder (HoodFi Sites) — its own Next app, its own Vercel project
 cd builder && npm install && npm run build      # static export in out/
@@ -642,47 +691,51 @@ copies don't compete in search.
 
 ## Launch operations
 
-When `totalYearsDonated` reaches 100:
+Done, from the HoodFi Safe on Robinhood Chain, 2026-10-29:
 
-```bash
-cast send <donations> "finalize()"  --rpc-url mainnet    # public marker, anyone can call
-cast send <registrar> "openShorts()" --rpc-url robinhood # owner, one-way
-```
+1. `setBlocklist([mcp, rpc, ens, eth, rh], true)` — before the sale, so those labels
+   were never sellable for even a block.
+2. `openShorts()` — one-way. Credits keep minting short names free afterwards, so
+   nobody who donated lost anything by the sale opening.
 
-`openShorts()` cannot be undone. Credits keep minting short names free afterwards,
-so nobody who donated loses anything by the sale opening.
+Ongoing, on Ethereum mainnet: one renewal a month, 6 years at a time, until
+hoodfi.eth expires in 2127. Fund the Safe with the quoted USDC plus gas ETH, run
+`contracts/bash/SafeRenewHoodfi.sh`, load the JSON into Safe{Wallet} → Transaction
+Builder, and collect 2 of 3 signatures. [`DEPLOY.md`](DEPLOY.md) §8 has the detail.
 
-### Then: ownership moves to a multisig
+### Ownership sits with a multisig
 
-At the goal, ownership of the contracts and of the **hoodfi.eth name itself** moves to
-a multisig rather than staying on one key. This is the last step of the launch, not a
-someday-maybe.
+Since 2026-10-22 the **HoodFi 2-of-3 Safe** (`0x837F…1330`) holds the admin surface
+rather than one key: hoodfi.eth's registry ownership and registrant, the registrar,
+the L2Registry root (registry admin) and the L1 resolver. The donation contract's
+`owner` was not moved — it is closed and holds no funds, so the only power left there
+is its blocklist.
 
-What it changes is bounded, and worth stating precisely, because most of the system is
-already outside anyone's control:
+What that covers is bounded, and worth stating precisely, because most of the system
+is outside anyone's control:
 
-- **Minted names are already seizure-proof.** No admin burn or transfer function
-  exists. Owners already write their own records.
-- **Donations are already trustless.** ETH goes to the official ENS controller inside
-  the donor's own transaction, and `HoodfiDonations` has no withdraw function.
-- **Published sites already outlive us.** The CID belongs to the owner, and
-  `HoodfiSites` cannot write, move or remove a `contenthash` record.
+- **Minted names are seizure-proof.** No admin burn or transfer function exists.
+  Owners write their own records.
+- **Donations were trustless.** ETH went to the official ENS controller inside the
+  donor's own transaction, and `HoodfiDonations` has no withdraw function.
+- **Published sites outlive us.** The CID belongs to the owner, and `HoodfiSites`
+  cannot write, move or remove a `contenthash` record.
 
-What the multisig covers is the remaining admin surface: registry admin, `setPaused`,
-`setCreditSigner`, pricing, `setTemplate`, and custody of the parent name. Those are
-the powers that should not sit behind a single key on a system meant to last a
-century. Renouncing them instead would freeze the system permanently, which is why
-the answer is a multisig and not `renounceOwnership`.
+What the Safe covers is the remaining admin surface: registry admin, `setPaused`,
+`setCreditSigner`, `setBlocklist`, pricing, `setTemplate`, custody of the parent name,
+and its renewal. Renouncing those instead would freeze the system permanently, which
+is why the answer is a multisig and not `renounceOwnership`.
 
 ## Trust model, stated honestly
 
 | Component | Guarantee |
 |---|---|
-| Donations | Trustless. ETH goes to the official ENS controller inside the donor's own tx; the contract cannot hold funds. Progress = `nameExpires()` on the official .eth registrar. |
+| Parent-name renewal | **Trusted to keep doing it.** The Safe renews hoodfi.eth monthly through ENS's own renewer; nothing on chain forces it to. What is verifiable is the result: `nameExpires()` on the official .eth registrar, shown live on the site, so a missed month is visible to anyone. |
+| Donations (closed) | Were trustless: ETH went to the official ENS controller inside the donor's own tx; the contract never held funds. |
 | Minted names | Seizure-proof ERC-721s. No admin burn/transfer exists; re-minting an existing name reverts. Owners set their own records. |
 | Short-name credits | Earned onchain on L1 (`shortCredits`), readable by anyone. The gateway only *attests* that public value — it grants nothing a donation didn't already earn, and the registrar enforces spending on-chain. A compromised signer could mint short names, not touch existing ones. |
 | CCIP gateway | **Trusted-signer**: a malicious gateway could misreport records to L1 clients, but cannot touch L2 ownership. Signer is rotatable (`setSigner`); upgrade path to Arbitrum storage-proof verification with no ABI change. |
-| Registry admin | Can approve registrars (which can edit records, never seize names). **Moves to a multisig at the goal** — see [Launch operations](#then-ownership-moves-to-a-multisig); renouncing instead would freeze the system permanently. |
+| Registry admin | Can approve registrars (which can edit records, never seize names). **Held by the 2-of-3 Safe** since 2026-10-22 — see [Launch operations](#ownership-sits-with-a-multisig); renouncing instead would freeze the system permanently. |
 | Published sites | **Yours, and outlive us.** The site is a static bundle on IPFS and the pointer is a `contenthash` on a name you own — neither depends on this service. The CID is handed to you at publish time precisely so you can re-pin it anywhere. `HoodfiSites` records payment; it cannot write, move or remove your record. |
 | Site pinning | **Trusted for availability, nothing else.** We keep the pin alive; if we stop, the site stops resolving from our gateway but the CID stays valid and anyone can re-pin it. Unpaid pins are swept after 24 hours — paid ones never are, and the sweeper asks the chain rather than a flag we control. |
 | Partner templates | Curated by hand, OpenSea-verified collections only, and **only our code emits the published HTML**. A partner supplies a design, never markup or script — a partner-authored script would run on a `hoodfi.eth` subdomain. Any template can be switched off on-chain with no redeploy. |

@@ -3,6 +3,10 @@
 Mint-first relaunch: 100-year goal, short-name credits, public minting of 4+ char names,
 name management, analytics, per-route OG cards.
 
+> **Since 2026-10-29:** donations are closed (ENSv2), short names are open, and the
+> HoodFi Safe renews hoodfi.eth monthly. §1–§7 are the August 2026 deploy as it ran;
+> **§8 is the current routine.**
+
 **Both contracts must be redeployed.** `GOAL_YEARS` was a `constant` and the old registrar
 had no way to gate by length or to load credits while live. Nothing is lost: the donation
 contract holds no funds by design and has **zero donations and zero reservations**, so
