@@ -61,11 +61,11 @@ async function runSteps(account, steps) {
 const init = await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '0' } })
 assert.ok(init.capabilities.resources && init.serverInfo.icons?.length && init.instructions.includes('hoodfi_send_transaction'))
 const { tools } = await rpc('tools/list', {})
-assert.equal(tools.length, 11, tools.map((t) => t.name).join())
-assert.equal(tools.filter((t) => t._meta?.ui?.resourceUri === 'ui://hoodfi/action-card.html').length, 7)
+assert.equal(tools.length, 12, tools.map((t) => t.name).join())
+assert.equal(tools.filter((t) => t._meta?.ui?.resourceUri === 'ui://hoodfi/action-card.html').length, 8)
 const card = (await rpc('resources/read', { uri: 'ui://hoodfi/action-card.html' })).contents[0]
 assert.equal(card.mimeType, 'text/html;profile=mcp-app')
-ok('initialize has icons + resources; 11 tools, 7 with the HoodFi card; card is an MCP App')
+ok('initialize has icons + resources; 12 tools, 8 with the HoodFi card; card is an MCP App')
 
 const me = privateKeyToAccount(generatePrivateKey())
 const friend = privateKeyToAccount(generatePrivateKey())

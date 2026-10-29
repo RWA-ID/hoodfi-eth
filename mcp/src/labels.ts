@@ -7,7 +7,7 @@
 export const PARENT = 'hoodfi.eth'
 export const MAX_LABEL_LENGTH = 32
 
-/** Shortest label anyone can mint without spending a donation credit. */
+/** Shortest label at the $3 floor; 1-3 characters are premium tiers (open since 2026-10-29). */
 export const PUBLIC_MIN_LENGTH = 4
 
 export type LabelCheck =
@@ -85,11 +85,6 @@ export function checkHoodfiName(input: string): HoodfiNameCheck {
 /** Tier index 0-3 (1 char, 2 chars, 3 chars, 4+). Mirrors LabelUtils.tierOf. */
 export function tierOf(label: string): number {
   return label.length >= 4 ? 3 : label.length - 1
-}
-
-/** True for 1-3 character names — premium inventory, gated behind donation credits. */
-export function isShort(label: string): boolean {
-  return label.length > 0 && label.length < PUBLIC_MIN_LENGTH
 }
 
 export function fullName(label: string): string {

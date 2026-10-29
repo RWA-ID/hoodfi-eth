@@ -110,12 +110,12 @@ the split.
 `msg.sender` — there is no recipient argument, so an agent cannot register a name on
 behalf of a third address. It registers for *itself*.
 
-**Only 4+ character names are registerable.** Names of 1–3 characters are premium
-inventory reserved for donors spending short-name credits, and stay locked until the
-100-year donation goal is reached and the owner calls `openShorts()`. `check_name`
-reports them as `locked` with the reason; `build_registration_tx` refuses them before
-spending any RPC budget. When shorts open they become ordinary priced mints and both
-tools cover them with no code change.
+**Short names cost more.** Names of 1–3 characters are premium inventory at $15 / $10
+/ $5 against the $3 floor. The HoodFi Safe called `openShorts()` on 2026-10-29, so
+they are ordinary priced mints now; the tools trust the registrar's `status()` rather
+than a length rule of their own (an earlier `isShort` gate here would have kept
+refusing them after the sale opened). The descriptions and server `instructions` tell
+agents to quote the price first, because a 1-character name is five times the floor.
 
 **An address record is a payment instruction, and not every chain can check one.** See
 above: only Bitcoin catches a typo outright. The tool descriptions and the server

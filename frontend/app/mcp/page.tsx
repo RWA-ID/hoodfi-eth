@@ -29,7 +29,7 @@ export const metadata: Metadata = ogMetadata({
 const TOOLS = [
   {
     name: "hoodfi_check_name",
-    body: "Availability and price for a name, in ETH and USDG together. When a name can't be had it says why — taken, reserved, or too short to sell yet.",
+    body: "Availability and price for a name, in ETH and USDG together. When a name can't be had it says why — taken or reserved.",
   },
   {
     name: "hoodfi_build_registration_tx",
@@ -175,13 +175,13 @@ export default function McpPage() {
               </p>
             </div>
             <div className="panel shadow-lime p-7">
-              <h3 className="h-sub m-0">Four characters and up.</h3>
+              <h3 className="h-sub m-0">Every length.</h3>
               <p className="mt-3.5 text-sm leading-relaxed text-[var(--dim)]">
-                The agent server sells names of four characters and up. One, two and
-                three character names are premium inventory, minted on the site itself
-                rather than through an agent.{" "}
+                An agent can mint any available name. One, two and three character
+                names are premium inventory at $15, $10 and $5, and the server quotes
+                that price before it builds anything.{" "}
                 <Link href="/short-names/" className="link">
-                  How that works
+                  About short names
                 </Link>
                 .
               </p>

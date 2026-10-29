@@ -59,7 +59,6 @@ import {
   checkHoodfiName,
   checkLabel,
   fullName,
-  isShort,
   tierOf,
 } from './labels'
 
@@ -96,15 +95,15 @@ const CARD_TOOLS = new Set([
 /**
  * Tool descriptions carry three facts agents cannot infer from the schema and get
  * wrong every time otherwise: the name lands with whoever signs (the registrar mints
- * to msg.sender, there is no recipient argument), 1-3 character names cannot be bought
- * at any price right now, and an EVM address is two records rather than one.
+ * to msg.sender, there is no recipient argument), 1-3 character names are premium
+ * tier prices rather than the $3 floor, and an EVM address is two records rather than one.
  */
 const BASE_TOOLS: ToolDefinition[] = [
   {
     name: 'hoodfi_check_name',
     title: 'Check a hoodfi.eth name',
     description:
-      'Check whether a name under hoodfi.eth is available and what it costs. Returns availability, the price in both ETH and USDG, and — when a name cannot be registered — the reason. Names of 1-3 characters are premium inventory and are NOT purchasable: they are reserved for donors holding short-name credits until the 100-year donation goal is reached. Accepts "example", "example.hoodfi.eth" or "example.eth".',
+      'Check whether a name under hoodfi.eth is available and what it costs. Returns availability, the price in both ETH and USDG, and — when a name cannot be registered — the reason. Names of 1-3 characters are premium inventory at higher tier prices ($15 for 1 character, $10 for 2, $5 for 3, versus $3 for 4+); always quote the returned price. Accepts "example", "example.hoodfi.eth" or "example.eth".',
     inputSchema: {
       type: 'object',
       properties: {
@@ -122,7 +121,7 @@ const BASE_TOOLS: ToolDefinition[] = [
     name: 'hoodfi_build_registration_tx',
     title: 'Build a hoodfi.eth registration transaction',
     description:
-      'Build the unsigned transaction(s) that register a hoodfi.eth name. This server holds no keys and never broadcasts: it returns calldata for the caller to sign and submit on Robinhood Chain (chain id 4663). IMPORTANT: the registrar mints to the transaction sender, so the name is owned by whichever wallet signs — there is no recipient parameter and a name cannot be minted on behalf of someone else. Paying in USDG may return two steps (approve, then register); execute them in order. Only names of 4 or more characters can be registered.',
+      'Build the unsigned transaction(s) that register a hoodfi.eth name. This server holds no keys and never broadcasts: it returns calldata for the caller to sign and submit on Robinhood Chain (chain id 4663). IMPORTANT: the registrar mints to the transaction sender, so the name is owned by whichever wallet signs — there is no recipient parameter and a name cannot be minted on behalf of someone else. Paying in USDG may return two steps (approve, then register); execute them in order. Any length from 1 character is registrable when available; 1-3 character names cost their premium tier price.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -280,7 +279,7 @@ function unavailableReason(status: number, label: string): string | undefined {
     case 1:
       return `${fullName(label)} is already registered.`
     case 2:
-      return `${fullName(label)} is ${label.length} character${label.length === 1 ? '' : 's'} long. Names under ${PUBLIC_MIN_LENGTH} characters are premium inventory, reserved for donors spending short-name credits until the 100-year donation goal is reached. They cannot be bought at any price today.`
+      return `${fullName(label)} is ${label.length} character${label.length === 1 ? '' : 's'} long. Names under ${PUBLIC_MIN_LENGTH} characters are premium inventory, and the registrar is not selling them right now.`
     case 3:
       return `${label} is not a valid label.`
     case 4:
@@ -343,7 +342,7 @@ async function checkName(args: Record<string, unknown>, env: Env) {
     tier: tierOf(label),
     status: STATUS_TEXT[status] ?? `unknown (${status})`,
     available: status === 0 && !paused,
-    registerableByAgents: status === 0 && !paused && !isShort(label),
+    registerableByAgents: status === 0 && !paused,
     reason: paused
       ? 'Minting is currently paused by the registrar owner.'
       : reason,
@@ -370,10 +369,9 @@ async function buildRegistrationTx(args: Record<string, unknown>, env: Env) {
   if (!Number.isFinite(overpayBps) || overpayBps < 0 || overpayBps > 10_000)
     throw new ToolError('`overpayBps` must be a number between 0 and 10000.')
 
-  // Refuse the short-name path before spending any RPC budget on it. The contract
-  // would revert with ShortNameLocked anyway; saying so in words is more useful than
-  // handing back calldata that cannot succeed.
-  if (isShort(label)) throw new ToolError(unavailableReason(2, label) as string)
+  // No length gate here: since the HoodFi Safe called openShorts() (2026-10-29) a
+  // short name is an ordinary priced mint, and while shorts were locked `status()`
+  // answered 2 for them anyway. The registrar is the authority, read below.
 
   const client = robinhoodClient(env)
   const registrar = envVar('REGISTRAR_ADDRESS', env)
