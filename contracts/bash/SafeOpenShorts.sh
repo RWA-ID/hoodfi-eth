@@ -11,6 +11,7 @@
 #
 # Usage: bash/SafeOpenShorts.sh [label ...]
 #   e.g. bash/SafeOpenShorts.sh mcp rpc ens eth
+#   BLOCKLIST_ONLY=1 bash/SafeOpenShorts.sh mcp rpc   — blocklist batch alone, no openShorts
 set -euo pipefail
 
 RPC="${ROBINHOOD_RPC_URL:-https://rpc.mainnet.chain.robinhood.com}"
@@ -39,8 +40,18 @@ if [ "$#" -gt 0 ]; then
     TXS="{ \"to\": \"${REGISTRAR}\", \"value\": \"0\", \"data\": \"${BLOCK_DATA}\", \"contractMethod\": null, \"contractInputsValues\": null },"
     echo "blocklisting first:     $*"
 fi
-OPEN_DATA=$(cast calldata 'openShorts()')
-TXS="${TXS}{ \"to\": \"${REGISTRAR}\", \"value\": \"0\", \"data\": \"${OPEN_DATA}\", \"contractMethod\": null, \"contractInputsValues\": null }"
+NAME="Open hoodfi short names"
+DESC="HoodfiRegistrar.openShorts() — one-way."
+if [ "${BLOCKLIST_ONLY:-0}" = "1" ]; then
+    [ -n "$TXS" ] || { echo "Error: BLOCKLIST_ONLY needs labels."; exit 1; }
+    TXS="${TXS%,}"
+    OUT="safe-blocklist-$(date -u +%Y-%m-%d).json"
+    NAME="Blocklist hoodfi labels"
+    DESC="HoodfiRegistrar.setBlocklist([$*], true) — reversible."
+else
+    OPEN_DATA=$(cast calldata 'openShorts()')
+    TXS="${TXS}{ \"to\": \"${REGISTRAR}\", \"value\": \"0\", \"data\": \"${OPEN_DATA}\", \"contractMethod\": null, \"contractInputsValues\": null }"
+fi
 
 cat > "$OUT" <<JSON
 {
@@ -48,8 +59,8 @@ cat > "$OUT" <<JSON
   "chainId": "4663",
   "createdAt": $(($(date +%s) * 1000)),
   "meta": {
-    "name": "Open hoodfi short names",
-    "description": "HoodfiRegistrar.openShorts() — one-way.",
+    "name": "${NAME}",
+    "description": "${DESC}",
     "txBuilderVersion": "1.18.0",
     "createdFromSafeAddress": "${SAFE}"
   },
