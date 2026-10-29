@@ -1,6 +1,6 @@
 import { CenturyRuler } from "./CenturyRuler";
 import { DonationsFeed } from "./DonationsFeed";
-import { GOAL_YEAR_LABEL } from "@/lib/site";
+import { DONATIONS_CLOSED, GOAL_YEAR_LABEL, RENEWAL_BLOCK_YEARS } from "@/lib/site";
 
 /**
  * The parent name's funding, live: the century ruler and the donation ledger.
@@ -19,8 +19,14 @@ export function Endowment({ as = "h2" }: { as?: "h1" | "h2" }) {
       </Heading>
       <p className="lede mt-6 max-w-[56ch] text-[17px]">
         Every name here is a subname of hoodfi.eth, so the parent name has to outlive
-        them all. Donations renew it directly on the official ENS controller — read live
-        below, straight from the .eth registrar.
+        them all. The HoodFi Safe renews it on ENS&apos;s own renewer, {RENEWAL_BLOCK_YEARS}{" "}
+        years every month — the expiry is read live below, straight from the .eth
+        registrar.
+      </p>
+      <p className="mt-4 max-w-[56ch] text-sm leading-relaxed text-[var(--dim)]">
+        Public donations funded the first years and closed on {DONATIONS_CLOSED}, when
+        ENSv2 retired the controller they renewed through. Their ledger stays here, and
+        every credit it issued still mints a short name free.
       </p>
 
       <div className="on-ink mt-11 p-[clamp(24px,4vw,40px)]">

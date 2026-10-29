@@ -46,7 +46,7 @@ const LEDGER: [string, string][] = [
 ];
 
 const GUARANTEES = [
-  "The donation contract has no withdraw function and never holds funds.",
+  "hoodfi.eth is owned and renewed by a 2-of-3 Safe, never a single key.",
   "No admin burn or transfer exists — a minted name cannot be seized.",
   "Owners set their own records directly on the registry.",
   "Every ledger row carries its transaction hash, so nothing needs our word.",
@@ -58,8 +58,12 @@ const FAQ: FaqItem[] = [
     a: "A lifetime ERC-721 for a name of four characters or more, minted in one transaction. There is no second payment — no renewal, no expiry, no grace period.",
   },
   {
-    q: "Why are 1–3 character names locked?",
-    a: "They are premium inventory reserved to fund the parent name. Until hoodfi.eth's expiry is funded 100 years ahead, they can only be minted with short-name credits earned by donating a year. At the goal they open to everyone at tier prices, and credits still mint them free.",
+    q: "Can I get a 1–3 character name?",
+    a: "Yes. Short names are on public sale at tier prices: $5 for three characters, $10 for two, $15 for one. Short-name credits earned by donating before ENSv2 still mint them free.",
+  },
+  {
+    q: "Who keeps hoodfi.eth alive?",
+    a: "We do. The HoodFi 2-of-3 Safe owns hoodfi.eth and renews it every month, six years at a time, until its expiry reaches 2127. The expiry is read live on this page, so a missed month would show.",
   },
   {
     q: "Can you take my name back?",
@@ -171,7 +175,7 @@ export default function Home() {
             <BuildSite />
           </section>
 
-          {/* ── 04 — the drive that keeps the parent name alive. */}
+          {/* ── 04 — short names, and the renewal that keeps the parent name alive. */}
           <section id="short" className="shell section">
             <div className="eyebrow">04 / short names</div>
             <FundTheCentury />
@@ -201,7 +205,7 @@ export default function Home() {
               <h2 className="h-section m-0">Verify everything.</h2>
               <p className="lede m-0 mb-2.5 max-w-[44ch]">
                 Nothing here asks for trust. Every contract is public, every mint is your
-                own signature, and the donation contract has no withdraw function at all.
+                own signature, and every renewal of hoodfi.eth is a public Safe transaction.
               </p>
             </div>
 
@@ -238,7 +242,7 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ── 07 — the six questions people actually arrive with. */}
+          {/* ── 07 — the questions people actually arrive with. */}
           <section id="faq" className="shell section">
             <div className="eyebrow">07 / questions</div>
             <h2 className="h-section mt-[18px]">Answered plainly.</h2>

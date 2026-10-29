@@ -117,8 +117,8 @@ const CARDS = [
     ground: "lime",
     eyebrow: "04 / premium inventory",
     lines: ["One, two or", "three characters."],
-    sub: "The shortest names are held back. Donate a year to <span class=\"mono\">hoodfi.eth</span>'s ENS expiry, earn a credit, and mint one.",
-    stat: ["with a credit", "free"],
+    sub: "The scarcest names on <span class=\"mono\">hoodfi.eth</span> are on public sale, first come, first served. Paid once, yours for life.",
+    stat: ["from", "$5"],
   },
   {
     file: "mcp.png",

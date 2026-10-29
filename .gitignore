@@ -27,3 +27,6 @@ reservations-snapshot.json
 # Local wrangler dev state
 .wrangler/
 
+
+# Safe Transaction Builder batches (regenerate with contracts/bash/Safe*.sh)
+safe-*.json

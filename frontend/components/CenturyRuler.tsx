@@ -12,8 +12,9 @@ const SPAN = GOAL_YEAR_LABEL - START_YEAR; // a century across the track
  * The century: 2026 to 2127, with hoodfi.eth's live expiry as the filled portion.
  *
  * The figure is read from the official .eth registrar through the donation contract's
- * `nameExpires`, not from a counter we keep — donations visibly push the fill right,
- * and if the read fails the bar stays empty rather than inventing progress.
+ * `nameExpires`, not from a counter we keep — each monthly Safe renewal visibly pushes
+ * the fill right, and if the read fails the bar stays empty rather than inventing
+ * progress.
  *
  * Ten decade labels sit under the bar, each opened by its own hairline. They are
  * `grid-template-columns: repeat(10, 1fr)` rather than absolute positions, so the

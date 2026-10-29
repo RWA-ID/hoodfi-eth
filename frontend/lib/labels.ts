@@ -4,7 +4,7 @@
  */
 export const MAX_LABEL_LENGTH = 32;
 
-/** Shortest label anyone can mint without spending a donation credit. */
+/** Shortest label that was always on public sale; shorter ones open with `shortsOpen`. */
 export const PUBLIC_MIN_LENGTH = 4;
 
 export type LabelCheck = { ok: true; label: string } | { ok: false; reason: string };
@@ -80,22 +80,10 @@ export function isShort(label: string): boolean {
  * (see lib/ethUsd.ts). Doing exactly that — printing $3 while charging 0.0016 ETH,
  * which had quietly become $3.66 — is why this warning is here.
  *
- * Tiers 0–2 are 1–3 character names, which are not on public sale until the 100-year
- * goal is reached, so those three figures describe what a short name *will* cost, not
- * what anyone pays for one today. See CREDIT_USD.
+ * Tiers 0–2 are 1–3 character names. They sell at these prices once the registrar's
+ * `shortsOpen` is true; until then they mint only with a short-name credit.
  */
 export const TIER_USD = [15, 10, 5, 3];
-
-/**
- * What a short-name credit actually costs today, in USD, plus Ethereum gas.
- *
- * A credit is one year added to hoodfi.eth's ENS expiry, and hoodfi.eth is six
- * characters — so ENS charges its 5-and-over rate of $5/year, paid in ETH at the
- * oracle rate. That is the only price on the site that isn't a tier price, and it
- * undercuts all three locked tiers, so anywhere a locked tier shows its number this
- * has to show beside it.
- */
-export const CREDIT_USD = 5;
 
 /** Mirrors HoodfiRegistrar.status(). */
 export const MINT_STATUS = {

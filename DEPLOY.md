@@ -191,14 +191,37 @@ cast send 0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2 \
 - [ ] Send yourself one enquiry from /partner/ and confirm it arrives, with Reply-To set
       to the address you typed rather than to the sending domain
 
-## 8. When the goal is reached
+## 8. After ENSv2 — Safe renewals and open short names (2026-10-29)
+
+ENSv2 went live 2026-10-27 and the v1 `ETHRegistrarController` now reverts, so
+`HoodfiDonations.donate()` / `extend()` revert too. Donations are closed (15 years
+donated, 15 credits issued; credits still mint shorts free — `mintShortWithVoucher`
+never checks `shortsOpen`). The goal didn't change: hoodfi.eth's expiry to 2127. The
+HoodFi Safe (`0x837F…1330`, 2-of-3) pays for it now.
+
+**Once — open short names (Robinhood Chain):**
 
 ```bash
-cast send <donations> "finalize()" --rpc-url mainnet   # public marker, anyone can call
-cast send <registrar> "openShorts()" --rpc-url robinhood
+contracts/bash/SafeOpenShorts.sh [labels to blocklist first...]
 ```
 
-`openShorts()` is one-way. Credits keep minting short names free afterwards.
+Load the JSON into Safe{Wallet} → Transaction Builder on Robinhood Chain. One-way.
+
+**Monthly — renew 6 years (Ethereum mainnet):**
+
+```bash
+contracts/bash/SafeRenewHoodfi.sh        # 6 years by default
+```
+
+Fund the Safe with the printed quote in USDC (~$27) plus gas ETH first, then load the
+JSON into Transaction Builder on Ethereum. The batch approves the **exact** quote
+(it has dust — a rounded approval reverts) and calls ETHRenewerV1 `0x56c4…Cb68`.
+Six years is $4.50/yr, the floor of ENS's multi-year curve (1y $8, 2y $7/yr, 3–5y
+$5.50/yr); 85 years from the 2042 expiry = ~15 blocks = $382.50. The script refuses to
+build if hoodfi.eth has migrated to v2 (status ≠ 1), where it renews elsewhere.
+
+`finalize()` on the donation contract can never be reached now (it counts donated
+years, not expiry) and isn't needed: the site reads progress from the expiry.
 
 ## 9. Still open
 

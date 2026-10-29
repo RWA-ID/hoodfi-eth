@@ -6,12 +6,12 @@ import { LegalPage } from "@/components/LegalPage";
 export const metadata: Metadata = ogMetadata({
   title: "Terms & Conditions",
   description:
-    "Terms and conditions for using the HoodFi.eth interface: minting names, donations, risks and limitations of liability.",
+    "Terms and conditions for using the HoodFi.eth interface: minting names, credits, renewals, risks and limitations of liability.",
   path: "/terms/",
   image: "/og/legal.png",
 });
 
-const UPDATED = "July 11, 2026";
+const UPDATED = "October 29, 2026";
 
 export default function TermsPage() {
   return (
@@ -75,45 +75,55 @@ export default function TermsPage() {
           heading: "Donations",
           paragraphs: [
             <>
-              A &ldquo;donation&rdquo; through the Interface is a voluntary onchain
-              payment that renews the ENS name hoodfi.eth via the official ENS
-              registrar controller. The donation contract quotes ENS&apos;s live price,
-              calls the controller atomically in your transaction, and refunds any
-              excess in the same transaction. It has no withdraw function and cannot
-              hold funds.
+              A &ldquo;donation&rdquo; was a voluntary onchain payment that renewed the
+              ENS name hoodfi.eth via the official ENS registrar controller. The
+              donation contract quoted ENS&apos;s live price, called the controller
+              atomically in the donor&apos;s transaction, and refunded any excess in the
+              same transaction. It has no withdraw function and cannot hold funds.
+              Donations closed on October 27, 2026, when ENSv2 retired that controller;
+              the Interface no longer offers them, and a donation attempted directly
+              against the contract reverts.
             </>,
             <>
-              Donations are not deposits, investments, securities, loans, or purchases
-              of equity, and carry no expectation of profit, yield, or return of any
+              Donations were not deposits, investments, securities, loans, or purchases
+              of equity, and carried no expectation of profit, yield, or return of any
               kind. Each donation&apos;s onchain effect — extending hoodfi.eth&apos;s
-              expiry — is delivered immediately and irrevocably when your transaction
-              confirms. Beyond the automatic same-transaction excess refund, donations
+              expiry — was delivered immediately and irrevocably when its transaction
+              confirmed. Beyond the automatic same-transaction excess refund, donations
               are non-refundable under all circumstances.
             </>,
           ],
         },
         {
-          heading: "Name slots, reservations and launch",
+          heading: "Short-name credits",
           paragraphs: [
             <>
-              Each donated year credits one reservation slot, a utility credit
-              redeemable for reserving one subname of 4+ characters, first come, first
-              served. Slots and reservations are recorded onchain and are not
-              transferable financial instruments.
+              Each donated year earned one short-name credit, a utility credit
+              redeemable for minting one subname of 1 to 3 characters without paying
+              its tier price, subject to availability, first come, first served.
+              Credits are recorded onchain, do not expire, and are not transferable
+              financial instruments. A credit is redeemable only for a name that is
+              still unregistered and not blocked; it is not a reservation of any
+              particular name.
             </>,
+          ],
+        },
+        {
+          heading: "Renewal of hoodfi.eth",
+          paragraphs: [
             <>
-              Free claiming of reserved names opens only if and when total donations
-              reach the 100-year goal and short names open to public sale. No date is
-              promised and the goal may never be reached. If it is not reached,
-              reserved names may never become claimable — donations remain
-              non-refundable because their stated effect (extending hoodfi.eth&apos;s
-              expiry) has already been delivered. Reserved names remain protected from
-              public sale for a limited claim window after launch, as described in the{" "}
+              hoodfi.eth is owned by a multisignature wallet controlled by the
+              operators (the &ldquo;HoodFi Safe&rdquo;). The operators intend to renew
+              hoodfi.eth from the HoodFi Safe on a monthly basis until its expiry
+              reaches the year 2127, as described in the{" "}
               <Link href="/faq/" className="underline hover:text-[var(--paper)]">
                 FAQ
               </Link>
-              ; unclaimed names may be released for public registration after that
-              window.
+              . This is a statement of present intent, not a contractual obligation:
+              the schedule, block size, and cost of renewals depend on the ENS protocol
+              and its pricing, which the operators do not control, and may change or
+              stop. The current expiry is always readable onchain, and the Interface
+              displays it live.
             </>,
           ],
         },
@@ -180,8 +190,8 @@ export default function TermsPage() {
               &ldquo;AS AVAILABLE&rdquo;, WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR
               IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
               PURPOSE, TITLE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE INTERFACE
-              WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE, OR THAT THE 100-YEAR GOAL
-              WILL BE REACHED OR ANY LAUNCH WILL OCCUR.
+              WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE, OR THAT HOODFI.ETH WILL BE
+              RENEWED ON ANY SCHEDULE OR THAT ITS EXPIRY WILL REACH ANY PARTICULAR DATE.
             </>,
           ],
         },

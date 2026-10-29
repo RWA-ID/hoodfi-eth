@@ -8,6 +8,7 @@ import {
   L2_REGISTRY_ADDRESS,
   REGISTRAR_ADDRESS,
 } from "@/lib/contracts";
+import { HOODFI_SAFE } from "@/lib/site";
 import { ArrowNE } from "./ArrowNE";
 
 type Row = { name: string; address?: string; explorer: "l2" | "l1" };
@@ -15,14 +16,16 @@ type Row = { name: string; address?: string; explorer: "l2" | "l1" };
 const ROWS: Row[] = [
   { name: "Registrar", address: REGISTRAR_ADDRESS, explorer: "l2" },
   { name: "L2 Registry", address: L2_REGISTRY_ADDRESS, explorer: "l2" },
-  { name: "Donations (L1)", address: DONATIONS_ADDRESS, explorer: "l1" },
   { name: "L1 Resolver", address: L1_RESOLVER_ADDRESS, explorer: "l1" },
+  { name: "HoodFi Safe (owner)", address: HOODFI_SAFE, explorer: "l1" },
+  { name: "Donations (closed)", address: DONATIONS_ADDRESS, explorer: "l1" },
 ];
 
 /**
  * Every address the site depends on, with a copy button and a link to the explorer
  * that actually hosts it — Blockscout for the two Robinhood Chain contracts, Etherscan
- * for the two on mainnet. Sending a mainnet address to an L2 explorer produces a
+ * for everything on mainnet. The Safe is listed with them because it owns hoodfi.eth
+ * and the registrar, and is the one that renews the name. Sending a mainnet address to an L2 explorer produces a
  * convincing empty page, which is worse than no link.
  *
  * Addresses come from the same env the app transacts against, so this table cannot

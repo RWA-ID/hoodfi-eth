@@ -36,7 +36,7 @@ function contractRevertMessage(name: string, args: readonly unknown[]): string |
     case "LabelBlocked":
       return `"${arg(0)}" is reserved and can't be registered.`;
     case "ShortNameLocked":
-      return `"${arg(0)}" is 1-3 characters, which stays reserved for donors holding short-name credits until the 100-year goal is reached.`;
+      return `"${arg(0)}" is 1-3 characters, and short names aren't on public sale yet. A short-name credit mints one free.`;
     case "NotAShortName":
       return `"${arg(0)}" is 4 characters or longer, so it can't be claimed with a credit. Register it at the normal price instead.`;
     case "InsufficientPayment":
@@ -46,7 +46,7 @@ function contractRevertMessage(name: string, args: readonly unknown[]): string |
     case "UsdcNotConfigured":
       return "Paying in USDG isn't switched on for the registrar. Pay in ETH instead.";
     case "NoCreditsLeft":
-      return `You've spent all ${arg(0)} of your short-name credits. Donate more years to earn another.`;
+      return `You've spent all ${arg(0)} of your short-name credits. Short names can still be minted at their tier price.`;
     case "VoucherExpired":
       return "Your short-name credit expired before the transaction landed. Reload the page for a fresh one.";
     case "BadVoucher":

@@ -4,58 +4,73 @@ import Link from "next/link";
 import { useReadContract } from "wagmi";
 import { mainnet } from "wagmi/chains";
 import { DONATIONS_ADDRESS, donationsAbi } from "@/lib/contracts";
-import { GOAL_YEARS } from "@/lib/site";
+import { expiryYear } from "@/lib/format";
+import { TIER_USD } from "@/lib/labels";
+import { GOAL_YEAR_LABEL, RENEWAL_BLOCK_YEARS } from "@/lib/site";
 import { ArrowNE } from "./ArrowNE";
 import { CenturyRuler } from "./CenturyRuler";
 
 const STEPS = [
-  "Donate a year. Your ETH goes straight to the official ENS controller inside your own transaction — the contract cannot hold funds.",
-  "Earn a credit. Credits accrue on mainnet against your address and are readable by anyone.",
-  "Spend it. The registrar verifies a signed attestation of your balance and mints a 1–3 character name free. No bridge involved.",
+  `Short names are on sale. One character is $${TIER_USD[0]}, two are $${TIER_USD[1]}, three are $${TIER_USD[2]} — paid once, in USDG or ETH.`,
+  `The Safe renews the parent. Every month the HoodFi 2-of-3 Safe adds ${RENEWAL_BLOCK_YEARS} years to hoodfi.eth through ENS's own renewer, paid in USDC.`,
+  "Credits still count. Every credit earned by donating before ENSv2 mints a 1–3 character name free, before or after the sale.",
 ];
 
 /**
- * Section 03 — the donation drive, as one ink panel.
+ * Section 04 — short names and the parent name's renewal, as one ink panel.
  *
- * Years funded and credits issued are the same number by construction (one credit per
- * year donated), but both are shown because they answer different questions: one is
- * how long the parent name is safe for, the other is how much premium inventory is
- * spoken for. Both are read from mainnet.
+ * Progress is the expiry itself, not the donation counter. The Safe renews outside the
+ * donation contract, so `totalYearsDonated` stopped moving when donations closed and
+ * would show a stalled drive while the name was being carried forward. Credits issued
+ * is still that counter, because credits were only ever earned by donating.
  */
 export function FundTheCentury() {
   const enabled = Boolean(DONATIONS_ADDRESS);
+
+  const { data: expiry } = useReadContract({
+    address: DONATIONS_ADDRESS,
+    abi: donationsAbi,
+    functionName: "nameExpires",
+    chainId: mainnet.id,
+    query: { enabled, refetchInterval: 60_000 },
+  });
 
   const { data: totalYears } = useReadContract({
     address: DONATIONS_ADDRESS,
     abi: donationsAbi,
     functionName: "totalYearsDonated",
     chainId: mainnet.id,
-    query: { enabled, refetchInterval: 30_000 },
+    query: { enabled, staleTime: 300_000 },
   });
 
-  const years = totalYears === undefined ? undefined : Number(totalYears);
+  const year = expiryYear(expiry);
+  const yearsToGo = year === undefined ? undefined : Math.max(0, GOAL_YEAR_LABEL - year);
 
   const stats: { label: string; value: string; lime?: boolean }[] = [
-    { label: "years funded", value: years?.toLocaleString("en-US") ?? "—", lime: true },
-    { label: "credits issued", value: years?.toLocaleString("en-US") ?? "—" },
-    { label: "goal", value: String(GOAL_YEARS) },
+    { label: "secured to", value: year?.toString() ?? "—", lime: true },
+    { label: "years to go", value: yearsToGo?.toLocaleString("en-US") ?? "—" },
+    {
+      label: "credits issued",
+      value: totalYears === undefined ? "—" : Number(totalYears).toLocaleString("en-US"),
+    },
   ];
 
   return (
     <div className="on-ink mt-6 px-[clamp(24px,4vw,48px)] py-[clamp(32px,5vw,56px)]">
       <div className="duo items-start">
         <div>
-          <h2 className="h-panel m-0 text-[var(--fg)]">Fund the century.</h2>
+          <h2 className="h-panel m-0 text-[var(--fg)]">Short names are open.</h2>
           <p className="lede mt-[22px] max-w-[42ch]">
-            Every year donated pushes hoodfi.eth&apos;s expiry further out on Ethereum —
-            and earns one credit. One credit mints any 1–3 character name free, forever.
+            x, og and gme are on public sale from ${TIER_USD[2]}. And hoodfi.eth is renewed
+            by its own Safe, {RENEWAL_BLOCK_YEARS} years every month, until it reaches{" "}
+            {GOAL_YEAR_LABEL}.
           </p>
           <div className="mt-9 flex flex-wrap gap-2.5">
-            <Link href="/short-names/" className="btn btn-lime">
-              Donate a year <ArrowNE />
+            <Link href="/mint/" className="btn btn-lime">
+              Mint a short name <ArrowNE />
             </Link>
-            <Link href="/#verify" className="btn btn-ghost">
-              Read the contract
+            <Link href="/short-names/" className="btn btn-ghost">
+              The renewal pledge
             </Link>
           </div>
         </div>

@@ -9,7 +9,7 @@
 export const SITE = {
   name: "HoodFi.eth",
   description:
-    "Lifetime names on Robinhood Chain. Mint yours in one transaction from $3 — no renewals, ever. Donate a year to hoodfi.eth's expiry to unlock a premium 1–3 character name.",
+    "Lifetime names on Robinhood Chain. Mint yours in one transaction from $3 — no renewals, ever. Premium 1–3 character names are on sale from $5.",
   url: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://hoodfi.eth.limo").replace(/\/$/, ""),
 };
 
@@ -25,12 +25,31 @@ export const CANONICAL_URL = (
   process.env.NEXT_PUBLIC_CANONICAL_URL ?? SITE.url
 ).replace(/\/$/, "");
 
-/** Years of expiry that unlock public minting of 1–3 character names. */
+/** The century hoodfi.eth's expiry is being carried to. */
 export const GOAL_YEARS = 100;
 
 /** hoodfi.eth's expiry at launch was 2027-07-08; the goal carries it a century past. */
 export const START_YEAR = 2026;
 export const GOAL_YEAR_LABEL = 2127;
+
+/**
+ * The HoodFi Safe (2-of-3), which owns hoodfi.eth, the registrar and the L1 resolver,
+ * and renews the parent name itself.
+ *
+ * Since ENSv2 (2026-10-27) the v1 controller the donation contract called reverts, so
+ * public donations stopped working. The Safe renews instead, through ENS's
+ * ETHRenewerV1 in USDC, one block a month until the expiry reaches the goal.
+ */
+export const HOODFI_SAFE = "0x837Fa2d033f1F7275452D780a5E54Eda903C1330" as const;
+
+/**
+ * Years per monthly renewal. Six is where ENS's multi-year discount bottoms out
+ * ($4.50/yr for a 5+ character name), and six years costs less than five.
+ */
+export const RENEWAL_BLOCK_YEARS = 6;
+
+/** Last day the donation contract could renew: ENSv2 went live on mainnet. */
+export const DONATIONS_CLOSED = "October 27, 2026";
 
 /**
  * Share link for a single name.

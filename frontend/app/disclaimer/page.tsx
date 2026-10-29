@@ -11,12 +11,12 @@ export const metadata: Metadata = ogMetadata({
   image: "/og/legal.png",
 });
 
-const UPDATED = "September 2, 2026";
+const UPDATED = "October 29, 2026";
 
 export default function DisclaimerPage() {
   return (
     <LegalPage
-      eyebrow="read before you donate"
+      eyebrow="read before you mint"
       title="Disclaimer"
       updated={UPDATED}
       intro={
@@ -90,8 +90,8 @@ export default function DisclaimerPage() {
           heading: "Not an investment",
           paragraphs: [
             <>
-              Donations extend the expiry of the ENS name hoodfi.eth — nothing more.
-              They are not investments, securities, deposits, or purchases of equity,
+              Donations, which closed on October 27, 2026, extended the expiry of the
+              ENS name hoodfi.eth — nothing more. They were not investments, securities, deposits, or purchases of equity,
               and carry no expectation of profit. Names are utility NFTs for identity
               and resolution; nothing on this site is financial, legal, or tax advice.
               Digital-asset prices are volatile and anything paid in ETH can change in
@@ -103,11 +103,13 @@ export default function DisclaimerPage() {
           heading: "No guarantees",
           paragraphs: [
             <>
-              The 100-year goal may never be reached, and no date for opening short names to public sale is promised.
-              If the goal is not reached, reserved names may never become claimable.
-              Donations are non-refundable in all cases — each donation&apos;s effect
-              (extending hoodfi.eth&apos;s expiry via the official ENS controller) is
-              delivered immediately and irrevocably when the transaction confirms.
+              The operators intend to renew hoodfi.eth from the HoodFi Safe every
+              month until its expiry reaches 2127, but that is an intention, not a
+              guarantee — renewals depend on ENS pricing and the protocol, which nobody
+              here controls. Donations are non-refundable in all cases — each
+              donation&apos;s effect (extending hoodfi.eth&apos;s expiry via the official
+              ENS controller) was delivered immediately and irrevocably when its
+              transaction confirmed.
             </>,
           ],
         },

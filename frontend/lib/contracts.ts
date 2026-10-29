@@ -89,6 +89,40 @@ export const reverseRegistrarAbi = [
   },
 ] as const;
 
+/**
+ * ENS's ETHRenewerV1 on mainnet — how an unmigrated v1 name like hoodfi.eth renews
+ * since ENSv2, in USDC, pushing the new expiry back to the .eth BaseRegistrar. Read
+ * here only for its live quote; the Safe is what calls `renew`.
+ *
+ * The quote carries dust (six years is 27000071, not 27000000), so the Safe approves
+ * the exact figure — a rounded approval reverts "exceeds allowance".
+ */
+export const ETH_RENEWER_V1_ADDRESS =
+  "0x56c447F308F463A01121C41E72b0E7e7557fCb68" as const;
+
+/** Mainnet USDC, the token ETHRenewerV1 is paid in. */
+export const MAINNET_USDC_ADDRESS =
+  "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as const;
+
+export const ethRenewerAbi = [
+  {
+    type: "function",
+    name: "getRenewPrice",
+    stateMutability: "view",
+    inputs: [
+      { name: "label", type: "string" },
+      { name: "duration", type: "uint64" },
+      { name: "paymentToken", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
+
+/**
+ * The donation contract, closed since ENSv2: `donate` and `extend` call the v1
+ * controller, which now reverts. Still read for `nameExpires` (a straight read of the
+ * BaseRegistrar) and `shortCredits`, which donors keep spending.
+ */
 export const donationsAbi = [
   {
     type: "function",

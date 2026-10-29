@@ -1,5 +1,5 @@
-import { CREDIT_USD } from "@/lib/labels";
-import { GOAL_YEARS } from "@/lib/site";
+import { TIER_USD } from "@/lib/labels";
+import { GOAL_YEAR_LABEL, RENEWAL_BLOCK_YEARS } from "@/lib/site";
 
 /**
  * The short-name pitch, written once.
@@ -18,20 +18,20 @@ export function ShortNamesCopy({ as = "h2" }: { as?: "h1" | "h2" }) {
       </Heading>
       <p className="lede mt-6 max-w-[48ch] text-[17px]">
         One, two and three character names are the scarcest inventory here — there are
-        only 37 possible single characters in total. They aren&apos;t on public sale yet.
+        only 37 possible single characters in total. They&apos;re on public sale now,
+        first come, first served.
       </p>
       <p className="mt-4 max-w-[48ch] text-sm leading-relaxed text-[var(--dim)]">
-        The one way to get one today: add a year to hoodfi.eth&apos;s expiry on Ethereum.
-        Each year donated earns one credit, and a credit mints any short name free. A
-        year is ENS&apos;s own renewal price —{" "}
-        <span className="data text-[var(--fg)]">about ${CREDIT_USD} in ETH</span>, plus
-        Ethereum gas — and it&apos;s what keeps the parent name, and therefore every name
-        minted here, alive.
+        <span className="data text-[var(--fg)]">${TIER_USD[2]}</span> for three characters,{" "}
+        <span className="data text-[var(--fg)]">${TIER_USD[1]}</span> for two and{" "}
+        <span className="data text-[var(--fg)]">${TIER_USD[0]}</span> for one — paid once,
+        in USDG or ETH, and yours for life like every other name here.
       </p>
       <p className="mt-4 max-w-[48ch] text-sm leading-relaxed text-[var(--dim)]">
-        At <span className="data text-[var(--fg)]">{GOAL_YEARS} years</span> donated,
-        short names open to everyone at tier prices. Credits still mint free after that,
-        so an early credit never loses its value.
+        The parent name is our job, not yours: the HoodFi Safe renews hoodfi.eth{" "}
+        {RENEWAL_BLOCK_YEARS} years at a time, every month, until it reaches{" "}
+        {GOAL_YEAR_LABEL}. Short-name credits earned by donating before ENSv2 still mint
+        free, so an early credit never loses its value.
       </p>
     </div>
   );

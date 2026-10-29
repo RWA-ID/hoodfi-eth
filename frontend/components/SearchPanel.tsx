@@ -60,7 +60,7 @@ type Records = {
 
 /**
  * An unregistered name isn't automatically mintable. Short names are locked until the
- * donation goal, and infra labels like `www` and `robinhood` are blocked outright —
+ * registrar's `shortsOpen` flips, and infra labels like `www` and `robinhood` are blocked outright —
  * both read as "nobody owns this" from the registry alone, so the registrar has to be
  * asked before offering a mint that would revert.
  */
@@ -379,7 +379,7 @@ function UnregisteredState({ label, status }: { label: string; status: number })
         {blocked
           ? "This label is reserved as infrastructure and can't be minted by anyone."
           : locked
-            ? "Short names unlock for everyone once hoodfi.eth's expiry reaches the 100-year goal — or mint one free right now with a donation credit."
+            ? "1–3 character names go on public sale shortly. Credit holders can mint one free right now."
             : "Nobody owns this name yet — it could be yours, for life."}
       </p>
       {!blocked && (
@@ -387,7 +387,7 @@ function UnregisteredState({ label, status }: { label: string; status: number })
           href={locked ? "/short-names/" : `/mint/?q=${encodeURIComponent(label)}`}
           className="btn btn-ink mt-7"
         >
-          {locked ? "Earn a credit" : "Mint this name"} <ArrowNE />
+          {locked ? "Short names" : "Mint this name"} <ArrowNE />
         </Link>
       )}
     </div>

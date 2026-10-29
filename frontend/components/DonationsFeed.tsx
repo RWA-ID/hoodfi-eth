@@ -79,7 +79,7 @@ export function DonationsFeed() {
           <span className="chip-square" aria-hidden />
           donation ledger
         </span>
-        <span className="label">read from Ethereum logs</span>
+        <span className="label">closed · read from Ethereum logs</span>
       </div>
       <div className="max-h-[380px] overflow-y-auto">
         {state.kind === "loading" ? (
@@ -96,10 +96,7 @@ export function DonationsFeed() {
           </div>
         ) : state.entries.length === 0 ? (
           <div className="px-5 py-10 text-center">
-            <div className="data text-sm text-[var(--dim)]">No donations yet.</div>
-            <div className="mt-1 text-xs text-[var(--faint)]">
-              The first entry in this ledger could be yours.
-            </div>
+            <div className="data text-sm text-[var(--dim)]">No donations recorded.</div>
           </div>
         ) : (
           state.entries.map((e) => (

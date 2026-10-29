@@ -3,8 +3,8 @@ import Link from "next/link";
 import { ArrowNE } from "@/components/ArrowNE";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { DonatePanel } from "@/components/DonatePanel";
 import { Endowment } from "@/components/Endowment";
+import { RenewalPledge } from "@/components/RenewalPledge";
 import { ShortNamesCopy } from "@/components/ShortNamesCopy";
 import { PageView } from "@/components/PageView";
 import { ogMetadata } from "@/lib/metadata";
@@ -12,15 +12,14 @@ import { ogMetadata } from "@/lib/metadata";
 export const metadata: Metadata = ogMetadata({
   title: "Short names",
   description:
-    "One, two and three character *.hoodfi.eth names are premium inventory. Donate a year to hoodfi.eth's ENS expiry to earn a credit and mint one free.",
+    "One, two and three character *.hoodfi.eth names are on sale from $5 — and the HoodFi Safe renews hoodfi.eth every month until 2127.",
   path: "/short-names/",
   image: "/og/short-names.png",
 });
 
 /**
- * The short-name offer on a route of its own — donating is the only way to get a 1–3
- * character name before the goal, so it needed an address of its own rather than a
- * homepage anchor. Everything here is shared with `/`, not copied.
+ * The short-name offer on a route of its own, beside the pledge that keeps the parent
+ * name alive. Everything here is shared with `/`, not copied.
  */
 export default function ShortNamesPage() {
   return (
@@ -31,7 +30,7 @@ export default function ShortNamesPage() {
         <section className="shell pt-[clamp(40px,5vw,64px)]">
           <div className="duo items-start">
             <ShortNamesCopy as="h1" />
-            <DonatePanel />
+            <RenewalPledge />
           </div>
         </section>
 
@@ -41,7 +40,7 @@ export default function ShortNamesPage() {
 
         <section className="on-lime mt-28 border-y border-[var(--ink)]">
           <div className="shell py-[clamp(56px,7vw,88px)] text-center">
-            <h2 className="h-cta m-0 mx-auto max-w-[22ch]">Four characters and up are on sale now</h2>
+            <h2 className="h-cta m-0 mx-auto max-w-[22ch]">Every length is on sale now</h2>
             <div className="mt-10 flex flex-wrap justify-center gap-2.5">
               <Link href="/mint/" className="btn btn-ink btn-lg">
                 Mint a name <ArrowNE />

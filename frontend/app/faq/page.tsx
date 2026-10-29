@@ -27,7 +27,7 @@ const GROUPS: { heading: string; items: FaqItem[] }[] = [
       },
       {
         q: "Which names can I mint?",
-        a: "Any unregistered name of 1-32 characters using a-z, 0-9 and hyphens, with no leading or trailing hyphen. A small set of infrastructure labels (www, api, admin and similar) is permanently blocked. Names of 4+ characters are open to everyone right now; 1-3 character names need a credit until the 100-year goal is reached.",
+        a: "Any unregistered name of 1-32 characters using a-z, 0-9 and hyphens, with no leading or trailing hyphen. A small set of infrastructure labels (www, api, admin and similar) is permanently blocked. Every length is on public sale, first come, first served.",
       },
       {
         q: "Can I pay in something other than ETH?",
@@ -35,7 +35,7 @@ const GROUPS: { heading: string; items: FaqItem[] }[] = [
       },
       {
         q: "Do I need to do anything to keep my name?",
-        a: "No. There is nothing to renew and no deadline to miss. The one ongoing cost belongs to us: keeping the parent name hoodfi.eth alive on Ethereum, which is what the donation drive funds.",
+        a: "No. There is nothing to renew and no deadline to miss. The one ongoing cost belongs to us: keeping the parent name hoodfi.eth alive on Ethereum, which the HoodFi Safe renews every month.",
       },
     ],
   },
@@ -43,28 +43,32 @@ const GROUPS: { heading: string; items: FaqItem[] }[] = [
     heading: "Short names & credits",
     items: [
       {
-        q: "Why can't I just buy a 1, 2 or 3 character name?",
-        a: "They're the scarcest inventory here — there are only 37 possible single-character labels in total. Until hoodfi.eth's expiry reaches the 100-year goal, they're reserved for people who helped fund it. After the goal they open to everyone at the listed prices.",
+        q: "Can I buy a 1, 2 or 3 character name?",
+        a: "Yes. They're the scarcest inventory here — there are only 37 possible single-character labels in total — and they're on public sale at the listed prices, first come, first served: $15 for one character, $10 for two, $5 for three.",
       },
       {
-        q: "How do I earn a credit?",
-        a: "Donate a year to hoodfi.eth's expiry on Ethereum — about $5, the exact ENS renewal price. Each year donated earns one credit, and one credit mints any 1, 2 or 3 character name free.",
+        q: "Can I still donate to earn a credit?",
+        a: "No. Donations closed on October 27, 2026, when ENSv2 went live: the donation contract renewed hoodfi.eth through ENS's v1 controller, which ENSv2 retired, so a donation now reverts before any ETH moves. The HoodFi Safe renews the name itself instead — six years every month until its expiry reaches 2127.",
+      },
+      {
+        q: "I donated. What happens to my credits?",
+        a: "Nothing changes. Each year you donated earned one credit, and each credit still mints any 1, 2 or 3 character name free. Short names going on sale doesn't affect that.",
       },
       {
         q: "How does a credit earned on Ethereum work on Robinhood Chain?",
         a: "Our gateway reads your credit balance from the donation contract on mainnet and signs an attestation of it. The registrar on Robinhood Chain accepts that signature and tracks how many credits you've spent. The attestation covers your cumulative total, which only grows, so an old one can never be replayed to mint more than you earned. Anyone can independently verify the figure by reading shortCredits(yourAddress) on Ethereum.",
       },
       {
-        q: "Do credits expire, or lose value after the goal?",
-        a: "Neither. Unspent credits stay spendable indefinitely, and they still mint short names free even after short names open to public sale — so an early credit is never worth less than a late one.",
+        q: "Do credits expire?",
+        a: "No. Unspent credits stay spendable indefinitely, before and after short names went on public sale.",
       },
       {
-        q: "Where does my donated ETH actually go?",
-        a: "Straight to the official ENS ETHRegistrarController, inside your own transaction. The donation contract quotes ENS's live price, calls renew() atomically, and refunds every wei above the real cost in the same transaction. It has no withdraw function and can't hold funds — you can verify its balance is always zero on Etherscan.",
+        q: "Where did donated ETH go?",
+        a: "Straight to the official ENS ETHRegistrarController, inside the donor's own transaction. The donation contract quoted ENS's live price, called renew() atomically, and refunded every wei above the real cost in the same transaction. It has no withdraw function and never held funds — its balance is zero on Etherscan.",
       },
       {
-        q: "Can I still donate after the goal is reached?",
-        a: "Yes. Donations keep working and keep earning credits, and the separate extend() function pushes hoodfi.eth's expiry further without earning any. Both stay open permanently.",
+        q: "How is hoodfi.eth renewed now?",
+        a: "By the HoodFi Safe, a 2-of-3 multisig that owns the name. Once a month it pays ENS's own ETHRenewerV1 in USDC for six more years — the length at which ENS's multi-year price bottoms out — until the expiry reaches 2127. Each renewal is a public transaction from the Safe, and the expiry it produces is read live on the homepage.",
       },
     ],
   },
@@ -102,7 +106,7 @@ const GROUPS: { heading: string; items: FaqItem[] }[] = [
       },
       {
         q: "What happens to my name if hoodfi.eth ever expired?",
-        a: "Subnames only resolve while the parent name exists, which is exactly why the donation drive exists. Your NFT itself never expires and stays in your wallet regardless, but resolution depends on hoodfi.eth staying registered — so the expiry is pushed further out with every donation and published live on the homepage.",
+        a: "Subnames only resolve while the parent name exists, which is why the HoodFi Safe renews it every month. Your NFT itself never expires and stays in your wallet regardless, but resolution depends on hoodfi.eth staying registered — so the expiry is pushed further out with every renewal and published live on the homepage.",
       },
       {
         q: "What is Robinhood Chain?",

@@ -7,7 +7,7 @@ import { robinhoodChain } from "@/lib/chains";
 import { REGISTRAR_ADDRESS, registrarAbi } from "@/lib/contracts";
 import { useEthUsd, weiToUsd } from "@/lib/ethUsd";
 import { formatEth } from "@/lib/format";
-import { CREDIT_USD, TIER_USD, checkLabel } from "@/lib/labels";
+import { TIER_USD, checkLabel } from "@/lib/labels";
 import { ArrowNE } from "./ArrowNE";
 import { useMintQuery } from "./MintQuery";
 
@@ -27,8 +27,8 @@ const TIERS = [
  * an empty field it falls back to whatever was last clicked, and clicking a card
  * clears the field so the two can't disagree about which tier is selected.
  *
- * `shortsOpen` is read from the registrar, never assumed. When the goal is reached
- * the contract flips it and this whole block changes voice with no deploy.
+ * `shortsOpen` is read from the registrar, never assumed. When the Safe flips it this
+ * whole block changes voice with no deploy.
  */
 export function TierGrid() {
   const shared = useMintQuery();
@@ -115,12 +115,9 @@ export function TierGrid() {
               <span className="data mt-2 block text-[13px] text-[var(--dim)]">
                 {tier.example}.hoodfi.eth
               </span>
-              {/* The big number is the public price, and for a locked tier that is a
-                  price nobody can pay yet — reading "$15" with nothing under it sent
-                  people to /short-names/ expecting to pay it. So the first line says
-                  which kind of price it is and the second says what the name actually
-                  costs today, which for all three locked tiers is one credit: about
-                  $5, less than every number above it.
+              {/* The big number is the public price. While a tier is still locked
+                  that is a price nobody can pay yet, so the first line says which kind
+                  of price it is and the second says who can mint it meanwhile.
 
                   Every card carries both lines, open or not. They are the last thing
                   in the card and the card bottoms are aligned, so a card with one line
@@ -130,10 +127,10 @@ export function TierGrid() {
                   ${TIER_USD[i]}
                 </span>
                 <span className="label mt-2 block">
-                  {open ? "in USDG · open now" : "public price · locked"}
+                  {open ? "in USDG · open now" : "public price · opening"}
                 </span>
                 <span className="label mt-1 block" style={{ color: "var(--ink)" }}>
-                  {open ? ethLine(i) : `today: 1 credit · ~$${CREDIT_USD} + gas`}
+                  {open ? ethLine(i) : "credit holders mint free"}
                 </span>
               </span>
             </button>
@@ -146,14 +143,14 @@ export function TierGrid() {
           <span className="font-bold text-[var(--fg)]">
             {shortsOpen
               ? "Short names are open."
-              : "1–3 character names are premium inventory."}
+              : "1–3 character names open shortly."}
           </span>{" "}
           {shortsOpen
-            ? "The 100-year goal was reached, so short names now mint publicly at tier prices. Credits still mint them free."
-            : `Until hoodfi.eth's expiry is funded 100 years ahead, they mint only with short-name credits — one credit per year donated to the parent name. A year costs about $${CREDIT_USD} in ETH plus Ethereum gas, and the credit mints the name free, so a short name today costs less than any of the three prices above.`}
+            ? "One, two and three character names mint publicly at the prices above, first come, first served. Credits earned by donating still mint them free."
+            : "They go on public sale at the prices above. Until then, credits earned by donating mint them free."}
         </p>
         <Link href={shortsOpen ? "/mint/" : "/short-names/"} className="btn btn-lime flex-none h-11">
-          {shortsOpen ? "Mint a short name" : "Earn credits"} <ArrowNE />
+          {shortsOpen ? "Mint a short name" : "Short names"} <ArrowNE />
         </Link>
       </div>
     </>

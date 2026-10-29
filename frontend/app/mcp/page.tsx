@@ -177,10 +177,9 @@ export default function McpPage() {
             <div className="panel shadow-lime p-7">
               <h3 className="h-sub m-0">Four characters and up.</h3>
               <p className="mt-3.5 text-sm leading-relaxed text-[var(--dim)]">
-                One, two and three character names are premium inventory, reserved for
-                donors spending short-name credits until the 100-year goal is reached.
-                They can&apos;t be bought at any price today, by an agent or anyone
-                else.{" "}
+                The agent server sells names of four characters and up. One, two and
+                three character names are premium inventory, minted on the site itself
+                rather than through an agent.{" "}
                 <Link href="/short-names/" className="link">
                   How that works
                 </Link>

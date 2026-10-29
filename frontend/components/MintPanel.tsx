@@ -35,7 +35,6 @@ import {
 } from "@/lib/contracts";
 import { usePartner } from "@/lib/usePartner";
 import {
-  CREDIT_USD,
   MINT_STATUS,
   TIER_USD,
   checkLabel,
@@ -48,7 +47,6 @@ import { BUILDER_URL, VOUCHER_URL, nameShareUrl } from "@/lib/site";
 import { track } from "@/lib/analytics";
 import { describeWalletError, walletErrorMessage } from "@/lib/errors";
 import { ArrowNE } from "./ArrowNE";
-import { DonatePanel } from "./DonatePanel";
 import { ShareOnX } from "./ShareOnX";
 import { useMintQuery } from "./MintQuery";
 
@@ -141,8 +139,6 @@ export function MintPanel({
   // The spender for the USDG approval, and the contract the mint goes to.
   const spender = viaPartner ? PARTNER_ROUTER_ADDRESS : REGISTRAR_ADDRESS;
 
-  // Opened from the locked-short-name state; never shown unprompted.
-  const [showDonate, setShowDonate] = useState(false);
   const searched = useRef<string>("");
   useEffect(() => {
     if (debouncedLabel && debouncedLabel !== searched.current) {
@@ -285,10 +281,9 @@ export function MintPanel({
 
   // A locked short name with no credit can't be bought at any price, so the price
   // block, the ETH/USDG toggle and the mint button are all dead weight — and they
-  // push the one thing that *is* actionable, "Earn a credit", off the screen. Taken
-  // and reserved names keep the paid block, because that is where "Try another" lives.
-  // Never inside a partner sale: "earn a credit" sends someone to donate on our site for
-  // a name this checkout cannot sell them either way.
+  // push the explanation off the screen. Taken and reserved names keep the paid block,
+  // because that is where "Try another" lives. Never inside a partner sale: the note
+  // sends someone to our site for a name this checkout cannot sell them either way.
   const showCredit =
     !viaPartner &&
     shortsLocked &&
@@ -881,9 +876,9 @@ export function MintPanel({
           </button>
         </div>
 
-        {/* Short names pre-goal: explain the one path that unlocks them.
-
-            Deliberately terse. Long version on /short-names/. */}
+        {/* Short names before the Safe opens them, for anyone without a credit.
+            Donating used to be the way in; since ENSv2 closed donations it is only a
+            matter of the sale opening. Deliberately terse. */}
         <div
           className={`col-start-1 row-start-1 flex flex-col ${showCredit ? "" : "invisible"}`}
           aria-hidden={!showCredit}
@@ -894,27 +889,14 @@ export function MintPanel({
             </div>
             <p className="mt-2 text-[13px] leading-relaxed text-[var(--dim)]">
               {voucherError && address ? `${voucherError} ` : ""}
-              Donate a year to hoodfi.eth — about ${CREDIT_USD} in ETH plus gas — and
-              mint any 1–3 character name free.
+              1–3 character names go on public sale shortly, from ${TIER_USD[2]}. Credit
+              holders can mint one free right now.
             </p>
-            {/* The donate flow, opened in place. Sending someone away mid-mint to find
-                the one thing that unlocks the name they just typed is the wrong shape,
-                and it stays collapsed so it costs nothing until it is the answer. */}
-            {showDonate ? (
-              <div className="mt-4">
-                <DonatePanel embedded />
-              </div>
-            ) : (
-              <div className="mt-4 flex flex-1 items-end">
-                <button
-                  type="button"
-                  className="btn btn-lime w-full"
-                  onClick={() => setShowDonate(true)}
-                >
-                  Earn a credit <ArrowNE />
-                </button>
-              </div>
-            )}
+            <div className="mt-4 flex flex-1 items-end">
+              <Link href="/short-names/" className="btn btn-lime w-full">
+                Short names <ArrowNE />
+              </Link>
+            </div>
           </div>
         </div>
       </div>
