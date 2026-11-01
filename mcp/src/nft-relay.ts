@@ -136,3 +136,30 @@ export function isSeaportEthFill(to: Address, data: Hex): boolean {
     return false
   }
 }
+
+/** What a relayed transaction did to an NFT, read from its own calldata. For the result card. */
+export function describeNftTx(
+  to: Address,
+  data: Hex
+):
+  | { kind: 'send'; contract: Address; tokenId: bigint; recipient: Address; quantity: bigint }
+  | { kind: 'buy'; contract: Address; tokenId: bigint }
+  | null {
+  if (isSeaportEthFill(to, data)) {
+    const { args } = decodeFunctionData({ abi: seaportAbi, data })
+    return { kind: 'buy', contract: args[0].offerToken, tokenId: args[0].offerIdentifier }
+  }
+  try {
+    const { functionName, args } = decodeFunctionData({ abi: nftAbi, data })
+    if (functionName !== 'safeTransferFrom') return null
+    return {
+      kind: 'send',
+      contract: to,
+      recipient: args[1],
+      tokenId: args[2],
+      quantity: args.length === 5 ? (args[3] as bigint) : 1n,
+    }
+  } catch {
+    return null
+  }
+}

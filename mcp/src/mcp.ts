@@ -1,4 +1,4 @@
-import { CARD_CSP, CARD_HTML, CARD_MIME, CARD_URI } from './card'
+import { CARD_CSP, CARD_HTML, CARD_MIME, CARD_URI, CARD_URI_OLD } from './card'
 import type { Env } from './env'
 import { BUY_CSP, BUY_HTML, BUY_URI } from './nft-buy-view'
 import { PICKER_CSP, PICKER_HTML, PICKER_URI } from './nft-picker'
@@ -171,11 +171,11 @@ async function handleOne(
             { uri: PICKER_URI, mimeType: CARD_MIME, text: PICKER_HTML, _meta: PICKER_RESOURCE_META },
           ],
         })
-      if (params?.uri !== CARD_URI)
+      if (params?.uri !== CARD_URI && params?.uri !== CARD_URI_OLD)
         return failure(id, INVALID_PARAMS, `Unknown resource: ${String(params?.uri)}`)
       return result(id, {
         contents: [
-          { uri: CARD_URI, mimeType: CARD_MIME, text: CARD_HTML, _meta: CARD_RESOURCE_META },
+          { uri: params.uri as string, mimeType: CARD_MIME, text: CARD_HTML, _meta: CARD_RESOURCE_META },
         ],
       })
     }

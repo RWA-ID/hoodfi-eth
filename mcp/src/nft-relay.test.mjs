@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { encodeFunctionData, parseAbi } from 'viem'
 
-import { SEAPORT, isOwnNftTransfer, isSeaportEthFill, nftAbi, seaportAbi } from './nft-relay.ts'
+import { SEAPORT, describeNftTx, isOwnNftTransfer, isSeaportEthFill, nftAbi, seaportAbi } from './nft-relay.ts'
 
 const me = '0x5557d68555B1D851B8088fC49b0420F408a70Ef5'
 const other = '0x2D037f66b9e0EDE90c2080558a7d3FF7BE36E9A1'
@@ -66,4 +66,16 @@ test('the same call to another contract, an ERC-20-paid order, and other Seaport
   assert.equal(isSeaportEthFill(other, fill()), false)
   assert.equal(isSeaportEthFill(SEAPORT, fill(8)), false)
   assert.equal(isSeaportEthFill(SEAPORT, '0xfd9f1e10'), false)
+})
+
+test('the result card reads the token, recipient and quantity from the calldata', () => {
+  const sent = describeNftTx(other, send1155(me))
+  assert.equal(sent.kind, 'send')
+  assert.equal(sent.contract, other)
+  assert.equal(sent.tokenId, 7n)
+  assert.equal(sent.quantity, 2n)
+  const bought = describeNftTx(SEAPORT, `${fill()}cdb44011`)
+  assert.equal(bought.kind, 'buy')
+  assert.equal(bought.tokenId, 1n)
+  assert.equal(describeNftTx(other, '0xdeadbeef'), null)
 })
