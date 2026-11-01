@@ -116,27 +116,43 @@ export function parseOpenSeaUrl(input: unknown): { contract: Address; tokenId: s
   return { contract: getAddress(contract), tokenId }
 }
 
+/** Name and art for one token, from the index. For iframes only; see the top of this file. */
+async function tokenView(contract: Address, tokenId: string, env: Env) {
+  const nftBody = await os(env, `/chain/${CHAIN}/contract/${contract}/nfts/${tokenId}`)
+  const nft = nftBody?.nft
+  if (!nft) return null
+  let image: string | null = null
+  try {
+    const u = new URL(nft.display_image_url || nft.image_url)
+    if (!nft.is_nsfw && u.protocol === 'https:' && u.hostname.endsWith('.seadn.io')) image = u.toString()
+  } catch {}
+  return { nft, name: String(nft.name ?? '').slice(0, 80), image }
+}
+
+/** For GET /nft/:contract/:tokenId: the art on the final send and buy cards. */
+export async function tokenForCard(rawContract: string, rawTokenId: string, env: Env) {
+  const contract = requireAddress(rawContract, 'contract')
+  if (!/^\d{1,78}$/.test(rawTokenId)) throw new ToolError('`token_id` must be a decimal string.')
+  const token = await tokenView(contract, rawTokenId, env)
+  if (!token) throw new ToolError('OpenSea has no such NFT on Robinhood Chain.')
+  return { name: token.name, collection: String(token.nft.collection ?? '').slice(0, 60), image: token.image }
+}
+
 /** For GET /listing: what the buy panel draws. Not for tool results; see the top of this file. */
 export async function listingForPanel(rawUrl: string | undefined, env: Env) {
   const { contract, tokenId } = parseOpenSeaUrl(rawUrl)
-  const nftBody = await os(env, `/chain/${CHAIN}/contract/${contract}/nfts/${tokenId}`)
-  const nft = nftBody?.nft
-  if (!nft) throw new ToolError('OpenSea has no such NFT on Robinhood Chain. Check the link.')
+  const token = await tokenView(contract, tokenId, env)
+  if (!token) throw new ToolError('OpenSea has no such NFT on Robinhood Chain. Check the link.')
+  const { nft, image } = token
   const slug = encodeURIComponent(String(nft.collection ?? ''))
   const [best, collection] = await Promise.all([
     os(env, `/listings/collection/${slug}/nfts/${tokenId}/best`),
     os(env, `/collections/${slug}`),
   ])
-  const raw = nft.display_image_url || nft.image_url
-  let image: string | null = null
-  try {
-    const u = new URL(raw)
-    if (!nft.is_nsfw && u.protocol === 'https:' && u.hostname.endsWith('.seadn.io')) image = u.toString()
-  } catch {}
   const view = {
     contract,
     tokenId,
-    name: String(nft.name ?? '').slice(0, 80),
+    name: token.name,
     collection: String(collection?.name ?? nft.collection ?? '').slice(0, 60),
     verified: ['verified', 'approved'].includes(String(collection?.safelist_status)),
     image,
@@ -295,5 +311,6 @@ export async function buildNftPurchaseTx(args: Record<string, unknown>, env: Env
       url: `https://opensea.io/assets/${CHAIN}/${contract}/${tokenId}`,
     }
   )
-  return args.from_panel === true ? { ...result, card: { ...result.card, handoff: true } } : result
+  const card = { ...result.card, nft: { contract, tokenId }, ...(args.from_panel === true ? { handoff: true } : {}) }
+  return { ...result, card }
 }

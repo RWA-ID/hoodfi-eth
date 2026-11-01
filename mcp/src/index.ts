@@ -6,7 +6,7 @@ import type { Env } from './env'
 import { ToolError } from './errors'
 import { SERVER_INFO, handleMcpPost, parseError } from './mcp'
 import { nftsForPicker } from './nft'
-import { listingForPanel } from './nft-buy'
+import { listingForPanel, tokenForCard } from './nft-buy'
 import { TOOLS } from './tools'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -80,6 +80,17 @@ app.get('/nfts/:address', async (c) => {
 app.get('/listing', async (c) => {
   try {
     return c.json(await listingForPanel(c.req.query('url'), c.env), 200, { 'cache-control': 'no-store' })
+  } catch (error) {
+    const known = error instanceof ToolError
+    return c.json({ error: known ? error.message : 'Unavailable' }, known ? 502 : 500)
+  }
+})
+
+/** The art on the final send and buy cards. Same reasoning as /nfts. */
+app.get('/nft/:contract/:tokenId', async (c) => {
+  try {
+    const body = await tokenForCard(c.req.param('contract'), c.req.param('tokenId'), c.env)
+    return c.json(body, 200, { 'cache-control': 'no-store' })
   } catch (error) {
     const known = error instanceof ToolError
     return c.json({ error: known ? error.message : 'Unavailable' }, known ? 502 : 500)

@@ -359,5 +359,6 @@ export async function buildNftTransferTx(args: Record<string, unknown>, env: Env
     }
   )
   // The user already pressed Send in the picker: no second button to press.
-  return args.from_picker === true ? { ...result, card: { ...result.card, handoff: true } } : result
+  const card = { ...result.card, nft: { contract, tokenId: tokenId.toString() }, ...(args.from_picker === true ? { handoff: true } : {}) }
+  return { ...result, card }
 }
