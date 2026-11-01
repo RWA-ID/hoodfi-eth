@@ -48,6 +48,10 @@ import {
   sendTransaction,
 } from './agent-tools'
 import { CARD_URI } from './card'
+import { NFT_TOOLS, buildNftTransferTx, listNfts } from './nft'
+import { BUY_TOOLS, buildNftPurchaseTx, openBuyPanel } from './nft-buy'
+import { BUY_URI } from './nft-buy-view'
+import { PICKER_URI } from './nft-picker'
 import { SEND_TOOL, prepareSend } from './send'
 import type { Step } from './complete'
 import { erc20Abi, registrarAbi, registryAbi } from './contracts'
@@ -81,6 +85,18 @@ const CARD_META = {
   'openai/outputTemplate': CARD_URI,
 }
 
+const PICKER_META = {
+  ui: { resourceUri: PICKER_URI },
+  'ui/resourceUri': PICKER_URI,
+  'openai/outputTemplate': PICKER_URI,
+}
+
+const BUY_META = {
+  ui: { resourceUri: BUY_URI },
+  'ui/resourceUri': BUY_URI,
+  'openai/outputTemplate': BUY_URI,
+}
+
 const CARD_TOOLS = new Set([
   'hoodfi_build_registration_tx',
   'hoodfi_build_set_contenthash_tx',
@@ -90,6 +106,8 @@ const CARD_TOOLS = new Set([
   'hoodfi_build_transfer_tx',
   'hoodfi_build_set_primary_name_tx',
   'hoodfi_prepare_send',
+  'hoodfi_build_nft_transfer_tx',
+  'hoodfi_build_nft_purchase_tx',
 ])
 
 /**
@@ -241,8 +259,14 @@ const BASE_TOOLS: ToolDefinition[] = [
   },
 ]
 
-export const TOOLS: ToolDefinition[] = [...BASE_TOOLS, ...AGENT_TOOLS, SEND_TOOL].map((tool) =>
-  CARD_TOOLS.has(tool.name) ? { ...tool, _meta: CARD_META } : tool
+export const TOOLS: ToolDefinition[] = [...BASE_TOOLS, ...AGENT_TOOLS, SEND_TOOL, ...NFT_TOOLS, ...BUY_TOOLS].map((tool) =>
+  tool.name === 'hoodfi_list_nfts'
+    ? { ...tool, _meta: PICKER_META }
+    : tool.name === 'hoodfi_buy_nft'
+      ? { ...tool, _meta: BUY_META }
+    : CARD_TOOLS.has(tool.name)
+      ? { ...tool, _meta: CARD_META }
+      : tool
 )
 
 /**
@@ -1171,6 +1195,18 @@ export async function callTool(
         break
       case 'hoodfi_prepare_send':
         result = await prepareSend(args, env)
+        break
+      case 'hoodfi_list_nfts':
+        result = await listNfts(args, env)
+        break
+      case 'hoodfi_build_nft_transfer_tx':
+        result = await buildNftTransferTx(args, env)
+        break
+      case 'hoodfi_buy_nft':
+        result = openBuyPanel(args)
+        break
+      case 'hoodfi_build_nft_purchase_tx':
+        result = await buildNftPurchaseTx(args, env)
         break
       case 'hoodfi_send_transaction':
         result = await sendTransaction(args, env)

@@ -33,6 +33,8 @@ export type CardAction =
   | 'transfer'
   | 'primary'
   | 'send'
+  | 'send-nft'
+  | 'buy-nft'
 
 export interface Card {
   action: CardAction
@@ -45,6 +47,8 @@ export interface Card {
   url: string
   /** What "Complete with PayBox" posts back to the chat, when the default (sign and relay each step) doesn't fit. */
   prompt?: string
+  /** The user already pressed Send in the picker and the model is carrying on: no second button. */
+  handoff?: boolean
 }
 
 export const CARD_HTML = `<!doctype html>
@@ -88,7 +92,7 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
 <script>
 (function(){
   var seq = 0, pending = {}, data = null, sent = false;
-  var VERB = { register: "Register", records: "Set records", website: "Publish site", subnames: "Create subnames", transfer: "Transfer", primary: "Primary name", send: "Send" };
+  var VERB = { register: "Register", records: "Set records", website: "Publish site", subnames: "Create subnames", transfer: "Transfer", primary: "Primary name", send: "Send", "send-nft": "Send NFT", "buy-nft": "Buy NFT" };
   function post(m){ try { window.parent.postMessage(m, "*"); } catch (e) {} }
   function rpc(method, params){ var id = ++seq; post({ jsonrpc: "2.0", id: id, method: method, params: params });
     return new Promise(function(res){ pending[id] = res; setTimeout(function(){ if (pending[id]) { delete pending[id]; res(null); } }, 8000); }); }
@@ -97,7 +101,7 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
 
   function render(c){
     if (!c || !c.action || !c.name) return;
-    data = c;
+    data = c; if (c.handoff) sent = true;
     var card = document.getElementById("card"); card.textContent = "";
     var head = el("div", "head"), top = el("div", "top"), brand = el("span", "brand");
     var icon = document.createElement("img"); icon.src = "https://www.hoodfi.name/icon-192.png"; icon.alt = "";
