@@ -3,7 +3,10 @@ import { cors } from 'hono/cors'
 
 import { ROBINHOOD_CHAIN_ID } from './chain'
 import type { Env } from './env'
+import { ToolError } from './errors'
 import { SERVER_INFO, handleMcpPost, parseError } from './mcp'
+import { nftsForPicker } from './nft'
+import { listingForPanel, tokenForCard } from './nft-buy'
 import { TOOLS } from './tools'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -58,6 +61,41 @@ app.get('/', (c) =>
     docs: 'https://www.hoodfi.name',
   })
 )
+
+/**
+ * What the NFT picker iframe draws. Not a tool: see the top of nft.ts for why this text
+ * must not travel through a tool result. Reports failure as failure, never as an empty list.
+ */
+app.get('/nfts/:address', async (c) => {
+  try {
+    const body = await nftsForPicker(c.req.param('address'), c.req.query('cursor'), c.env)
+    return c.json(body, 200, { 'cache-control': 'no-store' })
+  } catch (error) {
+    const known = error instanceof ToolError
+    return c.json({ error: known ? error.message : 'Unavailable' }, known ? 502 : 500)
+  }
+})
+
+/** What the buy panel draws, for a pasted OpenSea link. Same reasoning as /nfts. */
+app.get('/listing', async (c) => {
+  try {
+    return c.json(await listingForPanel(c.req.query('url'), c.env), 200, { 'cache-control': 'no-store' })
+  } catch (error) {
+    const known = error instanceof ToolError
+    return c.json({ error: known ? error.message : 'Unavailable' }, known ? 502 : 500)
+  }
+})
+
+/** The art on the final send and buy cards. Same reasoning as /nfts. */
+app.get('/nft/:contract/:tokenId', async (c) => {
+  try {
+    const body = await tokenForCard(c.req.param('contract'), c.req.param('tokenId'), c.env)
+    return c.json(body, 200, { 'cache-control': 'no-store' })
+  } catch (error) {
+    const known = error instanceof ToolError
+    return c.json({ error: known ? error.message : 'Unavailable' }, known ? 502 : 500)
+  }
+})
 
 app.post('/mcp', async (c) => {
   let body: unknown

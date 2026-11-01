@@ -1,5 +1,7 @@
 import { CARD_CSP, CARD_HTML, CARD_MIME, CARD_URI } from './card'
 import type { Env } from './env'
+import { BUY_CSP, BUY_HTML, BUY_URI } from './nft-buy-view'
+import { PICKER_CSP, PICKER_HTML, PICKER_URI } from './nft-picker'
 import { TOOLS, callTool } from './tools'
 
 /**
@@ -18,7 +20,7 @@ import { TOOLS, callTool } from './tools'
 export const SERVER_INFO = {
   name: 'hoodfi',
   title: 'HoodFi — ENS names on Robinhood Chain',
-  version: '1.1.0',
+  version: '1.2.0',
   websiteUrl: 'https://www.hoodfi.name',
   // The connector's icon in Claude and ChatGPT. Absent, clients fall back to the
   // domain's favicon, and hoodfi-mcp.com had none.
@@ -29,6 +31,18 @@ export const SERVER_INFO = {
 }
 
 const CARD_RESOURCE_META = { ui: { csp: CARD_CSP, prefersBorder: false } }
+const PICKER_RESOURCE_META = {
+  ui: { csp: PICKER_CSP, prefersBorder: false },
+  'openai/widgetCSP': {
+    connect_domains: PICKER_CSP.connectDomains,
+    resource_domains: PICKER_CSP.resourceDomains,
+  },
+}
+
+const BUY_RESOURCE_META = {
+  ui: { csp: BUY_CSP, prefersBorder: false },
+  'openai/widgetCSP': { connect_domains: BUY_CSP.connectDomains, resource_domains: BUY_CSP.resourceDomains },
+}
 
 const SUPPORTED_PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
 const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0] as string
@@ -43,6 +57,8 @@ const INSTRUCTIONS = [
   'Everything is on Robinhood Chain except the ENS primary name (hoodfi_build_set_primary_name_tx), which is an Ethereum mainnet transaction paid in mainnet ETH.',
   '',
   'To send crypto to a hoodfi name, call hoodfi_prepare_send: it reads the address the name holds for that chain and returns the arguments for PayBox request_transfer, which builds and sends the transfer itself (hoodfi_send_transaction is not involved). Show the user the name, the full address and the amount, and send only after they confirm.',
+  '',
+  'To send an NFT on Robinhood Chain, call hoodfi_list_nfts with the PayBox wallet: it shows a picker, and pressing Send there posts a message into the chat. Then call hoodfi_build_nft_transfer_tx as that message says, tell the user the resolved recipient address, sign with PayBox request_wallet_sign and broadcast with hoodfi_send_transaction. To buy one, call hoodfi_buy_nft: the user pastes its OpenSea link into the panel, checks the NFT and price, and presses Buy; then follow the message it posts in the same way. Robinhood Chain only, and never build a purchase the user has not confirmed in the panel.',
   '',
   'Three rules to hold on to:',
   '- The registrar mints to the transaction sender. Whichever wallet signs owns the name. There is no recipient argument, so a name cannot be registered on behalf of another address.',
@@ -124,6 +140,20 @@ async function handleOne(
             mimeType: CARD_MIME,
             _meta: CARD_RESOURCE_META,
           },
+          {
+            uri: PICKER_URI,
+            name: 'nft-picker',
+            title: 'HoodFi NFT picker',
+            mimeType: CARD_MIME,
+            _meta: PICKER_RESOURCE_META,
+          },
+          {
+            uri: BUY_URI,
+            name: 'nft-buy',
+            title: 'HoodFi NFT buy panel',
+            mimeType: CARD_MIME,
+            _meta: BUY_RESOURCE_META,
+          },
         ],
       })
 
@@ -131,6 +161,16 @@ async function handleOne(
       return result(id, { resourceTemplates: [] })
 
     case 'resources/read': {
+      if (params?.uri === BUY_URI)
+        return result(id, {
+          contents: [{ uri: BUY_URI, mimeType: CARD_MIME, text: BUY_HTML, _meta: BUY_RESOURCE_META }],
+        })
+      if (params?.uri === PICKER_URI)
+        return result(id, {
+          contents: [
+            { uri: PICKER_URI, mimeType: CARD_MIME, text: PICKER_HTML, _meta: PICKER_RESOURCE_META },
+          ],
+        })
       if (params?.uri !== CARD_URI)
         return failure(id, INVALID_PARAMS, `Unknown resource: ${String(params?.uri)}`)
       return result(id, {

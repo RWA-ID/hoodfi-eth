@@ -36,6 +36,10 @@ binding = "GATEWAY"
 service = "hoodfi-gateway"
 
 [vars]
+# OPENSEA_API_KEY is a secret too (`wrangler secret put OPENSEA_API_KEY`), the key for
+# HoodFi Names rather than HoodPoker's. Without it the NFT picker reports the index as
+# unavailable; nothing else depends on it.
+#
 # ROBINHOOD_RPC_URL is deliberately NOT declared here. It is a secret
 # (`wrangler secret put ROBINHOOD_RPC_URL`) because it carries an API key, and a
 # plain var of the same name would shadow that secret on every deploy — it would

@@ -11,6 +11,8 @@ export interface Env {
   L2_REGISTRY_ADDRESS?: Hex
   /** USDG, the stablecoin the registrar accepts alongside ETH. */
   USDG_ADDRESS?: Hex
+  /** Secret. OpenSea's index of a wallet's NFTs, for the picker. */
+  OPENSEA_API_KEY?: string
   /** Service binding to hoodfi-gateway: a wallet's names (GET /owner/:address/names). */
   GATEWAY?: { fetch: (request: Request) => Promise<Response> }
 }

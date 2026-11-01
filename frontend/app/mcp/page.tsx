@@ -71,6 +71,22 @@ const TOOLS = [
     body: "Send ETH or SOL to any hoodfi name, at the address it holds for that chain. Your PayBox wallet makes the transfer; a name that changed hands or had its address changed in the last two days is flagged first.",
   },
   {
+    name: "hoodfi_list_nfts",
+    body: "A picker of the NFTs your wallet holds on Robinhood Chain. Select one, enter a 0x address or a hoodfi name, and press Send.",
+  },
+  {
+    name: "hoodfi_build_nft_transfer_tx",
+    body: "The transaction that sends that NFT, after checking on chain that you hold it and that the transfer would succeed.",
+  },
+  {
+    name: "hoodfi_buy_nft",
+    body: "Paste the OpenSea link of a Robinhood Chain NFT, check the NFT and its price, and press Buy.",
+  },
+  {
+    name: "hoodfi_build_nft_purchase_tx",
+    body: "The transaction that buys that listing in ETH, refused if the token or price no longer match what you confirmed. HoodFi adds no fee.",
+  },
+  {
     name: "hoodfi_send_transaction",
     body: "For wallets that sign without sending, like PayBox: broadcasts a transaction one of the tools above prepared, and only those.",
   },

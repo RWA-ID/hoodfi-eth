@@ -39,6 +39,7 @@ import {
 import { type Env, envVar } from './env'
 import { ToolError } from './errors'
 import { MAX_LABEL_LENGTH, PARENT, checkHoodfiName, checkLabel } from './labels'
+import { isOwnNftTransfer, isSeaportEthFill } from './nft-relay'
 import { isListableName, splitListable } from './owned-names'
 
 /**
@@ -285,7 +286,7 @@ export const AGENT_TOOLS = [
     name: 'hoodfi_send_transaction',
     title: 'Broadcast a signed transaction',
     description:
-      'For wallets that sign without broadcasting, such as PayBox: pass the signed raw transaction (0x…) of a step prepared here and it is sent — on Robinhood Chain, or on mainnet for a primary name. Only HoodFi transactions are relayed: the registrar, the name registry, a USDG approval to the registrar, and the mainnet ReverseRegistrar. Waits for the receipt and reports its status.',
+      'For wallets that sign without broadcasting, such as PayBox: pass the signed raw transaction (0x…) of a step prepared here and it is sent — on Robinhood Chain, or on mainnet for a primary name. Only transactions of the kinds built here are relayed: the registrar, the name registry, a USDG approval to the registrar, the mainnet ReverseRegistrar, the signer sending their own NFT on Robinhood Chain, and an ETH purchase through Seaport on Robinhood Chain. Waits for the receipt and reports its status.',
     inputSchema: {
       type: 'object',
       properties: { signed_transaction: { type: 'string', description: 'Signed raw transaction, 0x-prefixed hex.' } },
@@ -649,10 +650,16 @@ export async function sendTransaction(args: Record<string, unknown>, env: Env) {
   }
   if (!parsed.r || !parsed.s) throw new ToolError('The transaction is not signed.')
   const chainId = parsed.chainId ?? 0
-  const what = allowed(chainId, parsed.to ? getAddress(parsed.to) : null, parsed.data ?? '0x', env)
+  let what = allowed(chainId, parsed.to ? getAddress(parsed.to) : null, parsed.data ?? '0x', env)
+  // Any collection can be sent, so an NFT transfer is judged by the call and not the address.
+  if (!what && chainId === ROBINHOOD_CHAIN_ID && parsed.to) {
+    const signer = await recoverTransactionAddress({ serializedTransaction: raw as TransactionSerialized }).catch(() => null)
+    if (signer && isOwnNftTransfer(parsed.data ?? '0x', parsed.value ?? 0n, signer)) what = 'send NFT'
+    else if (isSeaportEthFill(getAddress(parsed.to), parsed.data ?? '0x')) what = 'buy NFT'
+  }
   if (!what)
     throw new ToolError(
-      `HoodFi only broadcasts the transactions it prepares (registrar, name registry, USDG approval, mainnet primary name). Send this one another way. chain ${chainId}, to ${parsed.to}.`
+      `HoodFi only broadcasts the transactions it prepares (registrar, name registry, USDG approval, mainnet primary name, sending your own NFT, buying through Seaport). Send this one another way. chain ${chainId}, to ${parsed.to}.`
     )
 
   const client = clientFor(chainId, env)

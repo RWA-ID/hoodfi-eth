@@ -22,7 +22,11 @@ export const CARD_CSP = {
     'https://fonts.googleapis.com',
     'https://fonts.gstatic.com',
     'https://www.hoodfi.name',
+    'https://*.seadn.io',
   ],
+  // The NFT send and buy cards fetch their art themselves: see nft.ts on why token text
+  // stays out of tool results.
+  connectDomains: ['https://hoodfi-mcp.com'],
 }
 
 export type CardAction =
@@ -33,6 +37,8 @@ export type CardAction =
   | 'transfer'
   | 'primary'
   | 'send'
+  | 'send-nft'
+  | 'buy-nft'
 
 export interface Card {
   action: CardAction
@@ -45,6 +51,10 @@ export interface Card {
   url: string
   /** What "Complete with PayBox" posts back to the chat, when the default (sign and relay each step) doesn't fit. */
   prompt?: string
+  /** The user already pressed Send in the picker and the model is carrying on: no second button. */
+  handoff?: boolean
+  /** The NFT being sent or bought. The iframe fetches its name and art from GET /nft/…. */
+  nft?: { contract: string; tokenId: string }
 }
 
 export const CARD_HTML = `<!doctype html>
@@ -82,13 +92,14 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
 .view{flex:0 1 auto;background:transparent;color:var(--ink)}
 .foot{margin:12px 0 0;font-size:11.5px;line-height:1.5;color:var(--label)}
 .wallet{font-family:"IBM Plex Mono",monospace;color:var(--dim);overflow-wrap:anywhere}
+.nftart{display:block;width:100%;max-width:260px;aspect-ratio:1;object-fit:cover;background:var(--ink);margin:0 auto 14px;border:1.5px solid var(--ink)}
 .empty{padding:28px 18px;font-size:14px;color:var(--label)}
 </style></head>
 <body><div class="card" id="card"><div class="empty">Preparing…</div></div>
 <script>
 (function(){
-  var seq = 0, pending = {}, data = null, sent = false;
-  var VERB = { register: "Register", records: "Set records", website: "Publish site", subnames: "Create subnames", transfer: "Transfer", primary: "Primary name", send: "Send" };
+  var seq = 0, pending = {}, data = null, sent = false, art = null, artFor = null;
+  var VERB = { register: "Register", records: "Set records", website: "Publish site", subnames: "Create subnames", transfer: "Transfer", primary: "Primary name", send: "Send", "send-nft": "Send NFT", "buy-nft": "Buy NFT" };
   function post(m){ try { window.parent.postMessage(m, "*"); } catch (e) {} }
   function rpc(method, params){ var id = ++seq; post({ jsonrpc: "2.0", id: id, method: method, params: params });
     return new Promise(function(res){ pending[id] = res; setTimeout(function(){ if (pending[id]) { delete pending[id]; res(null); } }, 8000); }); }
@@ -97,19 +108,25 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
 
   function render(c){
     if (!c || !c.action || !c.name) return;
-    data = c;
+    data = c; if (c.handoff) sent = true;
     var card = document.getElementById("card"); card.textContent = "";
     var head = el("div", "head"), top = el("div", "top"), brand = el("span", "brand");
     var icon = document.createElement("img"); icon.src = "https://www.hoodfi.name/icon-192.png"; icon.alt = "";
     icon.onerror = function(){ icon.remove(); };
     brand.appendChild(icon); brand.appendChild(el("span", "", "HoodFi Names"));
     top.appendChild(brand); top.appendChild(el("span", "action", VERB[c.action] || c.action)); head.appendChild(top);
-    var nm = el("div", "name"), full = String(c.name), cut = full.lastIndexOf(".hoodfi.eth");
+    loadArt(c);
+    var nm = el("div", "name"), full = String(art && art.name ? art.name : c.name), cut = full.lastIndexOf(".hoodfi.eth");
     nm.appendChild(document.createTextNode(cut > 0 ? full.slice(0, cut) : full));
     if (cut > 0) nm.appendChild(el("span", "tld", ".hoodfi.eth"));
     head.appendChild(nm); card.appendChild(head);
 
     var body = el("div", "body");
+    if (art && art.image) {
+      var pic = document.createElement("img"); pic.className = "nftart"; pic.alt = ""; pic.src = art.image;
+      pic.onerror = function(){ pic.remove(); size(); }; pic.onload = size;
+      body.appendChild(pic);
+    }
     if (c.rows && c.rows.length) {
       var dl = el("dl");
       c.rows.forEach(function(r){ var d = el("div"); d.appendChild(el("dt", "", r[0])); d.appendChild(el("dd", "", r[1])); dl.appendChild(d); });
@@ -131,6 +148,15 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
     foot.appendChild(el("span", "wallet", c.wallet || "")); body.appendChild(foot);
     card.appendChild(body);
     size();
+  }
+
+  // Decoration: if this fails the card still shows everything needed to approve.
+  function loadArt(c){
+    var n = c.nft;
+    if (!n || artFor || !/^0x[0-9a-fA-F]{40}$/.test(n.contract || "") || !/^[0-9]+$/.test(n.tokenId || "")) return;
+    artFor = n.contract + "/" + n.tokenId;
+    fetch("https://hoodfi-mcp.com/nft/" + artFor).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(b){ if (b) { art = b; render(data); } }).catch(function(){});
   }
 
   function complete(){
