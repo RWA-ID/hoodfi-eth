@@ -6,7 +6,8 @@ An MCP server that lets AI agents register names under `hoodfi.eth` on Robinhood
 calldata encoding; the agent's wallet signs. Each step carries a complete `transaction`
 (nonce, gas, fees, chainId) so a signing-only wallet like PayBox signs it as given, and
 `hoodfi_send_transaction` relays the signed bytes — only to the registrar, the registry,
-a USDG approval to the registrar, or the mainnet ReverseRegistrar. Nothing here can move
+a USDG approval to the registrar, the mainnet ReverseRegistrar, the signer sending their
+own NFT on Robinhood Chain, or an ETH purchase through Seaport there. Nothing here can move
 funds on its own, so the worst an abusive caller can do is spend compute.
 
 `test/paybox.fork.mjs` signs every write as given against an anvil fork of Robinhood
@@ -36,6 +37,8 @@ open a stream that would never carry a message.
 
 ## Tools
 
+Sending and buying NFTs needs the `OPENSEA_API_KEY` secret (`wrangler secret put OPENSEA_API_KEY`). Without it those tools report OpenSea as unavailable; nothing else depends on it. Test them with `test/nft.fork.mjs`. When a card changes, bump its `ui://` address, because hosts cache by address, and keep serving the old one.
+
 | Tool | Does |
 | --- | --- |
 | `hoodfi_check_name` | Availability, price in ETH and USDG, and the reason when a name can't be had |
@@ -53,7 +56,7 @@ open a stream that would never carry a message.
 | `hoodfi_buy_nft` | A panel where the user pastes an OpenSea link to a Robinhood Chain NFT and sees it with its price |
 | `hoodfi_build_nft_purchase_tx` | Buys that listing through Seaport once confirmed: one item, in ETH. The order is re-checked against the confirmed token and price, then simulated. HoodFi adds no fee |
 | `hoodfi_prepare_send` | Send ETH (Ethereum or Robinhood Chain) or SOL to a name: reads its address from the L2 registry and returns PayBox `request_transfer` arguments; refuses unminted names and missing records, flags a name that changed hands or had its address changed in the last two days. BTC is look-up only |
-| `hoodfi_send_transaction` | Broadcasts a signed transaction from a signing-only wallet (PayBox), only of the kinds above |
+| `hoodfi_send_transaction` | Broadcasts a signed transaction from a signing-only wallet (PayBox), only of the kinds above, never an approval. Renders the outcome: a success or congrats screen with the NFT's art, or failed or pending |
 
 ### A name can be a website
 
