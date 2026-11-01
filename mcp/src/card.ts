@@ -15,7 +15,10 @@
  * computed — never a name's text records, which a stranger may have written.
  */
 
-export const CARD_URI = 'ui://hoodfi/action-card.html'
+// Bumped when the card changes: hosts cache a ui:// resource by its address. Clients
+// that still hold an older tool list keep reading the old address, so it stays served.
+export const CARD_URI = 'ui://hoodfi/action-card-v2.html'
+export const CARD_URI_OLD = 'ui://hoodfi/action-card.html'
 export const CARD_MIME = 'text/html;profile=mcp-app'
 export const CARD_CSP = {
   resourceDomains: [
@@ -39,6 +42,7 @@ export type CardAction =
   | 'send'
   | 'send-nft'
   | 'buy-nft'
+  | 'done'
 
 export interface Card {
   action: CardAction
@@ -55,6 +59,8 @@ export interface Card {
   handoff?: boolean
   /** The NFT being sent or bought. The iframe fetches its name and art from GET /nft/…. */
   nft?: { contract: string; tokenId: string }
+  /** Set after a broadcast: this card reports the outcome instead of asking for anything. */
+  result?: { status: 'success' | 'reverted' | 'pending'; badge: string; headline: string }
 }
 
 export const CARD_HTML = `<!doctype html>
@@ -93,6 +99,9 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
 .foot{margin:12px 0 0;font-size:11.5px;line-height:1.5;color:var(--label)}
 .wallet{font-family:"IBM Plex Mono",monospace;color:var(--dim);overflow-wrap:anywhere}
 .nftart{display:block;width:100%;max-width:260px;aspect-ratio:1;object-fit:cover;background:var(--ink);margin:0 auto 14px;border:1.5px solid var(--ink)}
+.congrats{margin-bottom:14px;padding:14px 16px;background:var(--lime);border:1.5px solid var(--ink);font:800 20px/1.2 Archivo,sans-serif;letter-spacing:-.01em}
+.congrats.reverted{background:#fbe9e3;border-color:var(--bad);color:var(--bad)}
+.congrats.pending{background:var(--paper-alt)}
 .empty{padding:28px 18px;font-size:14px;color:var(--label)}
 </style></head>
 <body><div class="card" id="card"><div class="empty">Preparing…</div></div>
@@ -114,7 +123,7 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
     var icon = document.createElement("img"); icon.src = "https://www.hoodfi.name/icon-192.png"; icon.alt = "";
     icon.onerror = function(){ icon.remove(); };
     brand.appendChild(icon); brand.appendChild(el("span", "", "HoodFi Names"));
-    top.appendChild(brand); top.appendChild(el("span", "action", VERB[c.action] || c.action)); head.appendChild(top);
+    top.appendChild(brand); top.appendChild(el("span", "action", c.result ? c.result.badge : (VERB[c.action] || c.action))); head.appendChild(top);
     loadArt(c);
     var nm = el("div", "name"), full = String(art && art.name ? art.name : c.name), cut = full.lastIndexOf(".hoodfi.eth");
     nm.appendChild(document.createTextNode(cut > 0 ? full.slice(0, cut) : full));
@@ -122,6 +131,7 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
     head.appendChild(nm); card.appendChild(head);
 
     var body = el("div", "body");
+    if (c.result) body.appendChild(el("div", "congrats " + c.result.status, c.result.headline));
     if (art && art.image) {
       var pic = document.createElement("img"); pic.className = "nftart"; pic.alt = ""; pic.src = art.image;
       pic.onerror = function(){ pic.remove(); size(); }; pic.onload = size;
@@ -131,6 +141,13 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
       var dl = el("dl");
       c.rows.forEach(function(r){ var d = el("div"); d.appendChild(el("dt", "", r[0])); d.appendChild(el("dd", "", r[1])); dl.appendChild(d); });
       body.appendChild(dl);
+    }
+    if (c.result) {
+      var links = el("div", "btns"), tx = el("button", "view", "View transaction");
+      tx.onclick = function(){ open(c.url); }; links.appendChild(tx);
+      if (c.nft) { var os = el("button", "view", "View on OpenSea");
+        os.onclick = function(){ open("https://opensea.io/assets/robinhood/" + c.nft.contract + "/" + c.nft.tokenId); }; links.appendChild(os); }
+      body.appendChild(links); card.appendChild(body); size(); return;
     }
     if (c.steps && c.steps.length) {
       body.appendChild(el("h3", "", "What PayBox will ask you to approve"));
@@ -178,7 +195,10 @@ button{cursor:pointer;height:44px;padding:0 18px;font:700 13px/1 Archivo,sans-se
     if (e.source !== window.parent) return;
     var m = e.data; if (!m || m.jsonrpc !== "2.0") return;
     if (m.id != null && !m.method && pending[m.id]) { var f = pending[m.id]; delete pending[m.id]; f(m.result || (m.error ? { isError: true } : null)); return; }
-    if (m.method === "ui/notifications/tool-result" && m.params) render((m.params.structuredContent || {}).card);
+    if (m.method === "ui/notifications/tool-result" && m.params) {
+      var got = (m.params.structuredContent || {}).card;
+      if (got) render(got); else if (!data) { var box = document.getElementById("card"); box.textContent = ""; box.appendChild(el("div", "empty", "This step didn't complete. See the chat for why.")); size(); }
+    }
     if (m.method === "ui/resource-teardown" && m.id != null) post({ jsonrpc: "2.0", id: m.id, result: {} });
   });
   function fromOpenAI(){ var o = window.openai && window.openai.toolOutput; if (o && o.card) render(o.card); }

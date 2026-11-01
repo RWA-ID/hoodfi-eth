@@ -108,6 +108,7 @@ const CARD_TOOLS = new Set([
   'hoodfi_prepare_send',
   'hoodfi_build_nft_transfer_tx',
   'hoodfi_build_nft_purchase_tx',
+  'hoodfi_send_transaction',
 ])
 
 /**

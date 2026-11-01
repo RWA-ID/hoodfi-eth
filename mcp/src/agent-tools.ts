@@ -39,7 +39,7 @@ import {
 import { type Env, envVar } from './env'
 import { ToolError } from './errors'
 import { MAX_LABEL_LENGTH, PARENT, checkHoodfiName, checkLabel } from './labels'
-import { isOwnNftTransfer, isSeaportEthFill } from './nft-relay'
+import { describeNftTx, isOwnNftTransfer, isSeaportEthFill } from './nft-relay'
 import { isListableName, splitListable } from './owned-names'
 
 /**
@@ -602,6 +602,61 @@ export async function buildSetPrimaryNameTx(args: Record<string, unknown>, env: 
 
 /* ------------------------------------------------------------- relay */
 
+/**
+ * The outcome card under hoodfi_send_transaction. Built from the transaction's own calldata
+ * and the receipt: it congratulates only on a mined success. The token's name and art are
+ * fetched by the iframe, as on every other card.
+ */
+function resultCard(
+  status: 'success' | 'reverted' | 'pending',
+  what: string,
+  to: Address,
+  data: Hex,
+  value: bigint,
+  from: Address | null,
+  hash: Hex,
+  explorer: string
+): Card {
+  const nft = describeNftTx(to, data)
+  const rows: [string, string][] = []
+  let badge = 'Confirmed'
+  let headline = 'Transaction confirmed.'
+  let name = 'Transaction'
+  if (nft) {
+    const id = nft.tokenId.toString()
+    name = `NFT #${id.length > 12 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id}`
+    if (nft.kind === 'send') {
+      badge = 'Sent'
+      headline = 'Success! Your NFT has been sent.'
+      if (nft.quantity > 1n) rows.push(['Quantity', nft.quantity.toString()])
+      rows.push(['Sent to', getAddress(nft.recipient)])
+    } else {
+      badge = 'Purchased'
+      headline = 'Congrats! You successfully purchased this NFT.'
+      rows.push(['You paid', `${formatEther(value)} ETH`])
+    }
+  } else rows.push(['Step', what])
+  rows.push(['Transaction', `${hash.slice(0, 10)}…${hash.slice(-8)}`])
+  if (status === 'reverted') {
+    badge = 'Failed'
+    headline = 'This transaction failed on chain. Nothing moved except the network fee.'
+  } else if (status === 'pending') {
+    badge = 'Pending'
+    headline = 'Broadcast, and still waiting to be confirmed. Check the transaction before trying again.'
+  }
+  return {
+    action: 'done',
+    name,
+    wallet: from ?? '',
+    rows,
+    steps: [],
+    warnings: [],
+    url: explorer,
+    result: { status, badge, headline },
+    ...(nft ? { nft: { contract: getAddress(nft.contract), tokenId: nft.tokenId.toString() } } : {}),
+  }
+}
+
 const STALE =
   /nonce too low|replacement transaction underpriced|max fee per gas less than block base fee|fee cap less than block base fee/i
 
@@ -688,6 +743,9 @@ export async function sendTransaction(args: Record<string, unknown>, env: Env) {
 
   const explorer =
     chainId === MAINNET_CHAIN_ID ? `https://etherscan.io/tx/${hash}` : `${ROBINHOOD_EXPLORER}/tx/${hash}`
+  const sender = await recoverTransactionAddress({ serializedTransaction: raw as TransactionSerialized }).catch(() => null)
+  const card = (status: 'success' | 'reverted' | 'pending') =>
+    resultCard(status, what as string, getAddress(parsed.to as Address), parsed.data ?? '0x', parsed.value ?? 0n, sender, hash, explorer)
   try {
     // waitForTransactionReceipt resolves on a revert too: the status is the answer.
     const receipt = await client.waitForTransactionReceipt({ hash, timeout: 90_000 })
@@ -699,8 +757,9 @@ export async function sendTransaction(args: Record<string, unknown>, env: Env) {
       block: Number(receipt.blockNumber),
       explorer,
       ...(receipt.status === 'success' ? {} : { error: 'The transaction was mined but reverted.' }),
+      card: card(receipt.status),
     }
   } catch {
-    return { hash, what, chainId, status: 'pending', explorer, next: 'Broadcast, not mined within 90 s. Check the explorer before the next step.' }
+    return { hash, what, chainId, status: 'pending', explorer, next: 'Broadcast, not mined within 90 s. Check the explorer before the next step.', card: card('pending') }
   }
 }

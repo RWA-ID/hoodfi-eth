@@ -62,10 +62,10 @@ const init = await rpc('initialize', { protocolVersion: '2025-06-18', capabiliti
 assert.ok(init.capabilities.resources && init.serverInfo.icons?.length && init.instructions.includes('hoodfi_send_transaction'))
 const { tools } = await rpc('tools/list', {})
 assert.equal(tools.length, 16, tools.map((t) => t.name).join())
-assert.equal(tools.filter((t) => t._meta?.ui?.resourceUri === 'ui://hoodfi/action-card.html').length, 10)
-const card = (await rpc('resources/read', { uri: 'ui://hoodfi/action-card.html' })).contents[0]
+assert.equal(tools.filter((t) => t._meta?.ui?.resourceUri === 'ui://hoodfi/action-card-v2.html').length, 11)
+const card = (await rpc('resources/read', { uri: 'ui://hoodfi/action-card-v2.html' })).contents[0]
 assert.equal(card.mimeType, 'text/html;profile=mcp-app')
-ok('initialize has icons + resources; 16 tools, 10 with the HoodFi card; card is an MCP App')
+ok('initialize has icons + resources; 16 tools, 11 with the HoodFi card; card is an MCP App')
 
 const me = privateKeyToAccount(generatePrivateKey())
 const friend = privateKeyToAccount(generatePrivateKey())
