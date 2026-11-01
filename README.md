@@ -332,14 +332,20 @@ first-party equivalent.
 | `hoodfi_buy_nft` | A panel where the user pastes an OpenSea link to a Robinhood Chain NFT and sees it with its price |
 | `hoodfi_build_nft_purchase_tx` | Buys that listing through Seaport once confirmed: one item, in ETH. The order is re-checked against the confirmed token and price, then simulated. HoodFi adds no fee |
 | `hoodfi_prepare_send` | Send ETH (Ethereum or Robinhood Chain) or SOL to a name: reads its address from the L2 registry and returns PayBox `request_transfer` arguments; refuses unminted names and missing records, flags a name that changed hands or had its address changed in the last two days. BTC is look-up only |
-| `hoodfi_send_transaction` | Broadcasts a signed transaction from a signing-only wallet (PayBox), only of the kinds above |
+| `hoodfi_send_transaction` | Broadcasts a signed transaction from a signing-only wallet (PayBox), only of the kinds above, never an approval. Renders the outcome: a success or congrats screen with the NFT's art, or failed or pending |
 
 **The server holds no keys and signs nothing.** Every write tool returns steps for the
 caller's own wallet, each with a complete `transaction` (nonce, gas, fees, chainId) so a
 signing-only wallet such as PayBox signs it as given; `hoodfi_send_transaction` then
-broadcasts what was already signed, and only HoodFi's own kinds of transaction. It
+broadcasts what was already signed, and only the kinds of transaction built here: HoodFi's
+own, the signer sending their own NFT, and an ETH purchase through Seaport. It
 cannot mint a name, move one, or touch a record on its own. Write tools also render a
 HoodFi card in clients that support MCP Apps (Claude, ChatGPT).
+
+**NFTs:** sending and buying work on Robinhood Chain only. OpenSea is the index, and a
+token's name and art go straight to the iframe, never through a tool result, because anyone
+can airdrop a token with any text in it. What gets signed is checked on chain. Buying covers
+one item at a time in ETH through plain Seaport listings, and HoodFi adds no fee.
 
 **Adding it:** no sign-in — in Claude, ChatGPT or Grok add a custom connector with the URL
 above and nothing else. Pair it with the PayBox connector to sign by voice; the steps
@@ -541,12 +547,16 @@ Resolution design notes:
 | `builder/components/PublishPanel.tsx` | Five named steps. A single spinner over two wallet prompts and a chain read is how somebody pays twice |
 | `builder/components/ConnectionGuard.tsx` | Detects a rehydrated WalletConnect connector stub by the method it is missing (`getChainId`); storage looks healthy in that state and is a dead end |
 | `builder/shared/` | Generated copy of `frontend/shared/` — Turbopack will not resolve a symlink out of the project root, so the codec is copied on `prebuild` |
-| `mcp/` | The MCP server at hoodfi-mcp.com. Its own Cloudflare Worker (Hono + viem), streamable-HTTP transport, twelve tools |
+| `mcp/` | The MCP server at hoodfi-mcp.com. Its own Cloudflare Worker (Hono + viem), streamable-HTTP transport, sixteen tools |
+| `mcp/src/nft.ts`, `mcp/src/nft-buy.ts` | Sending and buying NFTs on Robinhood Chain: the OpenSea index, the on-chain checks, the order verification |
+| `mcp/src/nft-picker.ts`, `mcp/src/nft-buy-view.ts` | The send picker and buy panel iframes |
+| `mcp/src/nft-relay.ts` | The two NFT calls the relay accepts, and how a result card reads them |
 | `mcp/src/tools.ts` | The tool list and dispatch. Every write tool returns unsigned steps — the server holds no keys |
 | `mcp/src/agent-tools.ts` | The six tools added for wallet-signed agents (list names, text records, subnames, transfer, mainnet primary name, send) and the relay's allowlist |
 | `mcp/src/complete.ts` | Fills each step into a complete transaction — pending nonce (+1 per earlier step on the same chain), gas +25%, fees — so a signing-only wallet signs it as given |
 | `mcp/src/card.ts` | The HoodFi card rendered in MCP Apps clients. Every value is written with `textContent`: names and records are other people's text |
 | `mcp/test/paybox.fork.mjs` | The PayBox path end to end on an anvil fork of Robinhood Chain: register, records, subnames, transfer, relay refusals |
+| `mcp/test/nft.fork.mjs` | A real NFT sent and a real OpenSea listing bought on a fork, plus the refusals: wrong owner, higher price, wrong token, an approval |
 | `mcp/test/shortnames.fork.mjs` | An agent mints a 1–3 character name end to end on a fork; blocklisted short labels are still refused |
 | `mcp/src/coins.ts` | Bitcoin, Solana and XRP Ledger address parsing into each chain's own encoding, and the honest per-chain account of what a check proves |
 | `DEPLOY.md` | The v2 deploy runbook, in the order it must be run; §8 is the post-ENSv2 Safe routine |
