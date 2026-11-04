@@ -7,8 +7,10 @@
  * single-argument `addr(node)`, which returns coinType 60 even on Robinhood Chain.
  *
  * There is deliberately no fallback from an empty Robinhood record to coinType 60 (or
- * to ENSIP-11's default EVM record): the mainnet address can be a contract wallet such
- * as a Safe that does not exist on Robinhood Chain, and ETH sent to it there is gone.
+ * to ENSIP-11's default EVM record). A plain key-held account is the same on every EVM
+ * chain, but a contract wallet such as a Safe only exists on the chains it was deployed
+ * to: ETH sent to its address on Robinhood Chain would be stuck until the same wallet is
+ * deployed there, which isn't always possible.
  * The registrar writes both records at mint and /manage writes them together, so an
  * empty one only happens when someone wrote to the registry directly. That is exactly
  * when the recipient should be asked.
