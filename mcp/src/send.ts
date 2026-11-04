@@ -8,6 +8,7 @@ import { type Env, envVar } from './env'
 import { ToolError } from './errors'
 import { nameLink, requireHoodfiName } from './agent-tools'
 import { recentChange } from './recent-changes'
+import { pickRecord } from './send-record'
 
 /**
  * Sending crypto to a hoodfi name.
@@ -109,25 +110,20 @@ export async function prepareSend(args: Record<string, unknown>, env: Env) {
   if (owner === ZERO)
     throw new ToolError(`${name} has not been minted, so it has no addresses. Don't send to it.`)
 
-  const address = stored && stored !== '0x' ? c.coin.decode(stored) : null
-  if (stored && stored !== '0x' && !address)
-    throw new ToolError(`${name}'s ${c.coin.label} record isn't a valid ${c.symbol} address, so it can't be paid on ${c.label}.`)
-  if (!address || address === ZERO) {
-    const other = sibling && siblingStored && siblingStored !== '0x' ? COINS.ethereum.decode(siblingStored) : null
-    throw new ToolError(
-      `${name} has no ${c.label} address set, so it can't be paid there. Don't send it to any of its other addresses instead.` +
-        (other ? ` It does have an address for ${chain === 'ethereum' ? 'Robinhood Chain' : 'Ethereum mainnet'}; the owner should set both.` : '')
-    )
-  }
-
-  const warnings: string[] = []
-  if (sibling && siblingStored && siblingStored !== '0x') {
-    const other = COINS.ethereum.decode(siblingStored)
-    if (other && other !== address)
-      warnings.push(
-        `${name}'s two ETH records disagree: ${c.label} → ${address}, ${chain === 'ethereum' ? 'Robinhood Chain' : 'Ethereum mainnet'} → ${other}. This send uses the ${c.label} one; confirm it with the recipient.`
-      )
-  }
+  // Chain-specific record only, no fallback to another chain's: see send-record.ts.
+  const pick = pickRecord({
+    name,
+    chainLabel: c.label,
+    symbol: c.symbol,
+    recordLabel: c.coin.label,
+    stored,
+    decode: c.coin.decode,
+    sibling: sibling
+      ? { chainLabel: chain === 'ethereum' ? 'Robinhood Chain' : 'Ethereum mainnet', stored: siblingStored, decode: COINS.ethereum.decode }
+      : undefined,
+  })
+  if (!pick.ok) throw new ToolError(pick.error)
+  const { address, warnings } = pick
   try {
     const latest = await client.getBlockNumber()
     const fromBlock = latest > RECENT_BLOCKS ? latest - RECENT_BLOCKS : 0n
