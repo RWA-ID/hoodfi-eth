@@ -54,8 +54,8 @@ for (const step of steps) {
 
 - **The name goes to whoever sends the transaction.** The registrar mints to `msg.sender` and takes no recipient, so to give a name to someone else, mint it and then transfer it.
 - `payWith: 'usdg'` adds an `approve` step first when the allowance is short.
-- ETH payments send the quoted price plus a buffer (`overpayBps`, default 100 = 1%) so a price-feed tick between quote and send doesn't revert the transaction. The registrar refunds the excess to the sender in the same transaction.
-- Prices: $3 for 4+ characters, $5 / $10 / $15 for 3 / 2 / 1 characters. `checkName` returns the live price.
+- ETH payments send the quoted price plus a buffer (`overpayBps`, default 100 = 1%) so the transaction still goes through if the registrar owner reprices between quote and send. The registrar refunds the excess to the sender in the same transaction.
+- Prices: $3 for 4+ characters, $5 / $10 / $15 for 3 / 2 / 1 characters in USDG. The ETH price is a fixed amount per tier that the registrar owner sets, not an oracle price, so in dollars it drifts with ETH. `checkName` returns both as currently set.
 
 ## Errors
 

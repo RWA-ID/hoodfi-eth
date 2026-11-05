@@ -77,7 +77,10 @@ export interface NameCheck {
   /** Why it can't be registered, in a sentence you can show. Undefined when available. */
   reason?: string
   price: {
-    /** ETH price in wei, from the registrar's live price feed. */
+    /**
+     * ETH price in wei: a fixed per-tier amount the registrar owner sets, not an oracle
+     * price, so its dollar value moves with ETH. Read fresh on every call.
+     */
     wei: bigint
     /** USDG price, 6 decimals. */
     usdg: bigint
@@ -250,7 +253,7 @@ export function createHoodfiClient(options: HoodfiClientOptions = {}): HoodfiCli
     }
   }
 
-  /** Is a name free, and what does it cost? Prices are live from the registrar. */
+  /** Is a name free, and what does it cost? Prices are read from the registrar on each call. */
   async function checkName(name: string): Promise<NameCheck> {
     const label = requireLabel(name)
     const { status, wei, usdg, paused } = await readRegistrar(label)
@@ -403,7 +406,7 @@ export function createHoodfiClient(options: HoodfiClientOptions = {}): HoodfiCli
    * argument. Sign with `account` or the name goes to the actual signer.
    *
    * `payWith: 'usdg'` adds an approve step when the allowance is short. `overpayBps`
-   * (ETH only, default 100 = 1%) absorbs price-feed movement between quote and send;
+   * (ETH only, default 100 = 1%) covers the owner repricing between quote and send;
    * the registrar refunds anything above the price to the sender.
    */
   async function buildRegistration(args: {

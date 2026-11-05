@@ -25,7 +25,7 @@ const hoodfi = createHoodfiClient()
 await hoodfi.resolve('gm')                          // owner, addresses, records, website (or null)
 await hoodfi.getSendAddress('gm', 'robinhood')      // that chain's record only, never a fallback
 await hoodfi.lookupAddress('0x…')                   // { primary, names } for a wallet
-await hoodfi.checkName('alice')                     // availability + live price
+await hoodfi.checkName('alice')                     // availability + current price
 await hoodfi.buildRegistration({ name: 'alice', account }) // steps to sign and send
 ```
 

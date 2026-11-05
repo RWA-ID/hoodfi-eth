@@ -1,6 +1,6 @@
 {
   "name": "@hoodfi/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Resolve, reverse-look-up and register *.hoodfi.eth names on Robinhood Chain. Typed, keyless, viem-based.",
   "type": "module",
   "main": "./dist/index.js",
