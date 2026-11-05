@@ -17,7 +17,7 @@ registry and L1 resolver are built on. Durin's own deploy guide is kept at
 | [`L2Registry`](./src/L2Registry.sol) (hoodfi.eth) | Robinhood Chain | [`0xf2bABA012244bdD7445129597350054E1B3aEe5C`](https://robinhoodchain.blockscout.com/address/0xf2bABA012244bdD7445129597350054E1B3aEe5C) | HoodFi Safe |
 | [`HoodfiRegistrar`](./src/hoodfi/HoodfiRegistrar.sol) v2 | Robinhood Chain | [`0x56be5565acc823f4195c2cf3b9046C083633209a`](https://robinhoodchain.blockscout.com/address/0x56be5565acc823f4195c2cf3b9046C083633209a) | HoodFi Safe |
 | [`HoodfiPartnerRouter`](./src/hoodfi/HoodfiPartnerRouter.sol) | Robinhood Chain | [`0xb7bd5f2c7c445ddc5d55ebd9b8f6a20c2e6e4b5d`](https://robinhoodchain.blockscout.com/address/0xb7bd5f2c7c445ddc5d55ebd9b8f6a20c2e6e4b5d) | HoodFi Safe |
-| [`HoodfiSites`](./src/hoodfi/HoodfiSites.sol) | Robinhood Chain | [`0x90517237F52caC977398CA1391b3B006bA028c99`](https://robinhoodchain.blockscout.com/address/0x90517237F52caC977398CA1391b3B006bA028c99) | Deployer `0x5f11…165b` |
+| [`HoodfiSites`](./src/hoodfi/HoodfiSites.sol) | Robinhood Chain | [`0x90517237F52caC977398CA1391b3B006bA028c99`](https://robinhoodchain.blockscout.com/address/0x90517237F52caC977398CA1391b3B006bA028c99) | HoodFi Safe |
 
 The HoodFi Safe is a 2-of-3 at
 [`0x837Fa2d033f1F7275452D780a5E54Eda903C1330`](https://etherscan.io/address/0x837Fa2d033f1F7275452D780a5E54Eda903C1330),
