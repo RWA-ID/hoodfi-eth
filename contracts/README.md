@@ -1,128 +1,67 @@
-# <img src="https://github.com/user-attachments/assets/4f01ef6e-3c1e-4201-83db-fac4b383a3b0" alt="durin" width="33%">
+# hoodfi.eth contracts
 
-Durin is an opinionated approach to ENS L2 subnames. Durin consists of:
+Foundry workspace for HoodFi Names: lifetime `*.hoodfi.eth` ENS names, minted as ERC-721s
+on Robinhood Chain (chain id 4663) and resolved from Ethereum mainnet over CCIP-Read.
 
-1. Registry factory on [supported chains](#active-registry-factory-deployments)
-2. Registrar template
-3. Gateway server
-4. L1 resolver
+The HoodFi contracts are in [`src/hoodfi/`](./src/hoodfi/). Everything else under `src/` is
+[Durin](https://github.com/namestonehq/durin) by NameStone (MIT), vendored as the base the
+registry and L1 resolver are built on. Durin's own deploy guide is kept at
+[`DURIN.md`](./DURIN.md). It describes the upstream template, not this deployment.
 
-## Instructions To Deploy L2 ENS Subnames
+## Live deployments
 
-This repo is meant to be used in conjuction with [Durin.dev](https://durin.dev/), which provides a frontend for deploying the registry & enabling name resolution.
+| Contract | Chain | Address | Owner |
+|---|---|---|---|
+| [`HoodfiL1Resolver`](./src/hoodfi/HoodfiL1Resolver.sol) | Ethereum mainnet | [`0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2`](https://etherscan.io/address/0x37215Dd89D0Fd4ea0Dbce690bDe58490fB7f7cF2) | HoodFi Safe |
+| [`HoodfiDonations`](./src/hoodfi/HoodfiDonations.sol) v2 (closed since ENSv2) | Ethereum mainnet | [`0x588c597bA6a3685511617bCece8457ca7648c9c0`](https://etherscan.io/address/0x588c597bA6a3685511617bCece8457ca7648c9c0) | Not moved; holds no funds |
+| [`L2Registry`](./src/L2Registry.sol) (hoodfi.eth) | Robinhood Chain | [`0xf2bABA012244bdD7445129597350054E1B3aEe5C`](https://robinhoodchain.blockscout.com/address/0xf2bABA012244bdD7445129597350054E1B3aEe5C) | HoodFi Safe |
+| [`HoodfiRegistrar`](./src/hoodfi/HoodfiRegistrar.sol) v2 | Robinhood Chain | [`0x56be5565acc823f4195c2cf3b9046C083633209a`](https://robinhoodchain.blockscout.com/address/0x56be5565acc823f4195c2cf3b9046C083633209a) | HoodFi Safe |
+| [`HoodfiPartnerRouter`](./src/hoodfi/HoodfiPartnerRouter.sol) | Robinhood Chain | [`0xb7bd5f2c7c445ddc5d55ebd9b8f6a20c2e6e4b5d`](https://robinhoodchain.blockscout.com/address/0xb7bd5f2c7c445ddc5d55ebd9b8f6a20c2e6e4b5d) | HoodFi Safe |
+| [`HoodfiSites`](./src/hoodfi/HoodfiSites.sol) | Robinhood Chain | [`0x90517237F52caC977398CA1391b3B006bA028c99`](https://robinhoodchain.blockscout.com/address/0x90517237F52caC977398CA1391b3B006bA028c99) | Deployer `0x5f11…165b` |
 
-### 1. Deploy a Registry
+The HoodFi Safe is a 2-of-3 at
+[`0x837Fa2d033f1F7275452D780a5E54Eda903C1330`](https://etherscan.io/address/0x837Fa2d033f1F7275452D780a5E54Eda903C1330),
+at the same address on both chains. It also holds hoodfi.eth itself and renews it monthly.
+Each owner can be checked live with `cast call <address> "owner()(address)"`.
 
-Go to [Durin.dev](https://durin.dev/). Choose Sepolia or Mainnet ENS name resolution. Pick a supported L2. Deploy.
+Minted names can't be seized. No admin burn or transfer function exists, and owners write
+their own records on the L2Registry. What the owner keys control, and what they can't
+touch, is set out in the root README under
+[Trust model, stated honestly](../README.md#trust-model-stated-honestly).
 
-Once complete, note the deployed L2 registry address.
+## What each contract does
 
-### 2. Enable Name Resolution
+- **`HoodfiL1Resolver`**: the mainnet resolver for hoodfi.eth. It implements ENSIP-10 `resolve`,
+  answers apex queries from onchain storage, and sends every subname query to the gateway with
+  EIP-3668 `OffchainLookup`. Gateway answers are checked against `signer()`.
+- **`L2Registry`**: Durin's registry. Each name is an ERC-721 whose token id is its namehash,
+  and its address, text and contenthash records are stored with it. It has no transfer hook,
+  so records do not follow the token on a sale.
+- **`HoodfiRegistrar`**: the public mint, paid in ETH (`register`) or USDG
+  (`registerWithUsdc`) at tier prices. It sets the ETH (60) and Robinhood Chain (2147488311)
+  address records to the minter, and it enforces the blocklist and the short-name rules.
+- **`HoodfiPartnerRouter`**: lets a platform resell 4+ character names at its own price. It
+  re-points the name's address records at the buyer before transferring the token, and holds
+  the partner's margin as a pull payment. It is deliberately **not** an approved registrar.
+- **`HoodfiSites`**: takes payment for HoodFi Sites publishing and pays out partner template
+  shares. It records payment and cannot write a `contenthash`.
+- **`HoodfiDonations`**: the original mainnet donation drive for hoodfi.eth's registration.
+  It has been closed since ENSv2 and is still read for `shortCredits`.
 
-To connect your newly deployed L2 registry with your ENS name on L1, change the name's resolver to `0x8A968aB9eb8C084FBC44c531058Fc9ef945c3D61` and call `setL2Registry()` with the L2 registry's address and chain ID.
-
-Both of these steps can be done via [durin.dev](https://durin.dev) or the [ENS manager app](http://app.ens.domains).
-
-### 3. Customize the Registrar Template
-
-> [!NOTE]  
-> Durin uses [Foundry](https://github.com/foundry-rs/foundry). To install it, follow the [instructions](https://book.getfoundry.sh/getting-started/installation).
-
-Durin provides a registrar template that is meant to be customized. Common customizations include adding pricing, implementing allow lists, and enabling token gating.
-
-You can either clone this repo and modify [L2Registrar.sol](./src/examples/L2Registrar.sol) directly, or write a new contract in your existing project. If you prefer the latter, simply import [IL2Registry.sol](./src/interfaces/IL2Registry.sol) to your project so you can interact with the registry you deployed earlier and skip to step 5.
-
-To get started, clone this repo:
-
-```shell
-git clone https://github.com/namestonehq/durin.git
-cd durin
-```
-
-Once cloned, modify [L2Registrar.sol](./src/examples/L2Registrar.sol) as needed.
-
-### 4. Deploy L2Registrar Contract
-
-To deploy the L2Registrar contract, you will need to prepare a `.env` file and run the deploy script.
-
-```shell
-cp .env.example .env
-```
-
-Open the new `.env` file and set the variables that are marked as required at the top, then run the following command:
-
-```shell
-bash ./bash/DeployL2Registrar.sh
-```
-
-### 5. Connect Registrar to L2Registry
-
-Only approved Registrars can call `createSubnode()` on the Registry. The owner of the registry can add as many Registrars as they want.
-
-To add a Registrar, visit your Registry on Etherscan and call `addRegistrar()` with the newly deployed Registrar's address.
-
-Finally, you'll be able to mint subnames via the Registrar.
-
-## Contracts
-
-This repo includes all of the smart contract (L1 and L2) required to enable subname issuance.
-
-- [L1Resolver](./src/L1Resolver.sol): L1 contract that forwards ENS queries to the L2.
-- [L2RegistryFactory](./src/L2RegistryFactory.sol): L2 contract for creating new registries.
-- [L2Registry](./src/L2Registry.sol): L2 contract that stores subnames as ERC721 NFTs. This contract is also responsible for storing data like address and text records.
-- [L2Registrar](./src/examples/L2Registrar.sol): An example registrar contract that can mint subnames. This is meant to be customized.
-
-## Active Registry Factory Deployments
-
-| L2                 | Registry Factory                                                                                                                         |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Arbitrum           | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://arbiscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                   |
-| Arbitrum Sepolia   | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.arbiscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)           |
-| Base               | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://basescan.org/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                  |
-| Base Sepolia       | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.basescan.org/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)          |
-| Celo               | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://celoscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                   |
-| Celo Sepolia       | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://celo-sepolia.blockscout.com/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)   |
-| Linea              | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://lineascan.build/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)               |
-| Linea Sepolia      | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.lineascan.build/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)       |
-| Optimism           | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://optimistic.etherscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)       |
-| Optimism Sepolia   | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia-optimism.etherscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d) |
-| Polygon            | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://polygonscan.com/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)               |
-| Polygon Amoy       | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://amoy.polygonscan.com/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)          |
-| Scroll             | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://scrollscan.com/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                |
-| Scroll Sepolia     | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.scrollscan.com/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)        |
-| Worldchain         | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://worldscan.org/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                 |
-| Worldchain Sepolia | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.worldscan.org/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)         |
-
-## Architecture
-
-![architecture](https://github.com/user-attachments/assets/06065784-0516-498e-a512-d7b63892599a)
-
-> [!NOTE]  
-> A dependency for supporting `-withSignature` methods on new chains is a deployment of UniversalSigValidator to `0x164af34fAF9879394370C7f09064127C043A35E9`. The deployment is permissionless and can be found [here](https://github.com/ensdomains/ens-contracts/blob/8c414e4c41dce49c49efd0bf82c10a145cdc8f0a/deploy/utils/00_deploy_universal_sig_validator.ts).
-
-## Deploying Durin
-
-> [!NOTE]  
-> Developers that want to issue subnames on one of the chains listed above in the [Active Registry Factory Deployments](#active-registry-factory-deployments) section do not need to read any further.
-
-1. Create a `.env` file via `cp .env.example .env`. You don't need to change anything.
-2. Add/uncomment the chains you want to deploy to in [foundry.toml](./foundry.toml#L23) and [DeployL2Contracts.s.sol](./scripts/DeployL2Contracts.s.sol#L30).
-3. Run `./bash/DeployL2Contracts.sh` to deploy the registry implementation and factory contracts to the specified chains.
-4. Run `./bash/VerifyL2Contracts.sh` for each chain you deployed to, changing `NETWORK` and `BLOCK_EXPLORER_API_KEY` in the files, to verify all the contracts you just deployed.
-5. Add your chain(s) to [query.ts](./gateway/src/ccip-read/query.ts#L8) in the gateway config.
-
-## Initial Setup
-
-Run `./bash/DeployL1Resolver.sh` followed by `./bash/VerifyL1Resolver.sh` to deploy and verify the L1 Resolver. This is L2 chain agnostic, so only needs to be done once.
-
-## CREATE2 Tips
-
-For generating a CREATE2 salt to deploy the L2RegistryFactory, run the command below. Use [./scripts/L2RegistryFactoryInitCode.s.sol](./scripts/L2RegistryFactoryInitCode.s.sol) to calculate the init code hash.
+## Tests
 
 ```bash
-export FACTORY="0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2"
-export INIT_CODE_HASH="<HASH_OF_YOUR_CONTRACT_INIT_CODE_GOES_HERE>"
-cast create2 --starts-with dddddd --deployer $FACTORY --init-code-hash $INIT_CODE_HASH
+forge test --match-path "test/hoodfi/*"                    # unit tests, no network
+MAINNET_RPC_URL=https://ethereum-rpc.publicnode.com \
+  forge test --match-path "test/hoodfi/*"                  # + fork tests against live ENS
 ```
 
-Once you have a salt that you're happy with, update `L2_REGISTRY_FACTORY_SALT` in `.env` so it's used in the deployment script.
+That's 128 tests in 7 suites, and CI runs the unit set on every pull request. Dependencies are
+vendored under `lib/`, so no submodule checkout is needed.
+
+## Deploy scripts
+
+The HoodFi deploy scripts are in [`scripts/hoodfi/`](./scripts/hoodfi/). Safe batches
+(Transaction Builder JSON, nothing signed or sent) are in [`bash/`](./bash/), for example
+`SafeRenewHoodfi.sh` and `SafeOpenShorts.sh`. The full runbook is in the root README under
+[Deploy runbook](../README.md#deploy-runbook).

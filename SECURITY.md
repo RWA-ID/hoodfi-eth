@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-**Email [hector@rwa-id.com](mailto:hector@rwa-id.com)** with "hoodfi security" in the
+**Email [hello@hoodfi.name](mailto:hello@hoodfi.name)** with "hoodfi security" in the
 subject. Please do not open a public issue for anything that could put names, records
 or funds at risk.
 
