@@ -7,6 +7,32 @@ free and needs no API key. Source for all of it is in this repository (MIT).
 resolves from Ethereum mainnet through `HoodfiL1Resolver` over CCIP-Read (ENSIP-10 +
 EIP-3668). Addresses are in [`contracts/README.md`](../contracts/README.md).
 
+## Quick start: `@hoodfi/sdk`
+
+Sections 1 and 2 below, plus checking and registering names, are wrapped in one typed,
+keyless package ([`sdk/`](../sdk/README.md)). It's viem-based and builds unsigned
+transactions; you sign.
+
+```sh
+npm install @hoodfi/sdk viem
+```
+
+```ts
+import { createHoodfiClient } from '@hoodfi/sdk'
+
+const hoodfi = createHoodfiClient()
+
+await hoodfi.resolve('gm')                          // owner, addresses, records, website (or null)
+await hoodfi.getSendAddress('gm', 'robinhood')      // that chain's record only, never a fallback
+await hoodfi.lookupAddress('0x…')                   // { primary, names } for a wallet
+await hoodfi.checkName('alice')                     // availability + live price
+await hoodfi.buildRegistration({ name: 'alice', account }) // steps to sign and send
+```
+
+Failures throw a `HoodfiError` with a `code`. `UNREADABLE` means the RPC or API didn't
+answer: retry, and never show it as "not registered". The rest of this page explains what
+the SDK does under the hood, for anyone calling the contracts and endpoints directly.
+
 ## 1. Name → address
 
 Use your ENS library as you would for any `.eth` name. viem, ethers and wagmi follow the

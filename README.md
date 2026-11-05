@@ -21,7 +21,7 @@ and app through the ENS Universal Resolver.
 
 ---
 
-> **Integrating?** Start with [docs/INTEGRATING.md](docs/INTEGRATING.md): one page on resolving, sending, reverse lookup, the widget and the MCP server.
+> **Integrating?** Start with [docs/INTEGRATING.md](docs/INTEGRATING.md): one page on resolving, sending, reverse lookup, the widget and the MCP server. Or `npm install @hoodfi/sdk` ([sdk/](sdk/README.md)).
 
 ## Live deployments
 
@@ -564,6 +564,7 @@ Resolution design notes:
 | `DEPLOY.md` | The v2 deploy runbook, in the order it must be run; §8 is the post-ENSv2 Safe routine |
 | `SECURITY.md` | How to report a vulnerability |
 | `docs/INTEGRATING.md` | One-page guide for wallets, launchpads and agents: which address record to read per chain, reverse lookup, the widget, the MCP server |
+| `sdk/` | `@hoodfi/sdk` on npm: typed, keyless viem client for resolve, send address, reverse lookup and registration |
 | `contracts/README.md` | The contracts' own index: live addresses, owners, tests. Durin's upstream deploy guide is kept as `contracts/DURIN.md` |
 | `.github/workflows/ci.yml` | CI on every pull request: Foundry tests, gateway typecheck + offline tests, MCP typecheck + tests, frontend and builder tests |
 | `docs/make-banner.mjs` | Renders the README banner in the OG cards' own system. Lives outside `frontend/public/` so it isn't pinned to IPFS on every deploy |
