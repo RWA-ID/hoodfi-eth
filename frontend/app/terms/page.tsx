@@ -11,7 +11,7 @@ export const metadata: Metadata = ogMetadata({
   image: "/og/legal.png",
 });
 
-const UPDATED = "October 29, 2026";
+const UPDATED = "November 5, 2026";
 
 export default function TermsPage() {
   return (
@@ -101,10 +101,12 @@ export default function TermsPage() {
               Each donated year earned one short-name credit, a utility credit
               redeemable for minting one subname of 1 to 3 characters without paying
               its tier price, subject to availability, first come, first served.
-              Credits are recorded onchain, do not expire, and are not transferable
-              financial instruments. A credit is redeemable only for a name that is
-              still unregistered and not blocked; it is not a reservation of any
-              particular name.
+              Credits are recorded onchain and are not transferable financial
+              instruments. A credit was redeemable only for a name that was still
+              unregistered and not blocked; it was not a reservation of any particular
+              name. Redemption of credits for names closed in November 2026. Holders
+              of unused credits may contact HoodFi at hello@hoodfi.name or @hoodfieth on X
+              to have them paid back in ETH or USDG.
             </>,
           ],
         },

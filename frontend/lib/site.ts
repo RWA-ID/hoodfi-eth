@@ -135,6 +135,7 @@ export const BUILDER_URL =
 export const X_URL = "https://x.com/hoodfieth";
 export const DISCORD_URL = "https://discord.gg/4x7pY9jXK";
 export const REPO_URL = "https://github.com/RWA-ID/hoodfi-eth";
+export const CONTACT_EMAIL = "hello@hoodfi.name";
 
 /**
  * The widget's own README, which is the integration documentation — the setPartner call,

@@ -49,6 +49,7 @@ import { describeWalletError, walletErrorMessage } from "@/lib/errors";
 import { ArrowNE } from "./ArrowNE";
 import { ShareOnX } from "./ShareOnX";
 import { useMintQuery } from "./MintQuery";
+import { useCreditsClosed } from "@/lib/credits";
 
 type Voucher = {
   totalCredits: string;
@@ -216,7 +217,12 @@ export function MintPanel({
   // `!shortsOpen` would silently charge a donor who already holds a free credit.
   // Not on a partner sale: the router cannot sell a short name at all, so asking the
   // gateway for a credit voucher is a call whose answer can never be used.
-  const needsVoucher = short && !viaPartner;
+  // Once the Safe zeroes `creditSigner`, every voucher reverts, so stop asking for one:
+  // the gateway would still sign it. Credit holders get CreditsClosedNotice instead.
+  // `undefined` (read pending) still fetches, so the guard below keeps the paid path
+  // shut until we know, exactly as before vouchers could close.
+  const creditsClosed = useCreditsClosed();
+  const needsVoucher = short && !viaPartner && creditsClosed !== true;
   const shortsLocked = short && !shortsOpen;
   useEffect(() => {
     if (!needsVoucher || !address) {
@@ -272,7 +278,10 @@ export function MintPanel({
   // this the paid path would be live during the fetch and a fast click would charge a
   // donor for a name their credit mints free.
   const creditUnknown =
-    short && !!address && (voucherLoading || (!voucher && !voucherError));
+    // needsVoucher, not just `short`: with vouchers closed no request is made, and
+    // "no voucher, no error" must not read as "still loading" or the paid path for
+    // every short name stays shut.
+    needsVoucher && !!address && (voucherLoading || (!voucher && !voucherError));
 
   const canMintPublic =
     settledStatus === MINT_STATUS.AVAILABLE &&

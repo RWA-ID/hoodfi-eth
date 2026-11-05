@@ -59,7 +59,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "Can I get a 1–3 character name?",
-    a: "Yes. Short names are on public sale at tier prices: $5 for three characters, $10 for two, $15 for one. Short-name credits earned by donating before ENSv2 still mint them free.",
+    a: "Yes. Short names are on public sale at tier prices: $5 for three characters, $10 for two, $15 for one. Short-name credits from past donations have closed; holders of unused credits can contact us to be paid back in ETH or USDG.",
   },
   {
     q: "Who keeps hoodfi.eth alive?",
