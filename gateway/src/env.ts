@@ -21,6 +21,10 @@ export interface Env {
    * than assuming — an unset address must never read as "yes, paid".
    */
   SITES_ADDRESS?: Hex
+  /** HoodfiPartnerRouter on Robinhood Chain. Its logs back /partner/:address/sales. */
+  PARTNER_ROUTER_ADDRESS?: Hex
+  /** The router's deploy block; bounds the partner-sales log query. */
+  PARTNER_ROUTER_DEPLOY_BLOCK?: string
   /** Public origin the share pages link back to. Defaults to the hosted domain. */
   SITE_URL?: string
   /** Pinata JWT for avatar uploads. Secret — it must never reach the bundle. */
