@@ -97,6 +97,12 @@ You set your own price in USDG, and the margin over the base fee accrues to `pay
 payment. Partner sales are 4+ character names only. Setup, options and theming are in
 [`widget/README.md`](../widget/README.md).
 
+If you call `registerViaPartner` yourself instead of linking buyers to hoodfi.name, approve
+the router for **exactly** the quoted `partnerPrice`, never an unlimited amount. The router
+charges the price that's current when the purchase executes. With an exact approval, a price
+change between quote and purchase makes the transaction fail instead of charging the buyer
+more. Read the price with `quote(label, partner)` right before building the approval.
+
 To mint directly instead, `HoodfiRegistrar` exposes `status(label)` and `priceOf(label)`
 for reads, and `register(label)` (ETH) and `registerWithUsdc(label)` (USDG) for minting. The
 name is minted to the transaction sender, and there is no recipient argument.

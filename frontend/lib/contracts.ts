@@ -674,6 +674,9 @@ export const PARTNER_ROUTER_ADDRESS =
   addressEnv(process.env.NEXT_PUBLIC_PARTNER_ROUTER_ADDRESS) ??
   ("0xB7Bd5F2c7c445dDc5d55eBD9b8F6A20C2e6e4b5d" as const);
 
+/** HoodfiSites: takes payment for HoodFi Sites publishing (build.hoodfi.name). Safe-owned. */
+export const SITES_ADDRESS = "0x90517237F52caC977398CA1391b3B006bA028c99" as const;
+
 export const partnerRouterAbi = [
   {
     type: "function",

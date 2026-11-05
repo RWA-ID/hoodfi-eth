@@ -6,6 +6,8 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { PageView } from "@/components/PageView";
 import { PartnerForm } from "@/components/PartnerForm";
+import { PARTNER_ROUTER_ADDRESS } from "@/lib/contracts";
+import { ROBINHOOD_EXPLORER } from "@/lib/chains";
 import { ogMetadata } from "@/lib/metadata";
 import { REPO_URL, WIDGET_DOCS_URL } from "@/lib/site";
 
@@ -213,13 +215,27 @@ export default function PartnerPage() {
           </div>
 
           <p className="mt-8 max-w-[70ch] text-sm leading-relaxed text-[var(--dim)]">
-            Names of four characters and up only. One to three characters are reserved for
-            the donors funding hoodfi.eth&apos;s registration, and the router refuses them
-            — including after those tiers open to everyone.{" "}
+            Names of four characters and up only. One to three character names are
+            premium inventory sold directly on hoodfi.name, and the router refuses them.{" "}
             <Link href="/short-names/" className="link">
-              Why short names are held back
+              About short names
             </Link>
             .
+          </p>
+
+          <p className="mt-4 max-w-[70ch] text-sm leading-relaxed text-[var(--dim)]">
+            Sales settle through <span className="font-bold text-[var(--fg)]">HoodfiPartnerRouter</span>{" "}
+            on Robinhood Chain:{" "}
+            <a
+              href={`${ROBINHOOD_EXPLORER}/address/${PARTNER_ROUTER_ADDRESS}?tab=contract`}
+              target="_blank"
+              rel="noreferrer"
+              className="link data break-all"
+            >
+              {PARTNER_ROUTER_ADDRESS}
+            </a>
+            . Its source is verified on Blockscout and Sourcify, and it is owned by the HoodFi
+            Safe.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-2.5">
