@@ -93,3 +93,23 @@ jobs:
           cache-dependency-path: builder/package-lock.json
       - run: npm ci
       - run: npm test
+
+  sdk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sdk/package-lock.json
+      # These two codecs are copies; a drifted copy is a well-formed record that decodes wrong.
+      - name: Shared codecs match their originals
+        run: |
+          cmp ../frontend/shared/contenthash.ts src/contenthash.ts
+          cmp ../mcp/src/xrp.ts src/xrp.ts
+      - run: npm ci
+      - run: npm test
