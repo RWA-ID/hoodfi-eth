@@ -10,6 +10,7 @@ import { SITE } from "@/lib/site";
 import { ROBINHOOD_CHAIN_ID } from "@/lib/chains";
 import { ConnectionGuard } from "@/components/ConnectionGuard";
 import { SocialDefaultNetwork } from "@/components/SocialDefaultNetwork";
+import { CreditsClosedNotice } from "@/components/CreditsClosedNotice";
 
 /**
  * wagmi (via Reown AppKit adapter) + react-query. createAppKit mounts the
@@ -167,6 +168,9 @@ export function Providers({ children }: { children: ReactNode }) {
         <ConnectionGuard />
         {/* Renders nothing; mounted here so it sees every connection, on every route. */}
         <SocialDefaultNetwork />
+        {/* Inert until the registrar's creditSigner is zeroed; then shown once to a
+            donor still holding credits, on whatever route they land on. */}
+        <CreditsClosedNotice />
         {children}
       </QueryClientProvider>
     </WagmiProvider>

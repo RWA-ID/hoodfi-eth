@@ -340,6 +340,13 @@ export const registrarAbi = [
   },
   {
     type: "function",
+    name: "creditSigner",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    type: "function",
     name: "creditsSpent",
     stateMutability: "view",
     inputs: [{ name: "donor", type: "address" }],

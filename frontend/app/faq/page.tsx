@@ -52,15 +52,15 @@ const GROUPS: { heading: string; items: FaqItem[] }[] = [
       },
       {
         q: "I donated. What happens to my credits?",
-        a: "Nothing changes. Each year you donated earned one credit, and each credit still mints any 1, 2 or 3 character name free. Short names going on sale doesn't affect that.",
+        a: "Each year donated earned one credit for a free 1, 2 or 3 character name. Credit minting closed in November 2026, after a security review of the registrar. Names already minted with credits are unaffected and yours for life. If you still hold unused credits, contact us on X (@hoodfieth) or at hello@hoodfi.name with your wallet address, and we'll pay them back in ETH or USDG.",
       },
       {
-        q: "How does a credit earned on Ethereum work on Robinhood Chain?",
-        a: "Our gateway reads your credit balance from the donation contract on mainnet and signs an attestation of it. The registrar on Robinhood Chain accepts that signature and tracks how many credits you've spent. The attestation covers your cumulative total, which only grows, so an old one can never be replayed to mint more than you earned. Anyone can independently verify the figure by reading shortCredits(yourAddress) on Ethereum.",
+        q: "How did a credit earned on Ethereum work on Robinhood Chain?",
+        a: "Our gateway read your credit balance from the donation contract on mainnet and signed an attestation of it. The registrar on Robinhood Chain accepted that signature and tracks how many credits you've spent. The attestation covers your cumulative total, which only grows, so an old one can never be replayed to mint more than you earned. Anyone can independently verify the figure by reading shortCredits(yourAddress) on Ethereum.",
       },
       {
-        q: "Do credits expire?",
-        a: "No. Unspent credits stay spendable indefinitely, before and after short names went on public sale.",
+        q: "Can I still use my credits?",
+        a: "Credits can no longer be spent on names: credit minting closed in November 2026. Unused credits don't lapse, though. Contact us any time and we'll pay them back in ETH or USDG.",
       },
       {
         q: "Where did donated ETH go?",

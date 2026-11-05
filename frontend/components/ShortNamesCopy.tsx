@@ -30,8 +30,8 @@ export function ShortNamesCopy({ as = "h2" }: { as?: "h1" | "h2" }) {
       <p className="mt-4 max-w-[48ch] text-sm leading-relaxed text-[var(--dim)]">
         The parent name is our job, not yours: the HoodFi Safe renews hoodfi.eth{" "}
         {RENEWAL_BLOCK_YEARS} years at a time, every month, until it reaches{" "}
-        {GOAL_YEAR_LABEL}. Short-name credits earned by donating before ENSv2 still mint
-        free, so an early credit never loses its value.
+        {GOAL_YEAR_LABEL}. Short-name credits from past donations have closed; any unused
+        ones are paid back in ETH or USDG on request.
       </p>
     </div>
   );
