@@ -35,9 +35,16 @@ jobs:
         working-directory: gateway
     steps:
       - uses: actions/checkout@v4
+      # package-lock.json is the maintained lockfile here; bun.lock predates workers-og.
+      # npm installs, bun only runs the TypeScript test scripts.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: gateway/package-lock.json
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bunx tsc --noEmit
+      - run: npm ci
+      - run: npx tsc --noEmit
       - run: bun scripts/site-path.test.ts
       - run: bun scripts/revert-classification.test.ts
 
